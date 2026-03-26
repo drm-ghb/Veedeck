@@ -7,7 +7,7 @@ import RenderViewer from "@/components/render/RenderViewer";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { getRoomIcon } from "@/lib/roomIcons";
-import { ChevronLeft, MessageSquare, UserRound, Sun, Moon, Monitor } from "lucide-react";
+import { ChevronLeft, MessageSquare, UserRound, Sun, Moon, Monitor, Lock } from "lucide-react";
 import { useTheme, type Theme } from "@/lib/theme";
 import { pusherClient } from "@/lib/pusher";
 import { toast } from "sonner";
@@ -55,6 +55,15 @@ interface Project {
   description: string | null;
   rooms: Room[];
   allowDirectStatusChange: boolean;
+  allowClientComments: boolean;
+  allowClientAcceptance: boolean;
+  requireClientEmail: boolean;
+  hideCommentCount: boolean;
+  clientWelcomeMessage: string | null;
+  clientLogoUrl: string | null;
+  accentColor: string | null;
+  hasPassword: boolean;
+  shareExpiresAt: string | null;
 }
 
 export default function SharePage() {
@@ -62,34 +71,79 @@ export default function SharePage() {
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [expired, setExpired] = useState(false);
+
+  // Password gate
+  const [passwordRequired, setPasswordRequired] = useState(false);
+  const [passwordInput, setPasswordInput] = useState("");
+  const [passwordError, setPasswordError] = useState(false);
+  const [passwordLoading, setPasswordLoading] = useState(false);
+  const [unlockedPassword, setUnlockedPassword] = useState<string | null>(null);
+
+  // Client identity
   const [authorName, setAuthorName] = useState("");
+  const [authorEmail, setAuthorEmail] = useState("");
   const [nameSet, setNameSet] = useState(false);
   const [nameInput, setNameInput] = useState("");
+  const [emailInput, setEmailInput] = useState("");
 
   const [view, setView] = useState<"rooms" | "room" | "render" | "settings">("rooms");
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
   const [selectedRender, setSelectedRender] = useState<Render | null>(null);
   const [pendingRequests, setPendingRequests] = useState<Set<string>>(new Set());
 
+  function buildHeaders(): HeadersInit {
+    const h: Record<string, string> = {};
+    if (unlockedPassword) h["x-share-password"] = unlockedPassword;
+    return h;
+  }
+
+  async function fetchProject(password?: string) {
+    const headers: Record<string, string> = {};
+    if (password) headers["x-share-password"] = password;
+
+    const r = await fetch(`/api/share/${token}`, { headers });
+
+    if (r.status === 410) { setExpired(true); return null; }
+    if (r.status === 401) {
+      const data = await r.json();
+      if (data.passwordRequired) { setPasswordRequired(true); return null; }
+      setNotFound(true);
+      return null;
+    }
+    if (!r.ok) { setNotFound(true); return null; }
+    return r.json() as Promise<Project>;
+  }
+
   useEffect(() => {
     const saved = localStorage.getItem("renderflow-author");
-    if (saved) {
-      setAuthorName(saved);
-      setNameSet(true);
-    }
+    const savedEmail = localStorage.getItem("renderflow-author-email");
+    if (saved) { setAuthorName(saved); setNameSet(true); }
+    if (savedEmail) setAuthorEmail(savedEmail);
 
-    fetch(`/api/share/${token}`)
-      .then((r) => {
-        if (!r.ok) { setNotFound(true); return null; }
-        return r.json();
-      })
-      .then((data) => {
-        if (data) setProject(data);
-      })
-      .finally(() => setLoading(false));
+    fetchProject().then((data) => {
+      if (data) setProject(data);
+    }).finally(() => setLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
+
+  // Apply accent color when project loads
+  useEffect(() => {
+    if (project?.accentColor) {
+      document.documentElement.style.setProperty("--share-accent", project.accentColor);
+    }
+    return () => {
+      document.documentElement.style.removeProperty("--share-accent");
+    };
+  }, [project?.accentColor]);
+
+  // Subscribe to share channel after project loads
+  useEffect(() => {
+    if (!project) return;
 
     const channel = pusherClient.subscribe(`share-${token}`);
     channel.unbind_all();
+
     channel.bind("status-request-resolved", (data: {
       requestId: string;
       renderId: string;
@@ -98,39 +152,84 @@ export default function SharePage() {
       newRenderStatus: RenderStatus;
     }) => {
       toast(data.message, { duration: 8000 });
-      setPendingRequests((prev) => {
-        const next = new Set(prev);
-        next.delete(data.renderId);
-        return next;
-      });
-      const newStatus = data.newRenderStatus;
+      setPendingRequests((prev) => { const next = new Set(prev); next.delete(data.renderId); return next; });
+      updateRenderInState(data.renderId, data.newRenderStatus);
+    });
+
+    channel.bind("render-status-changed", (data: { renderId: string; status: RenderStatus }) => {
+      updateRenderInState(data.renderId, data.status);
+      toast(data.status === "ACCEPTED" ? "Render został zaakceptowany" : "Status renderu zmieniony na: Do weryfikacji", { duration: 5000 });
+    });
+
+    channel.bind("new-reply", (data: { commentId: string; renderId: string; reply: Reply }) => {
       setProject((prev) => {
         if (!prev) return prev;
         return {
           ...prev,
           rooms: prev.rooms.map((room) => ({
             ...room,
-            renders: room.renders.map((r) =>
-              r.id === data.renderId ? { ...r, status: newStatus } : r
-            ),
+            renders: room.renders.map((r) => {
+              if (r.id !== data.renderId) return r;
+              return {
+                ...r,
+                comments: r.comments.map((c) => {
+                  if (c.id !== data.commentId) return c;
+                  if (c.replies.some((rep) => rep.id === data.reply.id)) return c;
+                  return { ...c, replies: [...c.replies, data.reply] };
+                }),
+              };
+            }),
           })),
         };
       });
-      setSelectedRender((prev) =>
-        prev?.id === data.renderId ? { ...prev, status: newStatus } : prev
-      );
+      if (data.reply.author !== authorName) {
+        toast(`Nowa odpowiedź od ${data.reply.author}`, { duration: 5000 });
+      }
     });
 
     return () => {
       channel.unbind_all();
       pusherClient.unsubscribe(`share-${token}`);
     };
-  }, [token]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [project?.id, token]);
+
+  function updateRenderInState(renderId: string, status: RenderStatus) {
+    setProject((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        rooms: prev.rooms.map((room) => ({
+          ...room,
+          renders: room.renders.map((r) => r.id === renderId ? { ...r, status } : r),
+        })),
+      };
+    });
+    setSelectedRender((prev) => prev?.id === renderId ? { ...prev, status } : prev);
+  }
+
+  async function handlePasswordSubmit() {
+    if (!passwordInput.trim()) return;
+    setPasswordLoading(true);
+    setPasswordError(false);
+    const data = await fetchProject(passwordInput.trim());
+    if (data) {
+      setUnlockedPassword(passwordInput.trim());
+      setProject(data);
+      setPasswordRequired(false);
+    } else if (!expired && !notFound) {
+      setPasswordError(true);
+    }
+    setPasswordLoading(false);
+  }
 
   function handleSetName() {
     if (!nameInput.trim()) return;
+    if (project?.requireClientEmail && !emailInput.trim()) return;
     localStorage.setItem("renderflow-author", nameInput.trim());
+    if (emailInput.trim()) localStorage.setItem("renderflow-author-email", emailInput.trim());
     setAuthorName(nameInput.trim());
+    setAuthorEmail(emailInput.trim());
     setNameSet(true);
   }
 
@@ -138,12 +237,12 @@ export default function SharePage() {
     if (pendingRequests.has(renderId)) return;
     const res = await fetch(`/api/share/${token}/renders/${renderId}/status-request`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...buildHeaders() },
       body: JSON.stringify({ clientName: authorName }),
     });
     if (res.ok) {
       setPendingRequests((prev) => new Set([...prev, renderId]));
-      toast.success("Prośba o zmianę statusu pliku została wysłana do projektanta.");
+      toast.success("Prośba o zmianę statusu wysłana do projektanta.");
     } else {
       toast.error("Błąd podczas wysyłania prośby.");
     }
@@ -152,30 +251,27 @@ export default function SharePage() {
   async function handleRenderStatusChange(renderId: string, status: RenderStatus) {
     await fetch(`/api/share/${token}/renders/${renderId}`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...buildHeaders() },
       body: JSON.stringify({ status }),
     });
-    // Update local state
-    setProject((prev) => {
-      if (!prev) return prev;
-      return {
-        ...prev,
-        rooms: prev.rooms.map((room) => ({
-          ...room,
-          renders: room.renders.map((r) =>
-            r.id === renderId ? { ...r, status } : r
-          ),
-        })),
-      };
-    });
-    if (selectedRender?.id === renderId) {
-      setSelectedRender((prev) => prev ? { ...prev, status } : prev);
-    }
+    updateRenderInState(renderId, status);
   }
+
+  const accent = project?.accentColor ?? "#2563eb";
 
   if (loading) return (
     <div className="flex items-center justify-center min-h-screen">
       <p className="text-gray-400 animate-pulse">Ładowanie...</p>
+    </div>
+  );
+
+  if (expired) return (
+    <div className="flex items-center justify-center min-h-screen text-center">
+      <div>
+        <p className="text-4xl mb-4">⏰</p>
+        <p className="text-gray-700 font-semibold">Link wygasł</p>
+        <p className="text-gray-400 text-sm mt-1">Ten link do podglądu projektu nie jest już aktywny.</p>
+      </div>
     </div>
   );
 
@@ -188,26 +284,77 @@ export default function SharePage() {
     </div>
   );
 
-  if (!nameSet) return (
+  if (passwordRequired) return (
     <div className="flex items-center justify-center min-h-screen px-4">
       <div className="w-full max-w-sm text-center">
         <div className="flex items-center justify-center gap-2 mb-2">
           <Image src="/logo.svg" alt="RenderFlow" width={32} height={32} className="block dark:hidden" />
           <Image src="/logo-dark.svg" alt="RenderFlow" width={32} height={32} className="hidden dark:block" />
-          <h1 className="text-2xl font-bold">
-            Render<span className="text-blue-600">Flow</span>
-          </h1>
+          <h1 className="text-2xl font-bold">Render<span className="text-blue-600">Flow</span></h1>
         </div>
-        <p className="text-gray-500 mb-6">Podaj swoje imię aby przeglądać projekt</p>
+        <div className="flex justify-center mb-4">
+          <Lock size={20} className="text-gray-400" />
+        </div>
+        <p className="text-gray-500 mb-6">Ten projekt jest chroniony hasłem</p>
         <div className="flex gap-2">
           <Input
-            value={nameInput}
-            onChange={(e) => setNameInput(e.target.value)}
-            placeholder="Twoje imię"
-            onKeyDown={(e) => e.key === "Enter" && handleSetName()}
+            type="password"
+            value={passwordInput}
+            onChange={(e) => setPasswordInput(e.target.value)}
+            placeholder="Hasło dostępu"
+            onKeyDown={(e) => e.key === "Enter" && handlePasswordSubmit()}
             autoFocus
+            className={passwordError ? "border-red-400" : ""}
           />
-          <Button onClick={handleSetName} disabled={!nameInput.trim()}>
+          <Button onClick={handlePasswordSubmit} disabled={passwordLoading || !passwordInput.trim()}>
+            {passwordLoading ? "..." : "Dalej"}
+          </Button>
+        </div>
+        {passwordError && <p className="text-sm text-red-500 mt-2">Nieprawidłowe hasło</p>}
+      </div>
+    </div>
+  );
+
+  if (!nameSet) return (
+    <div className="flex items-center justify-center min-h-screen px-4">
+      <div className="w-full max-w-sm text-center">
+        <div className="flex items-center justify-center gap-2 mb-2">
+          {project?.clientLogoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={project.clientLogoUrl} alt="Logo" className="h-10 object-contain" />
+          ) : (
+            <>
+              <Image src="/logo.svg" alt="RenderFlow" width={32} height={32} className="block dark:hidden" />
+              <Image src="/logo-dark.svg" alt="RenderFlow" width={32} height={32} className="hidden dark:block" />
+              <h1 className="text-2xl font-bold">Render<span style={{ color: accent }}>Flow</span></h1>
+            </>
+          )}
+        </div>
+        <p className="text-gray-500 mb-6">Podaj swoje imię aby przeglądać projekt</p>
+        <div className="space-y-2">
+          <div className="flex gap-2">
+            <Input
+              value={nameInput}
+              onChange={(e) => setNameInput(e.target.value)}
+              placeholder="Twoje imię"
+              onKeyDown={(e) => e.key === "Enter" && !project?.requireClientEmail && handleSetName()}
+              autoFocus
+            />
+          </div>
+          {project?.requireClientEmail && (
+            <Input
+              type="email"
+              value={emailInput}
+              onChange={(e) => setEmailInput(e.target.value)}
+              placeholder="Twój email"
+              onKeyDown={(e) => e.key === "Enter" && handleSetName()}
+            />
+          )}
+          <Button
+            onClick={handleSetName}
+            disabled={!nameInput.trim() || (!!project?.requireClientEmail && !emailInput.trim())}
+            className="w-full"
+          >
             Dalej
           </Button>
         </div>
@@ -239,9 +386,10 @@ export default function SharePage() {
           roomRenders={roomRenders.length > 1 ? roomRenders : []}
           initialRenderStatus={selectedRender.status}
           allowDirectStatusChange={project.allowDirectStatusChange}
-          onRenderStatusChange={(status) =>
-            handleRenderStatusChange(selectedRender.id, status)
-          }
+          allowClientComments={project.allowClientComments}
+          allowClientAcceptance={project.allowClientAcceptance}
+          hideCommentCount={project.hideCommentCount}
+          onRenderStatusChange={(status) => handleRenderStatusChange(selectedRender.id, status)}
           onStatusRequest={
             project.allowDirectStatusChange || pendingRequests.has(selectedRender.id)
               ? undefined
@@ -259,20 +407,24 @@ export default function SharePage() {
       <nav className="bg-card border-b flex-shrink-0">
         <div className="flex items-center justify-between max-w-5xl mx-auto px-6 py-3">
           <div className="flex items-center gap-2">
-            <Image src="/logo.svg" alt="RenderFlow" width={26} height={26} className="block dark:hidden" />
-            <Image src="/logo-dark.svg" alt="RenderFlow" width={26} height={26} className="hidden dark:block" />
-            <span className="font-bold text-lg">
-              Render<span className="text-blue-600">Flow</span>
-            </span>
+            {project.clientLogoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={project.clientLogoUrl} alt="Logo" className="h-8 object-contain" />
+            ) : (
+              <>
+                <Image src="/logo.svg" alt="RenderFlow" width={26} height={26} className="block dark:hidden" />
+                <Image src="/logo-dark.svg" alt="RenderFlow" width={26} height={26} className="hidden dark:block" />
+                <span className="font-bold text-lg">
+                  Render<span style={{ color: accent }}>Flow</span>
+                </span>
+              </>
+            )}
             <span className="text-gray-300 mx-1">|</span>
             {view === "rooms" ? (
               <span className="text-gray-700 font-medium">{project.title}</span>
             ) : (
               <>
-                <button
-                  onClick={() => setView("rooms")}
-                  className="text-gray-400 hover:text-gray-700 transition-colors text-sm"
-                >
+                <button onClick={() => setView("rooms")} className="text-gray-400 hover:text-gray-700 transition-colors text-sm">
                   {project.title}
                 </button>
                 {selectedRoom && (
@@ -314,6 +466,11 @@ export default function SharePage() {
         {/* Rooms view */}
         {view === "rooms" && (
           <>
+            {project.clientWelcomeMessage && (
+              <div className="mb-6 p-4 bg-muted rounded-xl text-sm text-gray-600 dark:text-gray-400">
+                {project.clientWelcomeMessage}
+              </div>
+            )}
             <h2 className="text-xl font-bold text-gray-900 mb-6">Pomieszczenia</h2>
             {project.rooms.length === 0 ? (
               <p className="text-gray-400 text-center py-16">Brak pomieszczeń w tym projekcie.</p>
@@ -346,10 +503,7 @@ export default function SharePage() {
         {/* Room renders view */}
         {view === "room" && selectedRoom && (
           <>
-            <button
-              onClick={() => setView("rooms")}
-              className="flex items-center gap-0.5 text-sm text-gray-400 hover:text-gray-700 transition-colors mb-6"
-            >
+            <button onClick={() => setView("rooms")} className="flex items-center gap-0.5 text-sm text-gray-400 hover:text-gray-700 transition-colors mb-6">
               <ChevronLeft size={15} /> {project.title}
             </button>
             <h2 className="text-xl font-bold text-gray-900 mb-6">{selectedRoom.name}</h2>
@@ -366,29 +520,23 @@ export default function SharePage() {
                   >
                     <div className="aspect-video bg-muted overflow-hidden">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={render.fileUrl}
-                        alt={render.name}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
-                      />
+                      <img src={render.fileUrl} alt={render.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" />
                     </div>
                     <div className="p-3">
                       <div className="flex items-start justify-between gap-2">
                         <p className="text-sm font-medium text-gray-800 truncate">{render.name}</p>
                         <span className={`flex-shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
-                          render.status === "ACCEPTED"
-                            ? "bg-green-100 text-green-700"
-                            : "bg-blue-100 text-blue-700"
+                          render.status === "ACCEPTED" ? "bg-green-100 text-green-700" : "bg-blue-100 text-blue-700"
                         }`}>
                           {render.status === "ACCEPTED" ? "Zaakceptowany" : "Do weryfikacji"}
                         </span>
                       </div>
-                      <p className="text-xs text-gray-400 mt-1 flex items-center gap-1">
-                        <MessageSquare size={11} />
-                        {render.comments.length > 0
-                          ? `${render.comments.length} uwag`
-                          : "Brak uwag"}
-                      </p>
+                      {!project.hideCommentCount && (
+                        <p className="text-xs text-gray-400 mt-1 flex items-center gap-1">
+                          <MessageSquare size={11} />
+                          {render.comments.length > 0 ? `${render.comments.length} uwag` : "Brak uwag"}
+                        </p>
+                      )}
                     </div>
                   </button>
                 ))}
@@ -419,52 +567,30 @@ function ClientSettingsView({
   const [nameInput, setNameInput] = useState(authorName);
   const { theme, setTheme } = useTheme();
 
-  function handleSave() {
-    if (!nameInput.trim()) return;
-    onSave(nameInput.trim());
-  }
-
   return (
     <div className="max-w-md space-y-6">
       <div>
-        <button
-          onClick={onBack}
-          className="flex items-center gap-0.5 text-sm text-gray-400 hover:text-gray-700 transition-colors mb-4"
-        >
+        <button onClick={onBack} className="flex items-center gap-0.5 text-sm text-gray-400 hover:text-gray-700 transition-colors mb-4">
           <ChevronLeft size={15} /> Wróć
         </button>
         <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Ustawienia</h2>
       </div>
 
-      {/* Tożsamość */}
       <div className="bg-card border border-border rounded-2xl p-6 space-y-4">
         <div className="flex items-center gap-2">
           <UserRound size={18} className="text-gray-400" />
           <h3 className="font-semibold text-gray-800 dark:text-gray-200">Twoja tożsamość</h3>
         </div>
-        <p className="text-xs text-gray-400">
-          Imię widoczne przy Twoich komentarzach i prośbach do projektanta.
-        </p>
+        <p className="text-xs text-gray-400">Imię widoczne przy Twoich komentarzach i prośbach do projektanta.</p>
         <div className="space-y-2">
           <label className="text-sm text-gray-600 dark:text-gray-400">Imię wyświetlane</label>
-          <Input
-            value={nameInput}
-            onChange={(e) => setNameInput(e.target.value)}
-            placeholder="Twoje imię"
-            onKeyDown={(e) => e.key === "Enter" && handleSave()}
-            autoFocus
-          />
+          <Input value={nameInput} onChange={(e) => setNameInput(e.target.value)} placeholder="Twoje imię" onKeyDown={(e) => e.key === "Enter" && onSave(nameInput.trim())} autoFocus />
         </div>
-        <Button
-          onClick={handleSave}
-          disabled={!nameInput.trim() || nameInput.trim() === authorName}
-          size="sm"
-        >
+        <Button onClick={() => { if (nameInput.trim()) onSave(nameInput.trim()); }} disabled={!nameInput.trim() || nameInput.trim() === authorName} size="sm">
           Zapisz
         </Button>
       </div>
 
-      {/* Motyw */}
       <div className="bg-card border border-border rounded-2xl p-6 space-y-4">
         <h3 className="font-semibold text-gray-800 dark:text-gray-200">Motyw interfejsu</h3>
         <div className="flex gap-2">
@@ -473,9 +599,7 @@ function ClientSettingsView({
               key={value}
               onClick={() => setTheme(value)}
               className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm border transition-colors ${
-                theme === value
-                  ? "bg-primary text-primary-foreground border-primary"
-                  : "border-border text-foreground hover:bg-muted"
+                theme === value ? "bg-primary text-primary-foreground border-primary" : "border-border text-foreground hover:bg-muted"
               }`}
             >
               <Icon size={15} />

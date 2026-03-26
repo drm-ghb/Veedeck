@@ -9,18 +9,37 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Brakujące pola" }, { status: 400 });
   }
 
+  const render = await prisma.render.findUnique({
+    where: { id: renderId },
+    include: { project: { include: { user: true } } },
+  });
+
+  if (!render) {
+    return NextResponse.json({ error: "Render nie znaleziony" }, { status: 404 });
+  }
+
+  const user = render.project.user;
+
+  // Require pin title
+  if (user.requirePinTitle && !title?.trim()) {
+    return NextResponse.json({ error: "Tytuł pinu jest wymagany" }, { status: 400 });
+  }
+
+  // Max pins per render
+  if (user.maxPinsPerRender !== null) {
+    const count = await prisma.comment.count({ where: { renderId } });
+    if (count >= user.maxPinsPerRender) {
+      return NextResponse.json({ error: `Osiągnięto limit ${user.maxPinsPerRender} pinów na render` }, { status: 400 });
+    }
+  }
+
   const comment = await prisma.comment.create({
     data: { renderId, title: title || null, content, posX, posY, author },
   });
 
   await pusherServer.trigger(`render-${renderId}`, "new-comment", comment);
 
-  const render = await prisma.render.findUnique({
-    where: { id: renderId },
-    include: { project: { select: { userId: true, id: true, title: true } } },
-  });
-
-  if (render?.project?.userId) {
+  if (render.project.userId) {
     const notif = await prisma.notification.create({
       data: {
         userId: render.project.userId,

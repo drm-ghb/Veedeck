@@ -52,6 +52,9 @@ interface RenderViewerProps {
   roomName?: string;
   initialRenderStatus?: RenderStatus;
   allowDirectStatusChange?: boolean;
+  allowClientComments?: boolean;
+  allowClientAcceptance?: boolean;
+  hideCommentCount?: boolean;
   onRenderStatusChange?: (status: RenderStatus) => Promise<void>;
   onStatusRequest?: () => Promise<void>;
   onBack?: () => void;
@@ -105,6 +108,9 @@ export default function RenderViewer({
   roomName,
   initialRenderStatus = "REVIEW",
   allowDirectStatusChange = false,
+  allowClientComments = true,
+  allowClientAcceptance = true,
+  hideCommentCount = false,
   onRenderStatusChange,
   onStatusRequest,
   onBack,
@@ -159,12 +165,32 @@ export default function RenderViewer({
         )
       );
     });
+    channel.bind("render-status-changed", (data: { renderId: string; status: RenderStatus }) => {
+      if (data.renderId === renderId) {
+        setRenderStatus(data.status);
+        if (!isDesigner) {
+          toast(data.status === "ACCEPTED" ? "Render został zaakceptowany przez projektanta" : "Projektant zmienił status na: Do weryfikacji", { duration: 6000 });
+        }
+      }
+    });
+    channel.bind("new-reply", (data: { commentId: string; reply: Reply }) => {
+      setComments((prev) =>
+        prev.map((c) => {
+          if (c.id !== data.commentId) return c;
+          if (c.replies.some((r) => r.id === data.reply.id)) return c;
+          return { ...c, replies: [...c.replies, data.reply] };
+        })
+      );
+      if (!isDesigner && data.reply.author !== authorName) {
+        toast(`Odpowiedź od ${data.reply.author}`, { duration: 5000 });
+      }
+    });
 
     return () => {
       channel.unbind_all();
       pusherClient.unsubscribe(`render-${renderId}`);
     };
-  }, [renderId]);
+  }, [renderId, isDesigner, authorName]);
 
   function openLightbox() {
     setZoom(1);
@@ -315,17 +341,17 @@ export default function RenderViewer({
         </div>
 
         <div className="ml-auto flex items-center gap-2 flex-shrink-0">
-          {todoCount > 0 && (
+          {!hideCommentCount && todoCount > 0 && (
             <span className="inline-flex items-center gap-1 bg-red-100 text-red-700 text-xs font-medium px-2 py-1 rounded-md">
               {todoCount} to do
             </span>
           )}
-          {inProgressCount > 0 && (
+          {!hideCommentCount && inProgressCount > 0 && (
             <span className="inline-flex items-center gap-1 bg-yellow-100 text-yellow-700 text-xs font-medium px-2 py-1 rounded-md">
               {inProgressCount} in progress
             </span>
           )}
-          {doneCount > 0 && (
+          {!hideCommentCount && doneCount > 0 && (
             <span className="inline-flex items-center gap-1 bg-green-100 text-green-700 text-xs font-medium px-2 py-1 rounded-md">
               {doneCount} done
             </span>
@@ -377,13 +403,17 @@ export default function RenderViewer({
                 </button>
               ) : null}
             </div>
-          ) : (
+          ) : allowClientAcceptance ? (
             <button
               onClick={() => updateRenderStatus("ACCEPTED")}
               className="text-xs font-semibold px-2.5 py-1 rounded-md bg-green-500 text-white hover:bg-green-600 transition-colors"
             >
               Zaakceptuj
             </button>
+          ) : (
+            <span className="text-xs font-semibold px-2.5 py-1 rounded-md bg-blue-100 text-blue-700">
+              Do weryfikacji
+            </span>
           )}
 
           <div className="w-px h-4 bg-gray-200 mx-1" />
@@ -398,16 +428,18 @@ export default function RenderViewer({
           >
             <Eye size={14} /> Podgląd
           </button>
-          <button
-            onClick={() => setMode(mode === "pin" ? "view" : "pin")}
-            className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md border transition-colors ${
-              mode === "pin"
-                ? "bg-gray-900 text-white border-gray-900"
-                : "border-transparent text-gray-500 hover:bg-muted"
-            }`}
-          >
-            <MapPin size={14} /> Dodaj pin
-          </button>
+          {(isDesigner || allowClientComments) && (
+            <button
+              onClick={() => setMode(mode === "pin" ? "view" : "pin")}
+              className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md border transition-colors ${
+                mode === "pin"
+                  ? "bg-gray-900 text-white border-gray-900"
+                  : "border-transparent text-gray-500 hover:bg-muted"
+              }`}
+            >
+              <MapPin size={14} /> Dodaj pin
+            </button>
+          )}
           <button
             onClick={() => setShowComments((v) => !v)}
             className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md border transition-colors ${
@@ -758,15 +790,17 @@ export default function RenderViewer({
               )}
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
-              <button
-                onClick={() => {
-                  setLightboxOpen(false);
-                  setMode("pin");
-                }}
-                className="flex items-center gap-1.5 text-sm bg-card text-foreground hover:bg-muted px-3 py-1.5 rounded-md font-medium transition-colors"
-              >
-                <MapPin size={14} /> Dodaj pin
-              </button>
+              {(isDesigner || allowClientComments) && (
+                <button
+                  onClick={() => {
+                    setLightboxOpen(false);
+                    setMode("pin");
+                  }}
+                  className="flex items-center gap-1.5 text-sm bg-card text-foreground hover:bg-muted px-3 py-1.5 rounded-md font-medium transition-colors"
+                >
+                  <MapPin size={14} /> Dodaj pin
+                </button>
+              )}
               <button
                 onClick={() => setLightboxOpen(false)}
                 className="p-2 text-white/60 hover:text-white hover:bg-white/10 rounded-md transition-colors"

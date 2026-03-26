@@ -8,7 +8,8 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: "Nieautoryzowany" }, { status: 401 });
   }
 
-  const { name, email, allowDirectStatusChange } = await req.json();
+  const body = await req.json();
+  const { name, email } = body;
 
   if (email && email !== session.user.email) {
     const existing = await prisma.user.findUnique({ where: { email } });
@@ -17,14 +18,24 @@ export async function PATCH(req: NextRequest) {
     }
   }
 
-  const data: { name?: string; email?: string; allowDirectStatusChange?: boolean } = {};
+  const boolFields = [
+    "allowDirectStatusChange", "allowClientComments", "allowClientAcceptance",
+    "requireClientEmail", "requirePinTitle", "autoClosePinsOnAccept",
+    "autoArchiveOnAccept", "hideCommentCount", "notifyClientOnStatusChange",
+    "notifyClientOnReply",
+  ] as const;
+  const stringFields = ["clientWelcomeMessage", "clientLogoUrl", "accentColor", "defaultRenderOrder", "defaultRenderStatus"] as const;
+
+  const data: Record<string, unknown> = {};
   if (name !== undefined) data.name = name;
   if (email !== undefined) data.email = email;
-  if (allowDirectStatusChange !== undefined) data.allowDirectStatusChange = allowDirectStatusChange;
+  if (body.maxPinsPerRender !== undefined) data.maxPinsPerRender = body.maxPinsPerRender === null ? null : Number(body.maxPinsPerRender);
+  for (const f of boolFields) if (body[f] !== undefined) data[f] = body[f];
+  for (const f of stringFields) if (body[f] !== undefined) data[f] = body[f] || null;
 
   const user = await prisma.user.update({
     where: { id: session.user.id },
-    data,
+    data: data as Parameters<typeof prisma.user.update>[0]["data"],
     select: { id: true, name: true, email: true },
   });
 

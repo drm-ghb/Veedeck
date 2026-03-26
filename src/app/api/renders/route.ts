@@ -12,6 +12,7 @@ export async function POST(req: NextRequest) {
 
   const project = await prisma.project.findFirst({
     where: { id: projectId, userId: session.user.id },
+    include: { user: { select: { defaultRenderStatus: true } } },
   });
 
   if (!project) {
@@ -20,7 +21,15 @@ export async function POST(req: NextRequest) {
 
   const count = await prisma.render.count({ where: { projectId } });
   const render = await prisma.render.create({
-    data: { projectId, name, fileUrl, fileKey, order: count, roomId: roomId || null },
+    data: {
+      projectId,
+      name,
+      fileUrl,
+      fileKey,
+      order: count,
+      roomId: roomId || null,
+      status: project.user.defaultRenderStatus,
+    },
   });
 
   return NextResponse.json(render, { status: 201 });

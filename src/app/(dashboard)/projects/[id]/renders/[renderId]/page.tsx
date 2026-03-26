@@ -47,6 +47,7 @@ export default async function RenderPage({ params }: Props) {
         initialComments={render.comments.map((c) => ({
           ...c,
           createdAt: c.createdAt.toISOString(),
+          replies: c.replies.map((r) => ({ ...r, createdAt: r.createdAt.toISOString() })),
         }))}
         authorName={session!.user!.name || session!.user!.email || "Projektant"}
         isDesigner={true}

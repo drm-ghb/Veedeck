@@ -14,7 +14,22 @@ model User {
   emailVerified DateTime?
   image         String?
   password      String?
-  allowDirectStatusChange Boolean @default(false)
+  allowDirectStatusChange   Boolean      @default(false)
+  allowClientComments       Boolean      @default(true)
+  allowClientAcceptance     Boolean      @default(true)
+  requireClientEmail        Boolean      @default(false)
+  requirePinTitle           Boolean      @default(false)
+  defaultRenderStatus       RenderStatus @default(REVIEW)
+  defaultRenderOrder        String       @default("order")
+  maxPinsPerRender          Int?
+  autoClosePinsOnAccept     Boolean      @default(false)
+  autoArchiveOnAccept       Boolean      @default(false)
+  hideCommentCount          Boolean      @default(false)
+  clientWelcomeMessage      String?
+  clientLogoUrl             String?
+  accentColor               String?
+  notifyClientOnStatusChange Boolean     @default(true)
+  notifyClientOnReply       Boolean      @default(true)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -58,9 +73,11 @@ model Project {
   clientName  String?
   clientEmail String?
   description String?
-  shareToken  String   @unique @default(cuid())
-  archived    Boolean  @default(false)
-  createdAt   DateTime @default(now())
+  shareToken    String    @unique @default(cuid())
+  sharePassword String?
+  shareExpiresAt DateTime?
+  archived      Boolean   @default(false)
+  createdAt     DateTime  @default(now())
   updatedAt   DateTime @updatedAt
   userId      String
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { pusherServer } from "@/lib/pusher";
 
 export async function PATCH(
   req: NextRequest,
@@ -14,7 +15,19 @@ export async function PATCH(
   const { id } = await params;
   const render = await prisma.render.findUnique({
     where: { id },
-    include: { project: true },
+    include: {
+      project: {
+        include: {
+          user: {
+            select: {
+              autoClosePinsOnAccept: true,
+              autoArchiveOnAccept: true,
+              notifyClientOnStatusChange: true,
+            },
+          },
+        },
+      },
+    },
   });
 
   if (!render || render.project.userId !== session.user.id) {
@@ -22,14 +35,54 @@ export async function PATCH(
   }
 
   const body = await req.json();
-  const updated = await prisma.render.update({
-    where: { id },
-    data: {
-      ...(body.archived !== undefined && { archived: body.archived }),
-      ...(body.name !== undefined && { name: body.name }),
-      ...(body.status !== undefined && { status: body.status }),
-    },
-  });
+  const updateData: Record<string, unknown> = {};
+  if (body.archived !== undefined) updateData.archived = body.archived;
+  if (body.name !== undefined) updateData.name = body.name;
+  if (body.status !== undefined) updateData.status = body.status;
+
+  const updated = await prisma.render.update({ where: { id }, data: updateData });
+
+  // Side effects when accepting a render
+  if (body.status === "ACCEPTED" && render.status !== "ACCEPTED") {
+    const user = render.project.user;
+
+    if (user.autoClosePinsOnAccept) {
+      await prisma.comment.updateMany({
+        where: { renderId: id, status: { not: "DONE" } },
+        data: { status: "DONE" },
+      });
+    }
+
+    if (user.autoArchiveOnAccept) {
+      await prisma.render.update({ where: { id }, data: { archived: true } });
+    }
+
+    if (user.notifyClientOnStatusChange) {
+      await pusherServer.trigger(`render-${id}`, "render-status-changed", {
+        renderId: id,
+        status: "ACCEPTED",
+      });
+      await pusherServer.trigger(`share-${render.project.shareToken}`, "render-status-changed", {
+        renderId: id,
+        status: "ACCEPTED",
+      });
+    }
+  }
+
+  // Notify client when status changes back to REVIEW
+  if (body.status === "REVIEW" && render.status !== "REVIEW") {
+    const user = render.project.user;
+    if (user.notifyClientOnStatusChange) {
+      await pusherServer.trigger(`render-${id}`, "render-status-changed", {
+        renderId: id,
+        status: "REVIEW",
+      });
+      await pusherServer.trigger(`share-${render.project.shareToken}`, "render-status-changed", {
+        renderId: id,
+        status: "REVIEW",
+      });
+    }
+  }
 
   return NextResponse.json(updated);
 }

@@ -21,6 +21,8 @@ interface EditProjectDialogProps {
     clientName?: string | null;
     clientEmail?: string | null;
     description?: string | null;
+    sharePassword?: string | null;
+    shareExpiresAt?: string | null;
   };
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -35,6 +37,10 @@ export default function EditProjectDialog({
   const [clientName, setClientName] = useState(project.clientName ?? "");
   const [clientEmail, setClientEmail] = useState(project.clientEmail ?? "");
   const [description, setDescription] = useState(project.description ?? "");
+  const [sharePassword, setSharePassword] = useState(project.sharePassword ?? "");
+  const [shareExpiresAt, setShareExpiresAt] = useState(
+    project.shareExpiresAt ? new Date(project.shareExpiresAt).toISOString().slice(0, 10) : ""
+  );
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
@@ -44,6 +50,8 @@ export default function EditProjectDialog({
       setClientName(project.clientName ?? "");
       setClientEmail(project.clientEmail ?? "");
       setDescription(project.description ?? "");
+      setSharePassword(project.sharePassword ?? "");
+      setShareExpiresAt(project.shareExpiresAt ? new Date(project.shareExpiresAt).toISOString().slice(0, 10) : "");
     }
   }, [open, project]);
 
@@ -61,6 +69,8 @@ export default function EditProjectDialog({
           clientName: clientName.trim() || null,
           clientEmail: clientEmail.trim() || null,
           description: description.trim() || null,
+          sharePassword: sharePassword.trim() || null,
+          shareExpiresAt: shareExpiresAt || null,
         }),
       });
 
@@ -124,6 +134,28 @@ export default function EditProjectDialog({
               onChange={(e) => setDescription(e.target.value)}
               rows={3}
             />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-sharePassword">Hasło do linku (opcjonalnie)</Label>
+              <Input
+                id="edit-sharePassword"
+                type="password"
+                value={sharePassword}
+                onChange={(e) => setSharePassword(e.target.value)}
+                placeholder="Zostaw puste aby bez hasła"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-shareExpiresAt">Wygaśnięcie linku</Label>
+              <Input
+                id="edit-shareExpiresAt"
+                type="date"
+                value={shareExpiresAt}
+                onChange={(e) => setShareExpiresAt(e.target.value)}
+              />
+            </div>
           </div>
 
           <div className="flex gap-2 justify-end pt-1">

@@ -55,6 +55,8 @@ export async function PATCH(
       ...(body.clientEmail !== undefined && { clientEmail: body.clientEmail || null }),
       ...(body.description !== undefined && { description: body.description || null }),
       ...(body.archived !== undefined && { archived: body.archived }),
+      ...(body.sharePassword !== undefined && { sharePassword: body.sharePassword || null }),
+      ...(body.shareExpiresAt !== undefined && { shareExpiresAt: body.shareExpiresAt ? new Date(body.shareExpiresAt) : null }),
     },
   });
 

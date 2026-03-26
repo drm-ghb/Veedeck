@@ -27,5 +27,20 @@ export async function POST(
     reply: { ...reply, createdAt: reply.createdAt.toISOString() },
   });
 
+  // Notify client via share channel if designer replied
+  const render = await prisma.render.findUnique({
+    where: { id: comment.renderId },
+    include: { project: { select: { shareToken: true, user: { select: { notifyClientOnReply: true } } } } },
+  });
+
+  if (render?.project.user.notifyClientOnReply) {
+    await pusherServer.trigger(`share-${render.project.shareToken}`, "new-reply", {
+      renderId: comment.renderId,
+      commentId: id,
+      author,
+    });
+  }
+
   return NextResponse.json(reply, { status: 201 });
 }
+
