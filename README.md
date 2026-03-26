@@ -23,6 +23,7 @@ Aplikacja webowa do zarządzania feedbackiem na wizualizacjach 3D. Projektant wg
   - [Prośba o zmianę statusu](#9-prośba-o-zmianę-statusu)
   - [Powiadomienia](#10-powiadomienia)
   - [Komunikacja w czasie rzeczywistym](#11-komunikacja-w-czasie-rzeczywistym)
+  - [Motyw interfejsu](#12-motyw-interfejsu)
 - [Struktura katalogów](#struktura-katalogów)
 - [API — przegląd endpointów](#api--przegląd-endpointów)
 
@@ -298,7 +299,7 @@ System komentarzy pozwala precyzyjnie wskazywać miejsca na renderze wymagające
 
 **Popup wątku** — kliknięcie istniejącego pinu otwiera popup z oryginalnym komentarzem, odpowiedziami chronologicznie i formularzem odpowiedzi. Projektant widzi dodatkowo przyciski zmiany statusu (NEW / IN_PROGRESS / DONE) i przycisk usunięcia.
 
-**Odpowiedzi** — `POST /api/comments/[id]/replies` zapisuje odpowiedź z imieniem autora i datą.
+**Odpowiedzi** — `POST /api/comments/[id]/replies` zapisuje odpowiedź z imieniem autora i datą. Odpowiedź można usunąć przez `DELETE /api/comments/[id]/replies/[replyId]` — endpoint rozgłasza zdarzenie `reply-deleted` przez Pushera.
 
 **Aktualizacja statusu** — `PATCH /api/comments/[id]` z polem `status`. Po zmianie Pusher rozgłasza zdarzenie `comment-updated` do wszystkich połączonych klientów oglądających ten render.
 
@@ -417,6 +418,7 @@ Aplikacja używa Pushera do natychmiastowej synchronizacji stanu między wieloma
 | `render-{renderId}` | `comment-updated` | serwer → klienci | Zmiana statusu komentarza |
 | `render-{renderId}` | `comment-deleted` | serwer → klienci | Usunięcie komentarza |
 | `render-{renderId}` | `comment-reply` | serwer → klienci | Nowa odpowiedź na komentarz |
+| `render-{renderId}` | `reply-deleted` | serwer → klienci | Usunięcie odpowiedzi na komentarz |
 | `user-{userId}` | `new-notification` | serwer → projektant | Nowe powiadomienie (komentarz, prośba) |
 | `share-{token}` | `status-request-resolved` | serwer → klient | Decyzja projektanta o prośbie statusu |
 
@@ -424,9 +426,31 @@ Aplikacja używa Pushera do natychmiastowej synchronizacji stanu między wieloma
 
 ---
 
+### 12. Motyw interfejsu
+
+**Pliki:** `src/lib/theme.tsx`, `src/components/dashboard/SettingsButton.tsx`
+
+Aplikacja obsługuje trzy tryby kolorystyczne: jasny, ciemny i systemowy.
+
+**ThemeProvider** (`src/lib/theme.tsx`) — opakowuje całą aplikację i zarządza stanem motywu. Preferencja przechowywana jest w `localStorage` pod kluczem `renderflow-theme`. W trybie `system` motyw reaguje dynamicznie na zmianę preferencji systemowych przez `matchMedia`.
+
+**SettingsButton** (`src/components/dashboard/SettingsButton.tsx`) — przycisk z ikoną koła zębatego w nawigacji dashboardu. Po kliknięciu otwiera panel z trzema opcjami:
+- **Jasny** (ikona słońca)
+- **Ciemny** (ikona księżyca)
+- **Systemowy** (ikona monitora)
+
+Aktywna opcja wyróżniona kolorem primary. Panel zamyka się po kliknięciu poza nim.
+
+**Logo** — `public/logo-dark.svg` — wariant logo dla ciemnego tła, używany w nawigacji gdy aktywny jest motyw ciemny.
+
+---
+
 ## Struktura katalogów
 
 ```
+public/
+└── logo-dark.svg                  # Logo do ciemnego motywu
+
 src/
 ├── app/
 │   ├── (auth)/                    # Trasy publiczne: logowanie i rejestracja
@@ -454,6 +478,7 @@ src/
 │   └── layout.tsx                 # Root layout (fonty, Toaster)
 ├── components/
 │   ├── dashboard/                 # Komponenty panelu projektanta
+│   │   └── SettingsButton.tsx     # Przycisk ustawień z przełącznikiem motywu
 │   └── render/                    # Komponenty podglądu renderów
 │       ├── RenderViewer.tsx       # Główny komponent podglądu (projektant + klient)
 │       ├── RenderUploader.tsx     # Upload plików
@@ -465,6 +490,7 @@ src/
     ├── pusher.ts                  # Konfiguracja Pusher (server + client)
     ├── uploadthing.ts             # Konfiguracja FileRouter UploadThing
     ├── roomIcons.tsx              # Mapowanie typów pomieszczeń na ikony Lucide
+    ├── theme.tsx                  # ThemeProvider i hook useTheme (dark/light/system)
     └── utils.ts                   # Pomocnicze funkcje (cn — merge klas Tailwind)
 ```
 
@@ -491,6 +517,7 @@ src/
 | `PATCH` | `/api/comments/[id]` | Zmień status komentarza |
 | `DELETE` | `/api/comments/[id]` | Usuń komentarz |
 | `POST` | `/api/comments/[id]/replies` | Dodaj odpowiedź na komentarz |
+| `DELETE` | `/api/comments/[id]/replies/[replyId]` | Usuń odpowiedź na komentarz |
 | `GET` | `/api/notifications` | Lista powiadomień |
 | `PATCH` | `/api/notifications` | Oznacz wiele jako przeczytane/nieprzeczytane |
 | `PATCH` | `/api/notifications/[id]` | Oznacz jedno powiadomienie |
