@@ -2,7 +2,7 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { LayoutGrid } from "lucide-react";
+import { LayoutGrid, Settings } from "lucide-react";
 import { SignOutButton } from "@/components/dashboard/SignOutButton";
 import { SettingsButton } from "@/components/dashboard/SettingsButton";
 import NotificationBell from "@/components/dashboard/NotificationBell";
@@ -28,6 +28,10 @@ export default async function DashboardLayout({
             <Link href="/dashboard" className="flex items-center gap-1.5 text-sm text-gray-600 hover:text-gray-900 transition-colors">
               <LayoutGrid size={16} />
               Projekty
+            </Link>
+            <Link href="/settings" className="flex items-center gap-1.5 text-sm text-gray-600 hover:text-gray-900 transition-colors">
+              <Settings size={16} />
+              Ustawienia
             </Link>
             <NotificationBell userId={session.user.id!} />
           </div>

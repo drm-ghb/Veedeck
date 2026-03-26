@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { getRoomIcon } from "@/lib/roomIcons";
 import { SettingsButton } from "@/components/dashboard/SettingsButton";
-import { ChevronLeft, MessageSquare } from "lucide-react";
+import { ChevronLeft, MessageSquare, UserRound } from "lucide-react";
 import { pusherClient } from "@/lib/pusher";
 import { toast } from "sonner";
 
@@ -65,7 +65,7 @@ export default function SharePage() {
   const [nameSet, setNameSet] = useState(false);
   const [nameInput, setNameInput] = useState("");
 
-  const [view, setView] = useState<"rooms" | "room" | "render">("rooms");
+  const [view, setView] = useState<"rooms" | "room" | "render" | "settings">("rooms");
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
   const [selectedRender, setSelectedRender] = useState<Render | null>(null);
   const [pendingRequests, setPendingRequests] = useState<Set<string>>(new Set());
@@ -283,15 +283,33 @@ export default function SharePage() {
             )}
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-500">
-              Przeglądasz jako: <strong>{authorName}</strong>
-            </span>
+            <button
+              onClick={() => setView("settings")}
+              title="Ustawienia profilu"
+              className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
+            >
+              <UserRound size={15} />
+              <span className="hidden sm:inline">{authorName}</span>
+            </button>
             <SettingsButton />
           </div>
         </div>
       </nav>
 
       <div className="flex-1 max-w-5xl mx-auto w-full px-6 py-8">
+        {/* Settings view */}
+        {view === "settings" && (
+          <ClientSettingsView
+            authorName={authorName}
+            onSave={(newName) => {
+              localStorage.setItem("renderflow-author", newName);
+              setAuthorName(newName);
+              setView("rooms");
+            }}
+            onBack={() => setView("rooms")}
+          />
+        )}
+
         {/* Rooms view */}
         {view === "rooms" && (
           <>
@@ -377,6 +395,65 @@ export default function SharePage() {
             )}
           </>
         )}
+      </div>
+    </div>
+  );
+}
+
+function ClientSettingsView({
+  authorName,
+  onSave,
+  onBack,
+}: {
+  authorName: string;
+  onSave: (name: string) => void;
+  onBack: () => void;
+}) {
+  const [nameInput, setNameInput] = useState(authorName);
+
+  function handleSave() {
+    if (!nameInput.trim()) return;
+    onSave(nameInput.trim());
+  }
+
+  return (
+    <div className="max-w-md space-y-6">
+      <div>
+        <button
+          onClick={onBack}
+          className="flex items-center gap-0.5 text-sm text-gray-400 hover:text-gray-700 transition-colors mb-4"
+        >
+          <ChevronLeft size={15} /> Wróć
+        </button>
+        <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Ustawienia</h2>
+        <p className="text-sm text-gray-500 mt-1">Zarządzaj swoją tożsamością w tym projekcie</p>
+      </div>
+
+      <div className="bg-card border border-border rounded-2xl p-6 space-y-4">
+        <div className="flex items-center gap-2">
+          <UserRound size={18} className="text-gray-400" />
+          <h3 className="font-semibold text-gray-800 dark:text-gray-200">Twoja tożsamość</h3>
+        </div>
+        <p className="text-xs text-gray-400">
+          Imię widoczne przy Twoich komentarzach i prośbach do projektanta.
+        </p>
+        <div className="space-y-2">
+          <label className="text-sm text-gray-600 dark:text-gray-400">Imię wyświetlane</label>
+          <Input
+            value={nameInput}
+            onChange={(e) => setNameInput(e.target.value)}
+            placeholder="Twoje imię"
+            onKeyDown={(e) => e.key === "Enter" && handleSave()}
+            autoFocus
+          />
+        </div>
+        <Button
+          onClick={handleSave}
+          disabled={!nameInput.trim() || nameInput.trim() === authorName}
+          size="sm"
+        >
+          Zapisz
+        </Button>
       </div>
     </div>
   );
