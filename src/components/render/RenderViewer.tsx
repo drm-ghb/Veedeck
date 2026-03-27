@@ -66,6 +66,7 @@ interface RenderViewerProps {
   allowClientAcceptance?: boolean;
   hideCommentCount?: boolean;
   versions?: RenderVersion[];
+  viewCount?: number;
   allowClientVersionRestore?: boolean;
   onVersionRestore?: (versionId: string) => Promise<void>;
   onVersionRestoreRequest?: (versionId: string) => Promise<void>;
@@ -125,6 +126,7 @@ export default function RenderViewer({
   allowClientComments = true,
   allowClientAcceptance = true,
   hideCommentCount = false,
+  viewCount = 0,
   versions = [],
   allowClientVersionRestore = true,
   onVersionRestore,
@@ -468,6 +470,13 @@ export default function RenderViewer({
           {!hideCommentCount && doneCount > 0 && (
             <span className="inline-flex items-center gap-1 bg-green-100 text-green-700 text-xs font-medium px-2 py-1 rounded-md">
               {doneCount} done
+            </span>
+          )}
+
+          {isDesigner && (
+            <span className="flex items-center gap-1 text-xs text-muted-foreground">
+              <Eye size={13} />
+              {viewCount}
             </span>
           )}
 

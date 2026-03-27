@@ -52,6 +52,7 @@ export default async function RenderPage({ params }: Props) {
         }))}
         authorName={session!.user!.name || session!.user!.email || "Projektant"}
         isDesigner={true}
+        viewCount={render.viewCount}
         roomRenders={roomRenders}
         versions={render.versions.map((v) => ({
           id: v.id,

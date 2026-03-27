@@ -147,12 +147,10 @@ export default function RoomView({ projectId, roomId, renders, archivedRenders }
                             {render.commentCount}
                           </span>
                         )}
-                        {render.viewCount > 0 && (
-                          <span className="text-xs text-muted-foreground flex items-center gap-1">
-                            <Eye size={11} />
-                            {render.viewCount}
-                          </span>
-                        )}
+                        <span className="text-xs text-muted-foreground flex items-center gap-1">
+                          <Eye size={11} />
+                          {render.viewCount}
+                        </span>
                       </div>
                       <div
                         className="flex-shrink-0"
@@ -189,12 +187,10 @@ export default function RoomView({ projectId, roomId, renders, archivedRenders }
                           {render.commentCount}
                         </span>
                       )}
-                      {render.viewCount > 0 && (
-                        <span className="text-xs text-muted-foreground flex items-center gap-1">
-                          <Eye size={10} />
-                          {render.viewCount}
-                        </span>
-                      )}
+                      <span className="text-xs text-muted-foreground flex items-center gap-1">
+                        <Eye size={10} />
+                        {render.viewCount}
+                      </span>
                     </div>
                   </div>
                 </Link>
