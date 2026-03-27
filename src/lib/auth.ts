@@ -33,17 +33,23 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         if (!isValid) return null;
 
-        return { id: user.id, email: user.email, name: user.name };
+        return { id: user.id, email: user.email, name: user.name, isAdmin: user.isAdmin };
       },
     }),
   ],
   callbacks: {
     async jwt({ token, user }) {
-      if (user) token.id = user.id;
+      if (user) {
+        token.id = user.id;
+        token.isAdmin = (user as any).isAdmin;
+      }
       return token;
     },
     async session({ session, token }) {
-      if (token && session.user) session.user.id = token.id as string;
+      if (token && session.user) {
+        session.user.id = token.id as string;
+        (session.user as any).isAdmin = token.isAdmin as boolean;
+      }
       return session;
     },
   },

@@ -32,6 +32,7 @@ model User {
   notifyClientOnReply       Boolean      @default(true)
   allowClientVersionRestore Boolean      @default(true)
   showProjectTitle          Boolean      @default(true)
+  isAdmin       Boolean   @default(false)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 

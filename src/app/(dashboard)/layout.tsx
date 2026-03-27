@@ -2,7 +2,7 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { LayoutGrid, Settings } from "lucide-react";
+import { LayoutGrid, Settings, ShieldCheck } from "lucide-react";
 import { SignOutButton } from "@/components/dashboard/SignOutButton";
 import NotificationBell from "@/components/dashboard/NotificationBell";
 import MobileMenu from "@/components/dashboard/MobileMenu";
@@ -18,7 +18,7 @@ export default async function DashboardLayout({
 
   const dbUser = await prisma.user.findUnique({
     where: { id: session.user.id! },
-    select: { name: true, email: true },
+    select: { name: true, email: true, isAdmin: true },
   });
 
   const displayName = dbUser?.name || dbUser?.email || null;
@@ -42,6 +42,12 @@ export default async function DashboardLayout({
               Projekty
             </Link>
             <NotificationBell userId={session.user.id!} />
+            {dbUser?.isAdmin && (
+              <Link href="/admin" className="flex items-center gap-1.5 text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-200 transition-colors">
+                <ShieldCheck size={16} />
+                Admin
+              </Link>
+            )}
           </div>
 
           {/* Desktop: right actions */}
