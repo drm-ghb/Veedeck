@@ -36,7 +36,7 @@ export default async function ListyLayout({
 
           {/* Logo */}
           <Link href="/listy" className="flex items-center gap-2 shrink-0">
-            <div className="w-7 h-7 rounded-lg bg-[#0f766e] flex items-center justify-center">
+            <div className="w-7 h-7 rounded-lg bg-[#19213D] flex items-center justify-center">
               <ShoppingCart size={15} className="text-white" />
             </div>
             <span className="text-xl font-bold">Listy</span>

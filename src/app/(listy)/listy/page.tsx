@@ -17,8 +17,8 @@ export default function ListyPage() {
 
       {/* Empty state */}
       <div className="flex flex-col items-center justify-center py-24 text-center">
-        <div className="w-16 h-16 rounded-2xl bg-[#0f766e]/10 flex items-center justify-center mb-4">
-          <ShoppingCart size={28} className="text-[#0f766e]" />
+        <div className="w-16 h-16 rounded-2xl bg-[#19213D]/10 flex items-center justify-center mb-4">
+          <ShoppingCart size={28} className="text-[#19213D]" />
         </div>
         <h2 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-1">
           Brak list zakupowych

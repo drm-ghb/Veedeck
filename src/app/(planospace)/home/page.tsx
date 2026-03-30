@@ -16,7 +16,7 @@ export default function HomePage() {
           href="/projekty"
           className="group flex flex-col items-center gap-3 p-4 rounded-xl bg-card border border-border hover:shadow-md hover:border-gray-300 dark:hover:border-gray-600 transition-all cursor-pointer"
         >
-          <div className="w-16 h-16 rounded-2xl flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform duration-150 bg-[#4f46e5]">
+          <div className="w-16 h-16 rounded-2xl flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform duration-150 bg-[#19213D]">
             <Briefcase size={32} className="text-white" />
           </div>
           <div className="text-center">
@@ -44,7 +44,7 @@ export default function HomePage() {
           href="/listy"
           className="group flex flex-col items-center gap-3 p-4 rounded-xl bg-card border border-border hover:shadow-md hover:border-gray-300 dark:hover:border-gray-600 transition-all cursor-pointer"
         >
-          <div className="w-16 h-16 rounded-2xl flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform duration-150 bg-[#0f766e]">
+          <div className="w-16 h-16 rounded-2xl flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform duration-150 bg-[#19213D]">
             <ShoppingCart size={32} className="text-white" />
           </div>
           <div className="text-center">
