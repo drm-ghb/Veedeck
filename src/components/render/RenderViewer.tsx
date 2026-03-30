@@ -587,222 +587,187 @@ export default function RenderViewer({
   return (
     <div className="flex flex-col h-full bg-card">
       {/* Header bar */}
-      <div className="flex items-center gap-3 px-4 py-2.5 border-b bg-card flex-shrink-0">
-        {/* Back arrow */}
-        {(onBack || projectId) && (
-          <>
-            {onBack ? (
-              <button
-                onClick={onBack}
-                className="flex-shrink-0 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
-              >
-                <ChevronLeft size={20} />
-              </button>
-            ) : (
-              <Link
-                href={folderId && roomId ? `/projects/${projectId}/rooms/${roomId}/folders/${folderId}` : roomId ? `/projects/${projectId}/rooms/${roomId}` : `/projects/${projectId}`}
-                className="flex-shrink-0 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
-              >
-                <ChevronLeft size={20} />
-              </Link>
-            )}
-            <div className="w-px h-4 bg-gray-200 dark:bg-gray-700 flex-shrink-0" />
-          </>
-        )}
-        {/* Breadcrumb */}
-        <nav className="flex items-center gap-1 min-w-0 flex-1 text-sm">
-          {onBack ? null : projectId ? (
+      <div className="border-b bg-card flex-shrink-0">
+
+        {/* Row 1: Back + Breadcrumb */}
+        <div className="flex items-center gap-3 px-4 py-2.5">
+          {/* Back arrow */}
+          {(onBack || projectId) && (
             <>
-              {/* Project */}
-              {projectTitle && (
-                <>
-                  <Link
-                    href={`/projects/${projectId}`}
-                    className="hidden sm:block flex-shrink-0 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors font-medium truncate max-w-[120px]"
-                    title={projectTitle}
-                  >
-                    {projectTitle}
-                  </Link>
-                  <ChevronLeft size={13} className="hidden sm:block flex-shrink-0 text-gray-300 rotate-180" />
-                </>
+              {onBack ? (
+                <button
+                  onClick={onBack}
+                  className="flex-shrink-0 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
+                >
+                  <ChevronLeft size={20} />
+                </button>
+              ) : (
+                <Link
+                  href={folderId && roomId ? `/projects/${projectId}/rooms/${roomId}/folders/${folderId}` : roomId ? `/projects/${projectId}/rooms/${roomId}` : `/projects/${projectId}`}
+                  className="flex-shrink-0 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
+                >
+                  <ChevronLeft size={20} />
+                </Link>
               )}
-              {/* Room */}
-              {roomId && roomName && (
-                <>
-                  <Link
-                    href={`/projects/${projectId}/rooms/${roomId}`}
-                    className="hidden sm:block flex-shrink-0 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors font-medium truncate max-w-[120px]"
-                    title={roomName}
-                  >
-                    {roomName}
-                  </Link>
-                  <ChevronLeft size={13} className="hidden sm:block flex-shrink-0 text-gray-300 rotate-180" />
-                </>
-              )}
-              {/* Folder */}
-              {folderId && folderName && roomId && (
-                <>
-                  <Link
-                    href={`/projects/${projectId}/rooms/${roomId}/folders/${folderId}`}
-                    className="flex-shrink-0 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors font-medium truncate max-w-[120px]"
-                    title={folderName}
-                  >
-                    {folderName}
-                  </Link>
-                  <ChevronLeft size={13} className="flex-shrink-0 text-gray-300 rotate-180" />
-                </>
-              )}
-              {/* File (current, not a link) */}
-              {renderName && (
-                <span className="text-gray-900 dark:text-gray-100 font-semibold truncate min-w-0" title={renderName}>
-                  {renderName}
-                </span>
-              )}
+              <div className="w-px h-4 bg-gray-200 dark:bg-gray-700 flex-shrink-0" />
             </>
-          ) : null}
-        </nav>
-
-        <div className="ml-auto flex items-center gap-2 flex-shrink-0">
-          {!hideCommentCount && todoCount > 0 && (
-            <span className="hidden sm:inline-flex items-center gap-1 bg-red-100 text-red-700 text-xs font-medium px-2 py-1 rounded-md">
-              {todoCount} to do
-            </span>
           )}
-          {!hideCommentCount && inProgressCount > 0 && (
-            <span className="hidden sm:inline-flex items-center gap-1 bg-yellow-100 text-yellow-700 text-xs font-medium px-2 py-1 rounded-md">
-              {inProgressCount} in progress
-            </span>
-          )}
-          {!hideCommentCount && doneCount > 0 && (
-            <span className="hidden sm:inline-flex items-center gap-1 bg-green-100 text-green-700 text-xs font-medium px-2 py-1 rounded-md">
-              {doneCount} done
-            </span>
-          )}
+          {/* Breadcrumb */}
+          <nav className="flex items-center gap-1 min-w-0 flex-1 text-sm">
+            {onBack ? null : projectId ? (
+              <>
+                {projectTitle && (
+                  <>
+                    <Link href={`/projects/${projectId}`} className="hidden sm:block flex-shrink-0 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors font-medium truncate max-w-[120px]" title={projectTitle}>
+                      {projectTitle}
+                    </Link>
+                    <ChevronLeft size={13} className="hidden sm:block flex-shrink-0 text-gray-300 rotate-180" />
+                  </>
+                )}
+                {roomId && roomName && (
+                  <>
+                    <Link href={`/projects/${projectId}/rooms/${roomId}`} className="hidden sm:block flex-shrink-0 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors font-medium truncate max-w-[120px]" title={roomName}>
+                      {roomName}
+                    </Link>
+                    <ChevronLeft size={13} className="hidden sm:block flex-shrink-0 text-gray-300 rotate-180" />
+                  </>
+                )}
+                {folderId && folderName && roomId && (
+                  <>
+                    <Link href={`/projects/${projectId}/rooms/${roomId}/folders/${folderId}`} className="flex-shrink-0 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors font-medium truncate max-w-[120px]" title={folderName}>
+                      {folderName}
+                    </Link>
+                    <ChevronLeft size={13} className="flex-shrink-0 text-gray-300 rotate-180" />
+                  </>
+                )}
+                {renderName && (
+                  <span className="text-gray-900 dark:text-gray-100 font-semibold truncate min-w-0" title={renderName}>
+                    {renderName}
+                  </span>
+                )}
+              </>
+            ) : null}
+          </nav>
 
-          {isDesigner && (
-            <span className="hidden sm:flex items-center gap-1 text-xs text-muted-foreground" title="Ilość wyświetleń pliku przez klienta">
-              <Eye size={13} />
-              {viewCount}
-            </span>
-          )}
-
-          <div className="hidden sm:block w-px h-4 bg-gray-200 mx-1" />
-
-          {isDesigner ? (
-            <div className="flex items-center gap-1 bg-muted rounded-md p-0.5">
-              <button
-                onClick={() => updateRenderStatus("REVIEW")}
-                className={`text-xs px-2.5 py-1 rounded transition-colors font-medium ${
-                  renderStatus === "REVIEW"
-                    ? "bg-blue-500 text-white shadow-sm"
-                    : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
-                }`}
-              >
-                Do weryfikacji
-              </button>
-              <button
-                onClick={() => updateRenderStatus("ACCEPTED")}
-                className={`text-xs px-2.5 py-1 rounded transition-colors font-medium ${
-                  renderStatus === "ACCEPTED"
-                    ? "bg-green-500 text-white shadow-sm"
-                    : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
-                }`}
-              >
-                Zaakceptowany
-              </button>
-            </div>
-          ) : renderStatus === "ACCEPTED" ? (
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-semibold px-2.5 py-1 rounded-md bg-green-100 text-green-700">
-                Zaakceptowany
+          {/* Desktop toolbar (hidden on mobile) */}
+          <div className="hidden sm:flex ml-auto items-center gap-2 flex-shrink-0">
+            {!hideCommentCount && todoCount > 0 && (
+              <span className="inline-flex items-center gap-1 bg-red-100 text-red-700 text-xs font-medium px-2 py-1 rounded-md">{todoCount} to do</span>
+            )}
+            {!hideCommentCount && inProgressCount > 0 && (
+              <span className="inline-flex items-center gap-1 bg-yellow-100 text-yellow-700 text-xs font-medium px-2 py-1 rounded-md">{inProgressCount} in progress</span>
+            )}
+            {!hideCommentCount && doneCount > 0 && (
+              <span className="inline-flex items-center gap-1 bg-green-100 text-green-700 text-xs font-medium px-2 py-1 rounded-md">{doneCount} done</span>
+            )}
+            {isDesigner && (
+              <span className="flex items-center gap-1 text-xs text-muted-foreground" title="Ilość wyświetleń pliku przez klienta">
+                <Eye size={13} />{viewCount}
               </span>
-              {allowDirectStatusChange ? (
-                <button
-                  onClick={() => updateRenderStatus("REVIEW")}
-                  className="text-xs text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 underline transition-colors"
-                >
-                  Cofnij akceptację
-                </button>
-              ) : onStatusRequest ? (
-                <button
-                  onClick={onStatusRequest}
-                  className="text-xs text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 underline transition-colors"
-                >
-                  Poproś o zmianę
-                </button>
-              ) : null}
-            </div>
-          ) : allowClientAcceptance ? (
-            <button
-              onClick={() => updateRenderStatus("ACCEPTED")}
-              className="text-xs font-semibold px-2.5 py-1 rounded-md bg-green-500 text-white hover:bg-green-600 transition-colors"
-            >
-              Zaakceptuj
+            )}
+            <div className="w-px h-4 bg-gray-200 mx-1" />
+            {isDesigner ? (
+              <div className="flex items-center gap-1 bg-muted rounded-md p-0.5">
+                <button onClick={() => updateRenderStatus("REVIEW")} className={`text-xs px-2.5 py-1 rounded transition-colors font-medium ${renderStatus === "REVIEW" ? "bg-blue-500 text-white shadow-sm" : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"}`}>Do weryfikacji</button>
+                <button onClick={() => updateRenderStatus("ACCEPTED")} className={`text-xs px-2.5 py-1 rounded transition-colors font-medium ${renderStatus === "ACCEPTED" ? "bg-green-500 text-white shadow-sm" : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"}`}>Zaakceptowany</button>
+              </div>
+            ) : renderStatus === "ACCEPTED" ? (
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold px-2.5 py-1 rounded-md bg-green-100 text-green-700">Zaakceptowany</span>
+                {allowDirectStatusChange ? (
+                  <button onClick={() => updateRenderStatus("REVIEW")} className="text-xs text-gray-400 hover:text-gray-600 underline transition-colors">Cofnij akceptację</button>
+                ) : onStatusRequest ? (
+                  <button onClick={onStatusRequest} className="text-xs text-gray-400 hover:text-gray-600 underline transition-colors">Poproś o zmianę</button>
+                ) : null}
+              </div>
+            ) : allowClientAcceptance ? (
+              <button onClick={() => updateRenderStatus("ACCEPTED")} className="text-xs font-semibold px-2.5 py-1 rounded-md bg-green-500 text-white hover:bg-green-600 transition-colors">Zaakceptuj</button>
+            ) : (
+              <span className="text-xs font-semibold px-2.5 py-1 rounded-md bg-blue-100 text-blue-700">Do weryfikacji</span>
+            )}
+            <div className="w-px h-4 bg-gray-200 mx-1" />
+            <button onClick={() => setShowVersionHistory(true)} className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md border border-transparent text-gray-500 hover:bg-muted transition-colors" title="Historia wersji">
+              <History size={14} /> Wersje{versions.length > 0 ? ` (${versions.length})` : ""}
             </button>
-          ) : (
-            <span className="text-xs font-semibold px-2.5 py-1 rounded-md bg-blue-100 text-blue-700">
-              Do weryfikacji
-            </span>
-          )}
-
-          <div className="hidden sm:block w-px h-4 bg-gray-200 mx-1" />
-
-          <button
-            onClick={() => setShowVersionHistory(true)}
-            className="hidden sm:flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md border border-transparent text-gray-500 hover:bg-muted transition-colors"
-            title="Historia wersji"
-          >
-            <History size={14} /> Wersje{versions.length > 0 ? ` (${versions.length})` : ""}
-          </button>
-
-          <button
-            onClick={openLightbox}
-            className={`hidden sm:flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md border transition-colors ${
-              lightboxOpen
-                ? "bg-gray-900 text-white border-gray-900"
-                : "border-transparent text-gray-500 dark:text-gray-400 hover:bg-muted"
-            }`}
-          >
-            <Maximize2 size={14} /> Podgląd
-          </button>
-          {(isDesigner || allowClientComments) && (
-            <button
-              onClick={() => setMode(mode === "pin" ? "view" : "pin")}
-              className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md border transition-colors ${
-                mode === "pin"
-                  ? "bg-gray-900 text-white border-gray-900"
-                  : "border-transparent text-gray-500 dark:text-gray-400 hover:bg-muted"
-              }`}
-            >
-              <Pin size={14} /> Dodaj pin
+            <button onClick={openLightbox} className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md border transition-colors ${lightboxOpen ? "bg-gray-900 text-white border-gray-900" : "border-transparent text-gray-500 dark:text-gray-400 hover:bg-muted"}`}>
+              <Maximize2 size={14} /> Podgląd
             </button>
-          )}
-          <button
-            onClick={() => setHidePins((v) => !v)}
-            className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md border transition-colors ${
-              hidePins
-                ? "bg-gray-900 text-white border-gray-900"
-                : "border-transparent text-gray-500 dark:text-gray-400 hover:bg-muted"
-            }`}
-          >
-            {hidePins ? <EyeOff size={14} /> : <Eye size={14} />}
-            {hidePins ? "Pokaż piny" : "Ukryj piny"}
-          </button>
-          <button
-            onClick={() => setShowComments((v) => {
-              const next = !v;
-              sessionStorage.setItem("renderflow_showComments", String(next));
-              return next;
-            })}
-            className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md border transition-colors ${
-              showComments
-                ? "bg-gray-900 text-white border-gray-900"
-                : "border-transparent text-gray-500 dark:text-gray-400 hover:bg-muted"
-            }`}
-          >
-            <List size={14} /> Lista
-          </button>
+            {(isDesigner || allowClientComments) && (
+              <button onClick={() => setMode(mode === "pin" ? "view" : "pin")} className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md border transition-colors ${mode === "pin" ? "bg-gray-900 text-white border-gray-900" : "border-transparent text-gray-500 dark:text-gray-400 hover:bg-muted"}`}>
+                <Pin size={14} /> Dodaj pin
+              </button>
+            )}
+            <button onClick={() => setHidePins((v) => !v)} className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md border transition-colors ${hidePins ? "bg-gray-900 text-white border-gray-900" : "border-transparent text-gray-500 dark:text-gray-400 hover:bg-muted"}`}>
+              {hidePins ? <EyeOff size={14} /> : <Eye size={14} />}
+              {hidePins ? "Pokaż piny" : "Ukryj piny"}
+            </button>
+            <button
+              onClick={() => setShowComments((v) => { const next = !v; sessionStorage.setItem("renderflow_showComments", String(next)); return next; })}
+              className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md border transition-colors ${showComments ? "bg-gray-900 text-white border-gray-900" : "border-transparent text-gray-500 dark:text-gray-400 hover:bg-muted"}`}
+            >
+              <List size={14} /> Lista
+            </button>
+          </div>
         </div>
+
+        {/* Row 2: Mobile scrollable toolbar */}
+        <div className="sm:hidden border-t overflow-x-auto" style={{ scrollbarWidth: "none" }}>
+          <div className="flex items-center gap-1 px-2 py-1.5 w-max">
+            {/* Status */}
+            {isDesigner ? (
+              <select
+                value={renderStatus}
+                onChange={(e) => updateRenderStatus(e.target.value as RenderStatus)}
+                className={`text-xs px-2 py-1.5 rounded-md border font-medium cursor-pointer flex-shrink-0 ${renderStatus === "ACCEPTED" ? "bg-green-500 text-white border-green-600" : "bg-blue-500 text-white border-blue-600"}`}
+              >
+                <option value="REVIEW">Do weryfikacji</option>
+                <option value="ACCEPTED">Zaakceptowany</option>
+              </select>
+            ) : renderStatus === "ACCEPTED" ? (
+              <div className="flex items-center gap-1.5 flex-shrink-0">
+                <span className="text-xs font-semibold px-2 py-1.5 rounded-md bg-green-100 text-green-700">Zaakceptowany</span>
+                {allowDirectStatusChange ? (
+                  <button onClick={() => updateRenderStatus("REVIEW")} className="text-xs text-gray-400 underline">Cofnij</button>
+                ) : onStatusRequest ? (
+                  <button onClick={onStatusRequest} className="text-xs text-gray-400 underline">Zmień</button>
+                ) : null}
+              </div>
+            ) : allowClientAcceptance ? (
+              <button onClick={() => updateRenderStatus("ACCEPTED")} className="text-xs font-semibold px-2 py-1.5 rounded-md bg-green-500 text-white flex-shrink-0">Zaakceptuj</button>
+            ) : (
+              <span className="text-xs font-semibold px-2 py-1.5 rounded-md bg-blue-100 text-blue-700 flex-shrink-0">Do weryfikacji</span>
+            )}
+            <div className="w-px h-5 bg-gray-200 dark:bg-gray-700 mx-0.5 flex-shrink-0" />
+            {/* Dodaj pin */}
+            {(isDesigner || allowClientComments) && (
+              <button onClick={() => setMode(mode === "pin" ? "view" : "pin")} className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md border transition-colors flex-shrink-0 ${mode === "pin" ? "bg-gray-900 text-white border-gray-900" : "border-transparent text-gray-500 dark:text-gray-400 hover:bg-muted"}`}>
+                <Pin size={14} /> Dodaj pin
+              </button>
+            )}
+            {/* Ukryj/Pokaż piny */}
+            <button onClick={() => setHidePins((v) => !v)} className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md border transition-colors flex-shrink-0 ${hidePins ? "bg-gray-900 text-white border-gray-900" : "border-transparent text-gray-500 dark:text-gray-400 hover:bg-muted"}`}>
+              {hidePins ? <EyeOff size={14} /> : <Eye size={14} />}
+              {hidePins ? "Pokaż" : "Ukryj"}
+            </button>
+            {/* Lista */}
+            <button
+              onClick={() => setShowComments((v) => { const next = !v; sessionStorage.setItem("renderflow_showComments", String(next)); return next; })}
+              className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md border transition-colors flex-shrink-0 ${showComments ? "bg-gray-900 text-white border-gray-900" : "border-transparent text-gray-500 dark:text-gray-400 hover:bg-muted"}`}
+            >
+              <List size={14} /> Lista
+            </button>
+            <div className="w-px h-5 bg-gray-200 dark:bg-gray-700 mx-0.5 flex-shrink-0" />
+            {/* Wersje */}
+            <button onClick={() => setShowVersionHistory(true)} className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md border border-transparent text-gray-500 hover:bg-muted transition-colors flex-shrink-0" title="Historia wersji">
+              <History size={14} /> Wersje{versions.length > 0 ? ` (${versions.length})` : ""}
+            </button>
+            {/* Podgląd */}
+            <button onClick={openLightbox} className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md border transition-colors flex-shrink-0 ${lightboxOpen ? "bg-gray-900 text-white border-gray-900" : "border-transparent text-gray-500 dark:text-gray-400 hover:bg-muted"}`}>
+              <Maximize2 size={14} /> Podgląd
+            </button>
+          </div>
+        </div>
+
       </div>
 
       {/* Content */}
