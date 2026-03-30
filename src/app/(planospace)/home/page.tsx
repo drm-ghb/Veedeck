@@ -42,8 +42,8 @@ export default function HomePage() {
               <Image
                 src={mod.iconDark}
                 alt={mod.name}
-                width={36}
-                height={36}
+                width={48}
+                height={48}
               />
             </div>
             <div className="text-center">
