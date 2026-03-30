@@ -718,10 +718,10 @@ export default function RenderViewer({
               <select
                 value={renderStatus}
                 onChange={(e) => updateRenderStatus(e.target.value as RenderStatus)}
-                className={`text-xs px-2 py-1.5 rounded-md border font-medium cursor-pointer flex-shrink-0 ${renderStatus === "ACCEPTED" ? "bg-green-500 text-white border-green-600" : "bg-blue-500 text-white border-blue-600"}`}
+                className={`text-xs pl-2.5 pr-6 py-1.5 rounded-md border font-medium cursor-pointer flex-shrink-0 ${renderStatus === "ACCEPTED" ? "bg-green-500 text-white border-green-600" : "bg-blue-500 text-white border-blue-600"}`}
               >
-                <option value="REVIEW">Do weryfikacji</option>
-                <option value="ACCEPTED">Zaakceptowany</option>
+                <option value="REVIEW" className="bg-white text-gray-900">Do weryfikacji</option>
+                <option value="ACCEPTED" className="bg-white text-gray-900">Zaakceptowany</option>
               </select>
             ) : renderStatus === "ACCEPTED" ? (
               <div className="flex items-center gap-1.5 flex-shrink-0">
