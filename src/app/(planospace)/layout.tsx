@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { Settings } from "lucide-react";
 import { SignOutButton } from "@/components/dashboard/SignOutButton";
 import { prisma } from "@/lib/prisma";
@@ -26,9 +27,8 @@ export default async function PlanospaceLayout({
         <div className="px-4 sm:px-8 flex items-center justify-between py-3 gap-4">
           {/* Logo */}
           <div className="flex items-center gap-2.5 shrink-0">
-            <div className="w-8 h-8 rounded-lg bg-[#19213D] flex items-center justify-center text-white font-bold text-sm select-none">
-              P
-            </div>
+            <Image src="/planospace-logo.svg" alt="Planospace" width={28} height={28} className="block dark:hidden" />
+            <Image src="/planospace-logo-dark.svg" alt="Planospace" width={28} height={28} className="hidden dark:block" />
             <span className="text-xl font-bold tracking-tight">Planospace</span>
           </div>
 
