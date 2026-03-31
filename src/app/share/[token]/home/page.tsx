@@ -47,15 +47,14 @@ export default async function ProjectHomePage({ params }: { params: Promise<{ to
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <div className="border-b border-border bg-card px-6 py-4">
-        <h1 className="text-lg font-bold text-foreground">{project.title}</h1>
-        <p className="text-xs text-muted-foreground mt-0.5">Widok klienta</p>
+    <div>
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold">{project.title}</h1>
+        <p className="text-sm text-muted-foreground mt-1">Widok klienta</p>
       </div>
 
-      <div className="max-w-2xl mx-auto px-4 py-12">
-        <p className="text-sm text-muted-foreground mb-8 text-center">
+      <div className="max-w-2xl">
+        <p className="text-sm text-muted-foreground mb-6">
           Wybierz moduł, który chcesz przeglądać:
         </p>
 

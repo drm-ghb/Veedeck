@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import Link from "next/link";
-import { ExternalLink, Home, Minus, Plus } from "lucide-react";
+import { ExternalLink, Home } from "lucide-react";
 
 interface Product {
   id: string;
@@ -67,7 +67,6 @@ function SectionTotal({ products }: { products: Product[] }) {
 
 export default function PublicListPage() {
   const { token } = useParams<{ token: string }>();
-  const router = useRouter();
   const [list, setList] = useState<ListData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -106,30 +105,35 @@ export default function PublicListPage() {
   const hasTotal = allProducts.some((p) => parsePrice(p.price) !== null);
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Top bar */}
-      <div className="border-b border-border bg-card px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-3">
+    <div>
+      {/* Breadcrumb + summary */}
+      <div className="flex items-center justify-between gap-3 mb-6">
+        <div className="flex items-center gap-2 min-w-0">
           {list.project && (
-            <Link
-              href={`/share/${list.project.shareToken}/home`}
-              className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <Home size={14} />
-              {list.project.title}
-            </Link>
+            <>
+              <Link
+                href={`/share/${list.project.shareToken}/home`}
+                className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors shrink-0"
+              >
+                <Home size={14} />
+                {list.project.title}
+              </Link>
+              <span className="text-muted-foreground">/</span>
+            </>
           )}
-          {list.project && <span className="text-muted-foreground">/</span>}
-          <h1 className="text-sm font-semibold text-foreground">{list.name}</h1>
+          <h1 className="text-xl font-bold truncate">{list.name}</h1>
         </div>
         {hasTotal && (
-          <span className="text-sm font-semibold tabular-nums">
-            {grandTotal.toLocaleString("pl-PL", { minimumFractionDigits: 0, maximumFractionDigits: 2 })} {grandCurrency}
-          </span>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <span className="text-xs text-muted-foreground">Suma:</span>
+            <span className="text-sm font-semibold tabular-nums">
+              {grandTotal.toLocaleString("pl-PL", { minimumFractionDigits: 0, maximumFractionDigits: 2 })} {grandCurrency}
+            </span>
+          </div>
         )}
       </div>
 
-      <div className="max-w-4xl mx-auto px-4 py-8 space-y-10">
+      <div className="space-y-10">
         {list.sections.length === 0 && (
           <p className="text-center text-muted-foreground py-16">Lista jest pusta.</p>
         )}
