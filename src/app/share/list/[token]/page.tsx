@@ -1,40 +1,8 @@
 import { notFound } from "next/navigation";
+import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { Home, ExternalLink } from "lucide-react";
 import ShareNavbar from "@/components/share/ShareNavbar";
-
-interface Product {
-  id: string;
-  name: string;
-  url: string | null;
-  imageUrl: string | null;
-  price: string | null;
-  manufacturer: string | null;
-  color: string | null;
-  size: string | null;
-  description: string | null;
-  deliveryTime: string | null;
-  quantity: number;
-}
-
-interface Section {
-  id: string;
-  name: string;
-  order: number;
-  products: Product[];
-}
-
-interface ListData {
-  id: string;
-  name: string;
-  project: {
-    id: string;
-    title: string;
-    shareToken: string;
-    hasRenders: boolean;
-  } | null;
-  sections: Section[];
-}
 
 function parsePrice(price: string | null): number | null {
   if (!price) return null;
@@ -47,42 +15,28 @@ function getCurrency(price: string | null): string {
   return price.replace(/[\d.,\s]/g, "").trim();
 }
 
-function SectionTotal({ products }: { products: Product[] }) {
-  let total = 0;
-  let currency = "";
-  let hasAny = false;
-  for (const p of products) {
-    const n = parsePrice(p.price);
-    if (n !== null) { total += n * p.quantity; if (!currency) currency = getCurrency(p.price); hasAny = true; }
-  }
-  if (!hasAny) return null;
-  return (
-    <span className="text-sm font-semibold">
-      {total.toLocaleString("pl-PL", { minimumFractionDigits: 0, maximumFractionDigits: 2 })} {currency}
-    </span>
-  );
-}
-
 export default async function PublicListPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
 
-  const res = await fetch(`${process.env.NEXTAUTH_URL ?? "http://localhost:3000"}/api/share/list/${token}`, {
-    cache: "no-store",
+  const list = await prisma.shoppingList.findUnique({
+    where: { shareToken: token },
+    include: {
+      project: {
+        select: {
+          id: true,
+          title: true,
+          shareToken: true,
+          renders: { select: { id: true }, take: 1 },
+        },
+      },
+      sections: {
+        orderBy: { order: "asc" },
+        include: { products: { orderBy: { order: "asc" } } },
+      },
+    },
   });
 
-  if (res.status === 404) notFound();
-  if (!res.ok) {
-    return (
-      <>
-        <ShareNavbar />
-        <div className="container mx-auto px-3 sm:px-6 max-w-6xl py-16 text-center">
-          <p className="text-muted-foreground">Wystąpił błąd podczas ładowania listy.</p>
-        </div>
-      </>
-    );
-  }
-
-  const list: ListData = await res.json();
+  if (!list) notFound();
 
   const allProducts = list.sections.flatMap((s) => s.products);
   const grandTotal = allProducts.reduce((sum, p) => {
@@ -92,13 +46,15 @@ export default async function PublicListPage({ params }: { params: Promise<{ tok
   const grandCurrency = getCurrency(allProducts.find((p) => getCurrency(p.price))?.price ?? null);
   const hasTotal = allProducts.some((p) => parsePrice(p.price) !== null);
 
-  const homeHref = list.project ? `/share/${list.project.shareToken}/home` : undefined;
+  const homeHref = list.project
+    ? `/share/${list.project.shareToken}/home`
+    : undefined;
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <ShareNavbar backHref={homeHref} backLabel={list.project?.title} />
 
-      <div className="container mx-auto px-3 sm:px-6 max-w-4xl py-6 flex-1">
+      <main className="flex-1 container mx-auto px-3 sm:px-6 py-4 sm:py-8 max-w-4xl">
         {/* Header */}
         <div className="flex items-center justify-between gap-3 mb-6">
           <div className="flex items-center gap-2 min-w-0">
@@ -142,7 +98,11 @@ export default async function PublicListPage({ params }: { params: Promise<{ tok
                     </span>
                   )}
                 </div>
-                <SectionTotal products={section.products} />
+                {(() => {
+                  let total = 0; let cur = ""; let has = false;
+                  for (const p of section.products) { const n = parsePrice(p.price); if (n !== null) { total += n * p.quantity; if (!cur) cur = getCurrency(p.price); has = true; } }
+                  return has ? <span className="text-sm font-semibold">{total.toLocaleString("pl-PL", { minimumFractionDigits: 0, maximumFractionDigits: 2 })} {cur}</span> : null;
+                })()}
               </div>
 
               {section.products.length === 0 ? (
@@ -213,7 +173,7 @@ export default async function PublicListPage({ params }: { params: Promise<{ tok
             </div>
           ))}
         </div>
-      </div>
+      </main>
     </div>
   );
 }
