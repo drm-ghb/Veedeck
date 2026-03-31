@@ -224,7 +224,7 @@ export function SettingsGeneral({
                     toast.success("Logo zapisane");
                   }
                 }}
-                onUploadError={() => toast.error("Błąd przesyłania logo")}
+                onUploadError={() => { toast.error("Błąd przesyłania logo"); }}
                 appearance={{
                   button: "bg-primary text-primary-foreground hover:opacity-90 text-sm px-4 py-2 rounded-lg font-medium",
                   allowedContent: "text-xs text-gray-400",
