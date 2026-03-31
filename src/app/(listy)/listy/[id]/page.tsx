@@ -15,7 +15,7 @@ export default async function ListPage({ params }: { params: Promise<{ id: strin
       project: { select: { id: true, title: true } },
       sections: {
         orderBy: { order: "asc" },
-        include: { products: { orderBy: { order: "asc" } } },
+        include: { products: { orderBy: { order: "asc" }, include: { _count: { select: { comments: true } } } } },
       },
     },
   });
@@ -24,6 +24,7 @@ export default async function ListPage({ params }: { params: Promise<{ id: strin
 
   return (
     <ListDetail
+      designerName={(session.user as { name?: string }).name ?? "Projektant"}
       list={{
         id: list.id,
         name: list.name,
@@ -46,6 +47,7 @@ export default async function ListPage({ params }: { params: Promise<{ id: strin
             deliveryTime: p.deliveryTime,
             quantity: p.quantity,
             order: p.order,
+            commentCount: p._count.comments,
           })),
         })),
       }}

@@ -1,8 +1,7 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import Link from "next/link";
-import { ExternalLink } from "lucide-react";
 import ShareNavbar from "@/components/share/ShareNavbar";
+import ShareListClient from "@/components/listy/ShareListClient";
 
 function parsePrice(price: string | null): number | null {
   if (!price) return null;
@@ -33,7 +32,12 @@ export default async function PublicListPage({ params }: { params: Promise<{ tok
       },
       sections: {
         orderBy: { order: "asc" },
-        include: { products: { orderBy: { order: "asc" } } },
+        include: {
+          products: {
+            orderBy: { order: "asc" },
+            include: { _count: { select: { comments: true } } },
+          },
+        },
       },
     },
   });
@@ -52,6 +56,27 @@ export default async function PublicListPage({ params }: { params: Promise<{ tok
     ? `/share/${list.project.shareToken}/home`
     : undefined;
 
+  const sections = list.sections.map((s) => ({
+    id: s.id,
+    name: s.name,
+    order: s.order,
+    products: s.products.map((p) => ({
+      id: p.id,
+      name: p.name,
+      url: p.url,
+      imageUrl: p.imageUrl,
+      price: p.price,
+      manufacturer: p.manufacturer,
+      color: p.color,
+      size: p.size,
+      description: p.description,
+      deliveryTime: p.deliveryTime,
+      quantity: p.quantity,
+      order: p.order,
+      commentCount: p._count.comments,
+    })),
+  }));
+
   return (
     <div className="min-h-screen flex flex-col bg-muted/30">
       <ShareNavbar
@@ -67,12 +92,12 @@ export default async function PublicListPage({ params }: { params: Promise<{ tok
           <div className="flex items-center gap-2 min-w-0">
             {list.project && (
               <>
-                <Link
+                <a
                   href={`/share/${list.project.shareToken}/home`}
                   className="text-sm text-muted-foreground hover:text-foreground transition-colors shrink-0"
                 >
                   {list.project.title}
-                </Link>
+                </a>
                 <span className="text-muted-foreground">/</span>
               </>
             )}
@@ -88,97 +113,15 @@ export default async function PublicListPage({ params }: { params: Promise<{ tok
           )}
         </div>
 
-        <div className="space-y-10">
-          {list.sections.length === 0 && (
-            <p className="text-center text-muted-foreground py-16">Lista jest pusta.</p>
-          )}
-
-          {list.sections.map((section) => (
-            <div key={section.id}>
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <h2 className="text-base font-semibold">{section.name}</h2>
-                  {section.products.length > 0 && (
-                    <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-muted text-xs text-muted-foreground font-medium">
-                      {section.products.length}
-                    </span>
-                  )}
-                </div>
-                {(() => {
-                  let total = 0; let cur = ""; let has = false;
-                  for (const p of section.products) { const n = parsePrice(p.price); if (n !== null) { total += n * p.quantity; if (!cur) cur = getCurrency(p.price); has = true; } }
-                  return has ? <span className="text-sm font-semibold">{total.toLocaleString("pl-PL", { minimumFractionDigits: 0, maximumFractionDigits: 2 })} {cur}</span> : null;
-                })()}
-              </div>
-
-              {section.products.length === 0 ? (
-                <p className="text-sm text-muted-foreground border border-dashed border-border rounded-xl p-6 text-center">
-                  Brak produktów w tej sekcji
-                </p>
-              ) : (
-                <div className="bg-card border border-border rounded-xl overflow-hidden">
-                  {section.products.map((product, i) => {
-                    const unitPrice = parsePrice(product.price);
-                    const currency = getCurrency(product.price);
-                    const totalPrice = unitPrice !== null ? unitPrice * product.quantity : null;
-                    const last = i === section.products.length - 1;
-
-                    return (
-                      <div key={product.id} className={`flex items-center gap-4 px-4 py-3 ${!last ? "border-b border-border" : ""}`}>
-                        <span className="w-5 text-right text-xs text-muted-foreground tabular-nums shrink-0">{i + 1}</span>
-
-                        <div className="w-14 h-14 shrink-0 rounded-lg bg-muted flex items-center justify-center overflow-hidden">
-                          {product.imageUrl ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img src={product.imageUrl} alt={product.name} className="w-full h-full object-contain" />
-                          ) : (
-                            <span className="text-lg text-muted-foreground/30 select-none">📦</span>
-                          )}
-                        </div>
-
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-sm truncate">{product.name}</p>
-                          {product.manufacturer && <p className="text-xs text-muted-foreground mt-0.5">{product.manufacturer}</p>}
-                          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-1">
-                            {product.color && <span className="text-xs text-muted-foreground">Kolor: {product.color}</span>}
-                            {product.size && <span className="text-xs text-muted-foreground">Rozmiar: {product.size}</span>}
-                            {product.deliveryTime && <span className="text-xs text-muted-foreground">Dostawa: {product.deliveryTime}</span>}
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-4 shrink-0">
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-xs text-muted-foreground">Szt.:</span>
-                            <span className="text-sm font-medium tabular-nums">{product.quantity}</span>
-                          </div>
-
-                          {totalPrice !== null && (
-                            <div className="text-right min-w-[72px]">
-                              <p className="text-sm font-semibold tabular-nums">
-                                {totalPrice.toLocaleString("pl-PL", { minimumFractionDigits: 0, maximumFractionDigits: 2 })} {currency}
-                              </p>
-                              {product.quantity > 1 && unitPrice !== null && (
-                                <p className="text-xs text-muted-foreground tabular-nums">
-                                  {unitPrice.toLocaleString("pl-PL", { minimumFractionDigits: 0, maximumFractionDigits: 2 })} / szt.
-                                </p>
-                              )}
-                            </div>
-                          )}
-
-                          {product.url ? (
-                            <a href={product.url} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground transition-colors" title="Otwórz produkt">
-                              <ExternalLink size={13} />
-                            </a>
-                          ) : <span className="w-4" />}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
+        <ShareListClient
+          listName={list.name}
+          projectTitle={list.project?.title}
+          projectShareToken={list.project?.shareToken}
+          sections={sections}
+          grandTotal={grandTotal}
+          grandCurrency={grandCurrency}
+          hasTotal={hasTotal}
+        />
       </main>
     </div>
   );

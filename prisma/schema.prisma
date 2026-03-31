@@ -134,7 +134,29 @@ model ListProduct {
   createdAt    DateTime @default(now())
   sectionId    String
 
-  section ListSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  section  ListSection          @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  comments ListProductComment[]
+}
+
+model ListProductComment {
+  id        String   @id @default(cuid())
+  content   String
+  author    String
+  createdAt DateTime @default(now())
+  productId String
+
+  product ListProduct        @relation(fields: [productId], references: [id], onDelete: Cascade)
+  replies ListProductReply[]
+}
+
+model ListProductReply {
+  id        String   @id @default(cuid())
+  content   String
+  author    String
+  createdAt DateTime @default(now())
+  commentId String
+
+  comment ListProductComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
 }
 
 model Room {

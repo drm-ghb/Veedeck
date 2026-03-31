@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, Plus, ExternalLink, Minus, MoreHorizontal, Pencil, Trash2, GripVertical, FileDown, Sheet } from "lucide-react";
+import { ChevronLeft, Plus, ExternalLink, Minus, MoreHorizontal, Pencil, Trash2, GripVertical, FileDown, Sheet, MessageSquare } from "lucide-react";
+import ProductCommentPanel from "./ProductCommentPanel";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -45,6 +46,7 @@ interface Product {
   deliveryTime: string | null;
   quantity: number;
   order: number;
+  commentCount?: number;
 }
 
 interface Section {
@@ -107,6 +109,8 @@ function ProductRow({
   onQuantityChange,
   onEdit,
   onDelete,
+  onOpenComments,
+  commentCount,
   deleting,
 }: {
   product: Product;
@@ -117,6 +121,8 @@ function ProductRow({
   onQuantityChange: (productId: string, qty: number) => void;
   onEdit: () => void;
   onDelete: () => void;
+  onOpenComments: () => void;
+  commentCount: number;
   deleting?: boolean;
 }) {
   const [qty, setQty] = useState(product.quantity);
@@ -222,6 +228,20 @@ function ProductRow({
           <span className="w-7" />
         )}
 
+        {/* Comments */}
+        <button
+          onClick={onOpenComments}
+          className="relative flex items-center justify-center w-7 h-7 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+          title="Komentarze"
+        >
+          <MessageSquare size={15} />
+          {commentCount > 0 && (
+            <span className="absolute -top-1 -right-1 min-w-[14px] h-[14px] rounded-full bg-[#19213D] text-white text-[9px] font-bold flex items-center justify-center px-0.5 leading-none">
+              {commentCount > 99 ? "99+" : commentCount}
+            </span>
+          )}
+        </button>
+
         {/* 3-dot menu */}
         <DropdownMenu>
           <DropdownMenuTrigger
@@ -276,7 +296,7 @@ function SortableSection({ id, children }: { id: string; children: (dragHandle: 
   );
 }
 
-export default function ListDetail({ list }: ListDetailProps) {
+export default function ListDetail({ list, designerName }: ListDetailProps & { designerName?: string }) {
   const [sections, setSections] = useState<Section[]>(list.sections);
   const [addingSection, setAddingSection] = useState(false);
   const [newSectionName, setNewSectionName] = useState("");
@@ -289,9 +309,25 @@ export default function ListDetail({ list }: ListDetailProps) {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [editingSectionId, setEditingSectionId] = useState<string | null>(null);
   const [editingSectionName, setEditingSectionName] = useState("");
+  const [commentsPanelProductId, setCommentsPanelProductId] = useState<string | null>(null);
+  const [commentCounts, setCommentCounts] = useState<Record<string, number>>(() => {
+    const init: Record<string, number> = {};
+    for (const s of list.sections) {
+      for (const p of s.products) {
+        init[p.id] = p.commentCount ?? 0;
+      }
+    }
+    return init;
+  });
   const sectionInputRef = useRef<HTMLInputElement>(null);
   const sectionEditRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
+
+  const authorName = designerName || "Projektant";
+
+  const handleCountChange = useCallback((productId: string, count: number) => {
+    setCommentCounts((prev) => ({ ...prev, [productId]: count }));
+  }, []);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
@@ -712,6 +748,8 @@ export default function ListDetail({ list }: ListDetailProps) {
                             onQuantityChange={(pid, qty) => handleQuantityChange(section.id, pid, qty)}
                             onEdit={() => setEditState({ product, sectionId: section.id })}
                             onDelete={() => handleDeleteProduct(section.id, product.id)}
+                            onOpenComments={() => setCommentsPanelProductId(product.id)}
+                            commentCount={commentCounts[product.id] ?? 0}
                             deleting={deletingId === product.id}
                           />
                         ))}
@@ -766,6 +804,20 @@ export default function ListDetail({ list }: ListDetailProps) {
           }}
         />
       )}
+
+      {commentsPanelProductId && (() => {
+        const product = sections.flatMap((s) => s.products).find((p) => p.id === commentsPanelProductId);
+        return product ? (
+          <ProductCommentPanel
+            productId={commentsPanelProductId}
+            productName={product.name}
+            isDesigner={true}
+            authorName={authorName}
+            onClose={() => setCommentsPanelProductId(null)}
+            onCountChange={handleCountChange}
+          />
+        ) : null;
+      })()}
     </div>
   );
 }

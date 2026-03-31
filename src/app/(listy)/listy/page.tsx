@@ -19,6 +19,7 @@ export default async function ListyPage() {
         id: l.id,
         name: l.name,
         shareToken: l.shareToken ?? "",
+        archived: l.archived,
         createdAt: l.createdAt.toISOString(),
         project: l.project,
       }))}
