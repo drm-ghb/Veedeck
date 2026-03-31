@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { ImageIcon, ShoppingBag } from "lucide-react";
+import ShareNavbar from "@/components/share/ShareNavbar";
 
 export default async function ProjectHomePage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
@@ -47,11 +48,14 @@ export default async function ProjectHomePage({ params }: { params: Promise<{ to
   }
 
   return (
-    <div>
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold">{project.title}</h1>
-        <p className="text-sm text-muted-foreground mt-1">Widok klienta</p>
-      </div>
+    <div className="min-h-screen bg-background flex flex-col">
+      <ShareNavbar />
+
+      <div className="container mx-auto px-3 sm:px-6 max-w-6xl py-8 flex-1">
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold">{project.title}</h1>
+          <p className="text-sm text-muted-foreground mt-1">Widok klienta</p>
+        </div>
 
       <div className="max-w-2xl">
         <p className="text-sm text-muted-foreground mb-6">
@@ -79,6 +83,7 @@ export default async function ProjectHomePage({ params }: { params: Promise<{ to
             </Link>
           ))}
         </div>
+      </div>
       </div>
     </div>
   );
