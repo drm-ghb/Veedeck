@@ -13,5 +13,15 @@ export default async function ListyPage() {
     orderBy: { createdAt: "desc" },
   });
 
-  return <ListyView lists={lists.map((l) => ({ ...l, createdAt: l.createdAt.toISOString(), shareToken: l.shareToken }))} />;
+  return (
+    <ListyView
+      lists={lists.map((l) => ({
+        id: l.id,
+        name: l.name,
+        shareToken: l.shareToken ?? "",
+        createdAt: l.createdAt.toISOString(),
+        project: l.project,
+      }))}
+    />
+  );
 }

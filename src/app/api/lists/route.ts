@@ -43,6 +43,7 @@ export async function POST(req: NextRequest) {
         name: name.trim(),
         userId: session.user.id,
         projectId: projectId ?? null,
+        shareToken: crypto.randomUUID(),
       },
     });
     return NextResponse.json(list, { status: 201 });
