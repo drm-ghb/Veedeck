@@ -148,7 +148,7 @@ export default function ListyView({ lists }: ListyViewProps) {
               <div className="absolute top-3 right-3">
                 <button
                   onClick={(e) => { e.preventDefault(); copyShareLink(list.shareToken); }}
-                  className="w-7 h-7 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors opacity-0 group-hover:opacity-100"
+                  className="w-7 h-7 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
                   title="Skopiuj link"
                 >
                   <Link2 size={14} />
@@ -186,7 +186,7 @@ export default function ListyView({ lists }: ListyViewProps) {
               <div className="flex items-center justify-end">
                 <button
                   onClick={() => copyShareLink(list.shareToken)}
-                  className="w-7 h-7 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors opacity-0 group-hover:opacity-100"
+                  className="w-7 h-7 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
                   title="Skopiuj link"
                 >
                   <Link2 size={14} />
