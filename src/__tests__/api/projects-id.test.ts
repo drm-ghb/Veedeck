@@ -3,13 +3,21 @@ import { GET, PATCH, DELETE } from "@/app/api/projects/[id]/route";
 import { makeRequest, makeParams, SESSION } from "../helpers";
 
 vi.mock("@/lib/auth", () => ({ auth: vi.fn() }));
+vi.mock("@/lib/slug", () => ({
+  uniqueSlug: vi.fn().mockResolvedValue("test-slug"),
+}));
 vi.mock("@/lib/prisma", () => ({
   prisma: {
     project: {
       findFirst: vi.fn(),
       update: vi.fn(),
       deleteMany: vi.fn(),
+      findUnique: vi.fn().mockResolvedValue(null),
     },
+    room: { updateMany: vi.fn() },
+    render: { updateMany: vi.fn() },
+    shoppingList: { updateMany: vi.fn() },
+    $transaction: vi.fn().mockResolvedValue([]),
   },
 }));
 

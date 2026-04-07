@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { MoreHorizontal, Pencil, Trash2, Pin, PinOff } from "lucide-react";
+import { MoreHorizontal, Pencil, Trash2, Pin, PinOff, Archive } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -21,7 +21,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
 interface FolderMenuProps {
-  folder: { id: string; name: string; pinned?: boolean };
+  folder: { id: string; name: string; pinned?: boolean; archived?: boolean };
 }
 
 export default function FolderMenu({ folder }: FolderMenuProps) {
@@ -63,6 +63,20 @@ export default function FolderMenu({ folder }: FolderMenuProps) {
     }
   }
 
+  async function handleArchive() {
+    const res = await fetch(`/api/folders/${folder.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ archived: true }),
+    });
+    if (res.ok) {
+      toast.success("Folder zarchiwizowany");
+      router.refresh();
+    } else {
+      toast.error("Błąd archiwizacji folderu");
+    }
+  }
+
   async function handleDelete() {
     if (!confirm(`Usunąć folder "${folder.name}"? Pliki w folderze nie zostaną usunięte.`)) return;
     const res = await fetch(`/api/folders/${folder.id}`, { method: "DELETE" });
@@ -92,6 +106,11 @@ export default function FolderMenu({ folder }: FolderMenuProps) {
           <DropdownMenuItem onClick={() => { setName(folder.name); setRenameOpen(true); }}>
             <Pencil size={14} />
             Zmień nazwę
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={handleArchive}>
+            <Archive size={14} />
+            Archiwizuj
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem variant="destructive" onClick={handleDelete}>

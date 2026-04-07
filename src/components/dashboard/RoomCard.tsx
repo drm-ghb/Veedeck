@@ -26,20 +26,16 @@ export default function RoomCard({ room, projectId }: RoomCardProps) {
       href={`/projects/${projectId}/rooms/${room.id}`}
       className="group relative bg-white border border-gray-100 rounded-2xl p-5 shadow-sm hover:shadow-[0_4px_16px_rgba(25,33,61,0.2)] hover:border-[#19213D]/30 transition-all"
     >
-      {/* Pin indicator */}
-      {room.pinned && (
-        <div className="absolute top-3 left-3">
-          <Pin size={13} className="text-red-500 fill-red-500" />
-        </div>
-      )}
-
       {/* Icon */}
-      <div className={`w-14 h-14 bg-gray-100 rounded-xl flex items-center justify-center mb-4 group-hover:bg-gray-200 transition-colors ${room.pinned ? "mt-2" : ""}`}>
+      <div className="w-14 h-14 bg-gray-100 rounded-xl flex items-center justify-center mb-4 group-hover:bg-gray-200 transition-colors">
         <Icon size={28} className="text-[#19213D]" />
       </div>
 
       {/* Name */}
-      <p className="font-semibold text-gray-800 truncate">{room.name}</p>
+      <p className="font-semibold text-gray-800 truncate flex items-center gap-1.5">
+        {room.pinned && <Pin size={13} className="text-red-500 fill-red-500 shrink-0 translate-y-px" />}
+        {room.name}
+      </p>
 
       {/* Count */}
       <p className="text-xs text-gray-400 mt-1 flex items-center gap-1">

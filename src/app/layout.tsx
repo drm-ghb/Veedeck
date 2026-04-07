@@ -16,7 +16,7 @@ const dmSans = DM_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "RenderFlow – Feedback do wizualizacji",
+  title: "Veedeck – Feedback do wizualizacji",
   description: "Centralizuj feedback do renderów w jednym miejscu",
 };
 
@@ -26,7 +26,7 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const cookieStore = await cookies();
-  const themeCookie = cookieStore.get("renderflow-theme")?.value;
+  const themeCookie = cookieStore.get("veedeck-theme")?.value;
   const isDark = themeCookie === "dark";
 
   return (

@@ -16,6 +16,9 @@ const mockProject = {
   shareToken: "token-abc",
   sharePassword: null,
   shareExpiresAt: null,
+  archived: false,
+  hiddenModules: [] as string[],
+  shoppingLists: [],
   user: {
     name: "Projektant",
     allowDirectStatusChange: false,
@@ -31,6 +34,7 @@ const mockProject = {
     notifyClientOnReply: true,
     allowClientVersionRestore: true,
     showProjectTitle: true,
+    navMode: "dashboard",
   },
   rooms: [],
 };
@@ -136,5 +140,48 @@ describe("GET /api/share/[token]", () => {
     expect(body.designerName).toBe("Projektant");
     expect(body).toHaveProperty("allowClientComments");
     expect(body).not.toHaveProperty("user");
+  });
+
+  it("zwraca 410 gdy projekt jest zarchiwizowany", async () => {
+    vi.mocked(prisma.project.findUnique).mockResolvedValue({
+      ...mockProject,
+      archived: true,
+    } as any);
+    const res = await GET(makeRequest("GET"), makeParams({ token: "token-abc" }));
+    expect(res.status).toBe(410);
+    const body = await res.json();
+    expect(body.expired).toBe(true);
+  });
+
+  it("zwraca 403 gdy moduł renderflow jest ukryty", async () => {
+    vi.mocked(prisma.project.findUnique).mockResolvedValue({
+      ...mockProject,
+      hiddenModules: ["renderflow"],
+    } as any);
+    const res = await GET(makeRequest("GET"), makeParams({ token: "token-abc" }));
+    expect(res.status).toBe(403);
+    const body = await res.json();
+    expect(body.moduleHidden).toBe(true);
+  });
+
+  it("zwraca navMode w odpowiedzi", async () => {
+    vi.mocked(prisma.project.findUnique).mockResolvedValue({
+      ...mockProject,
+      user: { ...mockProject.user, navMode: "sidebar" },
+    } as any);
+    const res = await GET(makeRequest("GET"), makeParams({ token: "token-abc" }));
+    const body = await res.json();
+    expect(body.navMode).toBe("sidebar");
+  });
+
+  it("zwraca shoppingLists w odpowiedzi", async () => {
+    vi.mocked(prisma.project.findUnique).mockResolvedValue({
+      ...mockProject,
+      shoppingLists: [{ id: "list-1", name: "Lista mebli", shareToken: "s-tok" }],
+    } as any);
+    const res = await GET(makeRequest("GET"), makeParams({ token: "token-abc" }));
+    const body = await res.json();
+    expect(body.shoppingLists).toHaveLength(1);
+    expect(body.shoppingLists[0].name).toBe("Lista mebli");
   });
 });

@@ -57,14 +57,12 @@ export default function ProjectCard({
     <>
     <Link href={`/projects/${id}`} className="block">
       <Card className="hover:shadow-[0_4px_16px_rgba(25,33,61,0.2)] hover:border-[#19213D]/30 transition-all cursor-pointer h-full relative">
-        {pinned && (
-          <div className="absolute top-3 left-3">
-            <Pin size={13} className="text-red-500 fill-red-500" />
-          </div>
-        )}
         <CardHeader className="flex-1">
           <div className="flex items-start justify-between gap-2">
-            <CardTitle className={`text-lg leading-tight line-clamp-2 ${pinned ? "pl-4" : ""}`}>{title}</CardTitle>
+            <CardTitle className="text-lg leading-tight line-clamp-2 flex items-center gap-1.5">
+              {pinned && <Pin size={13} className="text-red-500 fill-red-500 shrink-0 translate-y-px" />}
+              {title}
+            </CardTitle>
             <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.preventDefault()}>
               <Badge variant="secondary">{renderCount} renderów</Badge>
               <ProjectMenu

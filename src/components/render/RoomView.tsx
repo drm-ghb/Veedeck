@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArchiveRestore, Eye, LayoutGrid, List, Pin, Trash2 } from "lucide-react";
+import { ArchiveRestore, Eye, Folder, LayoutGrid, List, Pin, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
@@ -30,15 +30,22 @@ interface Folder {
   pinned: boolean;
 }
 
+interface ArchivedFolder {
+  id: string;
+  name: string;
+  renderCount: number;
+}
+
 interface RoomViewProps {
   projectId: string;
   roomId: string;
   renders: Render[];
   archivedRenders: Render[];
   folders: Folder[];
+  archivedFolders: ArchivedFolder[];
 }
 
-export default function RoomView({ projectId, roomId, renders, archivedRenders, folders }: RoomViewProps) {
+export default function RoomView({ projectId, roomId, renders, archivedRenders, folders, archivedFolders }: RoomViewProps) {
   const [tab, setTab] = useState<"active" | "archived">("active");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const router = useRouter();
@@ -64,6 +71,31 @@ export default function RoomView({ projectId, roomId, renders, archivedRenders, 
       router.refresh();
     } else {
       toast.error("Błąd przywracania");
+    }
+  }
+
+  async function handleRestoreFolder(folderId: string) {
+    const res = await fetch(`/api/folders/${folderId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ archived: false }),
+    });
+    if (res.ok) {
+      toast.success("Folder przywrócony");
+      router.refresh();
+    } else {
+      toast.error("Błąd przywracania");
+    }
+  }
+
+  async function handleDeleteFolder(folderId: string, name: string) {
+    if (!confirm(`Usunąć folder "${name}"? Pliki w folderze nie zostaną usunięte.`)) return;
+    const res = await fetch(`/api/folders/${folderId}`, { method: "DELETE" });
+    if (res.ok) {
+      toast.success("Folder usunięty");
+      router.refresh();
+    } else {
+      toast.error("Błąd usuwania folderu");
     }
   }
 
@@ -107,9 +139,9 @@ export default function RoomView({ projectId, roomId, renders, archivedRenders, 
             }`}
           >
             Zarchiwizowane
-            {archivedRenders.length > 0 && (
+            {(archivedRenders.length + archivedFolders.length) > 0 && (
               <span className="ml-1.5 text-xs bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full">
-                {archivedRenders.length}
+                {archivedRenders.length + archivedFolders.length}
               </span>
             )}
           </button>
@@ -257,42 +289,83 @@ export default function RoomView({ projectId, roomId, renders, archivedRenders, 
             )}
           </div>
         )
-      ) : archivedRenders.length === 0 ? (
+      ) : archivedRenders.length === 0 && archivedFolders.length === 0 ? (
         <div className="text-center py-16 text-muted-foreground">
           <p className="text-4xl mb-4">📦</p>
-          <p className="text-lg">Brak zarchiwizowanych renderów</p>
+          <p className="text-lg">Brak zarchiwizowanych elementów</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-4">
-          {archivedRenders.map((render) => (
-            <Card key={render.id} className="overflow-hidden opacity-60">
-              <div className="aspect-video bg-muted overflow-hidden">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={render.fileUrl}
-                  alt={render.name}
-                  className="w-full h-full object-cover"
-                />
+        <div className="space-y-8">
+          {archivedFolders.length > 0 && (
+            <div>
+              <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Foldery</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-4">
+                {archivedFolders.map((folder) => (
+                  <Card key={folder.id} className="p-5 opacity-60">
+                    <div className="w-14 h-14 bg-gray-100 dark:bg-muted rounded-xl flex items-center justify-center mb-4">
+                      <Folder size={28} className="text-[#19213D] dark:text-foreground" />
+                    </div>
+                    <p className="font-semibold text-gray-800 dark:text-foreground truncate mb-1">{folder.name}</p>
+                    <p className="text-xs text-gray-400 mb-3">
+                      {folder.renderCount} plik{folder.renderCount === 1 ? "" : folder.renderCount < 5 ? "i" : "ów"}
+                    </p>
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="outline" className="flex-1" onClick={() => handleRestoreFolder(folder.id)}>
+                        <ArchiveRestore size={14} />
+                        Przywróć
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-red-400 hover:text-red-600"
+                        onClick={() => handleDeleteFolder(folder.id, folder.name)}
+                      >
+                        <Trash2 size={14} />
+                      </Button>
+                    </div>
+                  </Card>
+                ))}
               </div>
-              <div className="p-3">
-                <p className="text-sm font-medium truncate mb-2">{render.name}</p>
-                <div className="flex gap-2">
-                  <Button size="sm" variant="outline" className="flex-1" onClick={() => handleRestore(render.id)}>
-                    <ArchiveRestore size={14} />
-                    Przywróć
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="text-red-400 hover:text-red-600"
-                    onClick={() => handleDelete(render.id, render.name)}
-                  >
-                    <Trash2 size={14} />
-                  </Button>
-                </div>
+            </div>
+          )}
+          {archivedRenders.length > 0 && (
+            <div>
+              {archivedFolders.length > 0 && (
+                <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Pliki</p>
+              )}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-4">
+                {archivedRenders.map((render) => (
+                  <Card key={render.id} className="overflow-hidden opacity-60">
+                    <div className="aspect-video bg-muted overflow-hidden">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={render.fileUrl}
+                        alt={render.name}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <div className="p-3">
+                      <p className="text-sm font-medium truncate mb-2">{render.name}</p>
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="outline" className="flex-1" onClick={() => handleRestore(render.id)}>
+                          <ArchiveRestore size={14} />
+                          Przywróć
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-red-400 hover:text-red-600"
+                          onClick={() => handleDelete(render.id, render.name)}
+                        >
+                          <Trash2 size={14} />
+                        </Button>
+                      </div>
+                    </div>
+                  </Card>
+                ))}
               </div>
-            </Card>
-          ))}
+            </div>
+          )}
         </div>
       )}
     </>

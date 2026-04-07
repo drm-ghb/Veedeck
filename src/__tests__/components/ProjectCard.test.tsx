@@ -1,0 +1,130 @@
+/**
+ * @vitest-environment jsdom
+ */
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { vi, describe, it, expect, beforeEach } from "vitest";
+import ProjectCard from "@/components/dashboard/ProjectCard";
+
+// Mocki Next.js i zewnętrznych zależności
+vi.mock("next/link", () => ({
+  default: ({ href, children, className }: { href: string; children: React.ReactNode; className?: string }) => (
+    <a href={href} className={className}>{children}</a>
+  ),
+}));
+
+vi.mock("sonner", () => ({
+  toast: { success: vi.fn(), error: vi.fn() },
+}));
+
+vi.mock("@/components/dashboard/ProjectMenu", () => ({
+  default: () => <div data-testid="project-menu" />,
+}));
+
+// Mock clipboard API
+const mockClipboard = { writeText: vi.fn().mockResolvedValue(undefined) };
+Object.defineProperty(navigator, "clipboard", {
+  value: mockClipboard,
+  writable: true,
+});
+
+const defaultProps = {
+  id: "proj-1",
+  title: "Projekt testowy",
+  renderCount: 5,
+  createdAt: "2025-01-15T10:00:00.000Z",
+  shareToken: "tok-abc",
+};
+
+beforeEach(() => vi.clearAllMocks());
+
+describe("ProjectCard", () => {
+  it("renderuje tytuł projektu", () => {
+    render(<ProjectCard {...defaultProps} />);
+    expect(screen.getByText("Projekt testowy")).toBeInTheDocument();
+  });
+
+  it("renderuje liczbę renderów", () => {
+    render(<ProjectCard {...defaultProps} />);
+    expect(screen.getByText("5 renderów")).toBeInTheDocument();
+  });
+
+  it("renderuje datę w formacie polskim", () => {
+    render(<ProjectCard {...defaultProps} />);
+    expect(screen.getByText("15.01.2025")).toBeInTheDocument();
+  });
+
+  it("wyświetla imię klienta gdy podano", () => {
+    render(<ProjectCard {...defaultProps} clientName="Jan Kowalski" />);
+    expect(screen.getByText("Jan Kowalski")).toBeInTheDocument();
+  });
+
+  it("wyświetla email klienta gdy podano", () => {
+    render(<ProjectCard {...defaultProps} clientEmail="jan@test.com" />);
+    expect(screen.getByText("jan@test.com")).toBeInTheDocument();
+  });
+
+  it("wyświetla opis gdy podano", () => {
+    render(<ProjectCard {...defaultProps} description="Projekt salonu" />);
+    expect(screen.getByText("Projekt salonu")).toBeInTheDocument();
+  });
+
+  it("NIE wyświetla ikony pinezki gdy projekt nie jest przypięty", () => {
+    render(<ProjectCard {...defaultProps} pinned={false} />);
+    // Pinezka powinna być niewidoczna
+    const title = screen.getByText("Projekt testowy");
+    const titleContainer = title.closest("span") ?? title.parentElement;
+    // Brak elementu svg z klasą fill-red-500 w tytule
+    const allSvgs = document.querySelectorAll("svg");
+    const redPins = Array.from(allSvgs).filter(
+      (svg) => svg.classList.contains("fill-red-500") && svg.closest("[class*='CardTitle'], span")
+    );
+    expect(redPins.length).toBe(0);
+  });
+
+  it("wyświetla ikonę pinezki obok tytułu gdy projekt jest przypięty", () => {
+    render(<ProjectCard {...defaultProps} pinned={true} />);
+    // Pinezka jest w tym samym kontenerze co tytuł (CardTitle)
+    const titleText = screen.getByText("Projekt testowy");
+    // Idziemy w górę do elementu który zawiera zarówno pin jak i tytuł
+    const container = titleText.parentElement;
+    const pin = container?.querySelector("svg");
+    expect(pin).not.toBeNull();
+    expect(pin?.getAttribute("class")).toContain("fill-red-500");
+  });
+
+  it("kliknięcie 'Skopiuj link' kopiuje link do schowka", async () => {
+    render(<ProjectCard {...defaultProps} />);
+    const copyBtn = screen.getByText("Skopiuj link");
+    fireEvent.click(copyBtn);
+    await waitFor(() => {
+      expect(mockClipboard.writeText).toHaveBeenCalledWith(
+        expect.stringContaining("/share/tok-abc")
+      );
+    });
+  });
+
+  it("gdy renderflow jest ukryty — kliknięcie 'Skopiuj link' otwiera ostrzeżenie", async () => {
+    render(<ProjectCard {...defaultProps} hiddenModules={["renderflow"]} />);
+    const copyBtn = screen.getByText("Skopiuj link");
+    fireEvent.click(copyBtn);
+    await waitFor(() => {
+      expect(screen.getByText("Moduł jest ukryty dla klienta")).toBeInTheDocument();
+    });
+  });
+
+  it("w ostrzeżeniu 'Mimo to skopiuj' kopiuje link i zamyka dialog", async () => {
+    render(<ProjectCard {...defaultProps} hiddenModules={["renderflow"]} />);
+    fireEvent.click(screen.getByText("Skopiuj link"));
+    await waitFor(() => screen.getByText("Mimo to skopiuj"));
+    fireEvent.click(screen.getByText("Mimo to skopiuj"));
+    await waitFor(() => {
+      expect(mockClipboard.writeText).toHaveBeenCalled();
+    });
+  });
+
+  it("link projektu kieruje do /projects/[id]", () => {
+    render(<ProjectCard {...defaultProps} />);
+    const link = screen.getByRole("link");
+    expect(link).toHaveAttribute("href", "/projects/proj-1");
+  });
+});

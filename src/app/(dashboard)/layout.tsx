@@ -37,9 +37,9 @@ export default async function DashboardLayout({
 
           {/* Logo */}
           <Link href="/renderflow" className="flex items-center gap-2 shrink-0">
-            <Image src="/logo.svg" alt="RenderFlow" width={28} height={28} className="block dark:hidden" />
-            <Image src="/logo-dark.svg" alt="RenderFlow" width={28} height={28} className="hidden dark:block" />
-            <span className="text-xl font-bold">Render<span className="text-[#19213D] dark:text-white">Flow</span></span>
+            <Image src="/logo.svg" alt="Veedeck" width={28} height={28} className="block dark:hidden" />
+            <Image src="/logo-dark.svg" alt="Veedeck" width={28} height={28} className="hidden dark:block" />
+            <span className="text-xl font-bold">Veedeck</span>
           </Link>
 
           {/* Desktop: center links */}

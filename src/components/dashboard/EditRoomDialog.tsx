@@ -55,8 +55,7 @@ export default function EditRoomDialog({
 
   const SelectedIcon = getRoomIcon(null, icon);
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function handleSubmit() {
     if (!name.trim()) return;
     setLoading(true);
 
@@ -85,7 +84,7 @@ export default function EditRoomDialog({
         <DialogHeader>
           <DialogTitle>Edytuj pomieszczenie</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <div className="space-y-5">
           {/* Icon preview */}
           <div className="flex justify-center">
             <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center">
@@ -99,8 +98,8 @@ export default function EditRoomDialog({
               id="edit-roomName"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              required
               autoFocus
+              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleSubmit(); } }}
             />
           </div>
 
@@ -151,11 +150,11 @@ export default function EditRoomDialog({
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Anuluj
             </Button>
-            <Button type="submit" disabled={loading || !name.trim()}>
+            <Button onClick={handleSubmit} disabled={loading || !name.trim()}>
               {loading ? "Zapisywanie..." : "Zapisz"}
             </Button>
           </div>
-        </form>
+        </div>
       </DialogContent>
     </Dialog>
   );

@@ -195,6 +195,7 @@ model Folder {
   order     Int      @default(0)
   createdAt DateTime @default(now())
   pinned    Boolean  @default(false)
+  archived  Boolean  @default(false)
   room      Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
   renders   Render[]
 }
@@ -248,8 +249,8 @@ model VersionRestoreRequest {
 model Comment {
   id         String        @id @default(cuid())
   content    String
-  posX       Float
-  posY       Float
+  posX       Float?
+  posY       Float?
   status     CommentStatus @default(NEW)
   author     String
   createdAt  DateTime      @default(now())

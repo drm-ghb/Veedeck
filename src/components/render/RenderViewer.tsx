@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { ChevronLeft, ChevronRight, ChevronDown, Eye, EyeOff, Pin, List, X, Send, ZoomIn, ZoomOut, History, Upload, Maximize2, RotateCcw, Lock, LockOpen, SplitSquareHorizontal, ChevronsLeftRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronDown, Eye, EyeOff, Pin, X, Send, ZoomIn, ZoomOut, History, Upload, Maximize2, RotateCcw, Lock, LockOpen, SplitSquareHorizontal, ChevronsLeftRight, MessageSquare } from "lucide-react";
 import RenderUploader from "./RenderUploader";
 import { useUploadThing } from "@/lib/uploadthing-client";
 
@@ -25,8 +25,8 @@ interface Comment {
   id: string;
   title?: string | null;
   content: string;
-  posX: number;
-  posY: number;
+  posX: number | null;
+  posY: number | null;
   status: CommentStatus;
   isInternal?: boolean;
   author: string;
@@ -204,11 +204,32 @@ export default function RenderViewer({
   });
   const [allComments, setAllComments] = useState<CommentWithMeta[]>([]);
   const [loadingAllComments, setLoadingAllComments] = useState(false);
+  const [sidebarTab, setSidebarTab] = useState<"pins" | "chat">("pins");
+  const [chatMessage, setChatMessage] = useState("");
+  const [sendingChatMessage, setSendingChatMessage] = useState(false);
+  const [chatUnreadCount, setChatUnreadCount] = useState(() => {
+    if (typeof window === "undefined") return 0;
+    const lastReadAt = localStorage.getItem(`rf_chat_readAt_${renderId}`);
+    const chatMessages = initialComments.filter(c => c.posX === null && c.posY === null && c.author !== authorName);
+    if (!lastReadAt) return chatMessages.length;
+    const lastRead = new Date(lastReadAt);
+    return chatMessages.filter(c => new Date(c.createdAt) > lastRead).length;
+  });
   const imgRef = useRef<HTMLDivElement>(null);
   const lightboxImgRef = useRef<HTMLDivElement>(null);
   const versionFileInputRef = useRef<HTMLInputElement>(null);
+  const chatEndRef = useRef<HTMLDivElement>(null);
+  const showCommentsRef = useRef(showComments);
+  const sidebarTabRef = useRef(sidebarTab);
+  useEffect(() => { showCommentsRef.current = showComments; }, [showComments]);
+  useEffect(() => { sidebarTabRef.current = sidebarTab; }, [sidebarTab]);
   const router = useRouter();
   const searchParams = useSearchParams();
+
+  function markChatRead() {
+    localStorage.setItem(`rf_chat_readAt_${renderId}`, new Date().toISOString());
+    setChatUnreadCount(0);
+  }
 
   // Auto-open pin popup and restore "all" filter when arriving via cross-render navigation
   useEffect(() => {
@@ -257,6 +278,14 @@ export default function RenderViewer({
         if (prev.some((c) => c.id === comment.id)) return prev;
         return [...prev, { ...comment, replies: [] }];
       });
+      // Track unread for chat messages from other authors
+      if (comment.posX === null && comment.posY === null && comment.author !== authorName) {
+        if (showCommentsRef.current && sidebarTabRef.current === "chat") {
+          localStorage.setItem(`rf_chat_readAt_${renderId}`, new Date().toISOString());
+        } else {
+          setChatUnreadCount((prev) => prev + 1);
+        }
+      }
     });
     channel.bind("comment-updated", (updated: Comment) => {
       setComments((prev) =>
@@ -372,6 +401,34 @@ export default function RenderViewer({
       toast.error("Błąd dodawania komentarza");
     } finally {
       setAdding(false);
+    }
+  }
+
+  async function submitChatMessage() {
+    if (!chatMessage.trim()) return;
+    setSendingChatMessage(true);
+    try {
+      const res = await fetch("/api/comments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          renderId,
+          content: chatMessage.trim(),
+          posX: null,
+          posY: null,
+          author: authorName,
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        toast.error(data.error || "Błąd wysyłania wiadomości");
+        return;
+      }
+      setChatMessage("");
+    } catch {
+      toast.error("Błąd wysyłania wiadomości");
+    } finally {
+      setSendingChatMessage(false);
     }
   }
 
@@ -604,12 +661,21 @@ export default function RenderViewer({
     return () => window.removeEventListener("keydown", onKey);
   }, [projectId, prevRender, nextRender, router, roomRenders.length, lightboxOpen, lightboxIndex]);
 
-  const todoCount = comments.filter((c) => c.status === "NEW").length;
-  const inProgressCount = comments.filter((c) => c.status === "IN_PROGRESS").length;
-  const doneCount = comments.filter((c) => c.status === "DONE").length;
+  const pinComments = comments.filter((c) => c.posX !== null && c.posY !== null);
 
-  const selectedComment = selectedId ? comments.find((c) => c.id === selectedId) ?? null : null;
-  const selectedIndex = selectedId ? comments.findIndex((c) => c.id === selectedId) : -1;
+  const todoCount = pinComments.filter((c) => c.status === "NEW").length;
+  const inProgressCount = pinComments.filter((c) => c.status === "IN_PROGRESS").length;
+  const doneCount = pinComments.filter((c) => c.status === "DONE").length;
+
+  const selectedComment = selectedId ? pinComments.find((c) => c.id === selectedId) ?? null : null;
+  const selectedIndex = selectedId ? pinComments.findIndex((c) => c.id === selectedId) : -1;
+
+  // Auto-scroll chat to bottom on new messages
+  useEffect(() => {
+    if (sidebarTab === "chat" && showComments) {
+      chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [comments, sidebarTab, showComments]);
 
   return (
     <div className="flex flex-col h-full bg-card">
@@ -739,10 +805,15 @@ export default function RenderViewer({
               {hidePins ? "Pokaż piny" : "Ukryj piny"}
             </button>
             <button
-              onClick={() => setShowComments((v) => { const next = !v; sessionStorage.setItem("renderflow_showComments", String(next)); return next; })}
-              className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md border transition-colors ${showComments ? "bg-gray-900 text-white border-gray-900" : "border-transparent text-gray-500 dark:text-gray-400 hover:bg-muted"}`}
+              onClick={() => setShowComments((v) => { const next = !v; sessionStorage.setItem("renderflow_showComments", String(next)); if (next && sidebarTabRef.current === "chat") markChatRead(); return next; })}
+              className={`relative flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md border transition-colors ${showComments ? "bg-gray-900 text-white border-gray-900" : "border-transparent text-gray-500 dark:text-gray-400 hover:bg-muted"}`}
             >
-              <List size={14} /> Lista
+              <MessageSquare size={14} /> Dyskusja
+              {chatUnreadCount > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 bg-blue-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center leading-none">
+                  {chatUnreadCount > 99 ? "99+" : chatUnreadCount}
+                </span>
+              )}
             </button>
           </div>
         </div>
@@ -789,12 +860,17 @@ export default function RenderViewer({
               {hidePins ? <EyeOff size={14} /> : <Eye size={14} />}
               {hidePins ? "Pokaż" : "Ukryj"}
             </button>
-            {/* Lista */}
+            {/* Dyskusja */}
             <button
-              onClick={() => setShowComments((v) => { const next = !v; sessionStorage.setItem("renderflow_showComments", String(next)); return next; })}
-              className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md border transition-colors flex-shrink-0 ${showComments ? "bg-gray-900 text-white border-gray-900" : "border-transparent text-gray-500 dark:text-gray-400 hover:bg-muted"}`}
+              onClick={() => setShowComments((v) => { const next = !v; sessionStorage.setItem("renderflow_showComments", String(next)); if (next && sidebarTabRef.current === "chat") markChatRead(); return next; })}
+              className={`relative flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md border transition-colors flex-shrink-0 ${showComments ? "bg-gray-900 text-white border-gray-900" : "border-transparent text-gray-500 dark:text-gray-400 hover:bg-muted"}`}
             >
-              <List size={14} /> Lista
+              <MessageSquare size={14} /> Dyskusja
+              {chatUnreadCount > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 bg-blue-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center leading-none">
+                  {chatUnreadCount > 99 ? "99+" : chatUnreadCount}
+                </span>
+              )}
             </button>
             <div className="w-px h-5 bg-gray-200 dark:bg-gray-700 mx-0.5 flex-shrink-0" />
             {/* Wersje */}
@@ -906,15 +982,15 @@ export default function RenderViewer({
             />
 
             {/* Comment pins */}
-            {!hidePins && comments.map((c, i) => (
+            {!hidePins && pinComments.map((c, i) => (
               <button
                 key={c.id}
                 className={`absolute w-7 h-7 rounded-full border-2 border-white text-white text-xs font-bold flex items-center justify-center shadow-lg z-10 transition-transform hover:scale-110 ${c.isInternal ? "bg-slate-500" : STATUS_PIN_COLOR[c.status]} ${
                   selectedId === c.id ? "scale-125 ring-2 ring-white ring-offset-1" : ""
                 }`}
                 style={{
-                  left: `calc(${c.posX}% - 14px)`,
-                  top: `calc(${c.posY}% - 14px)`,
+                  left: `calc(${c.posX!}% - 14px)`,
+                  top: `calc(${c.posY!}% - 14px)`,
                 }}
                 onClick={(e) => {
                   e.stopPropagation();
@@ -968,7 +1044,7 @@ export default function RenderViewer({
                   value={newContent}
                   onChange={(e) => setNewContent(e.target.value)}
                   placeholder="Opisz co wymaga zmiany..."
-                  className="mb-3 text-sm resize-none"
+                  className="mb-3 text-sm resize-none max-h-40 overflow-y-auto"
                   rows={3}
                   autoFocus
                   onKeyDown={(e) => {
@@ -1004,7 +1080,7 @@ export default function RenderViewer({
               <div
                 className="fixed z-50 bg-card rounded-xl shadow-xl border border-border w-72 flex flex-col"
                 style={{
-                  ...getPopupStyle(selectedComment.posX, selectedComment.posY, imgRef.current),
+                  ...getPopupStyle(selectedComment.posX!, selectedComment.posY!, imgRef.current),
                   maxHeight: "360px",
                 }}
                 onClick={(e) => e.stopPropagation()}
@@ -1148,116 +1224,274 @@ export default function RenderViewer({
             className="fixed inset-0 z-20 bg-black/30 md:hidden"
             onClick={() => { setShowComments(false); sessionStorage.setItem("renderflow_showComments", "false"); }}
           />
-          <div className="fixed md:relative inset-y-0 right-0 z-30 md:z-auto w-72 md:w-72 md:flex-shrink-0 border-l bg-card flex flex-col shadow-xl md:shadow-none">
-          <div className="px-4 py-3 border-b flex-shrink-0">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-                {pinFilter === "current"
-                  ? `Piny tego renderu (${comments.length})`
-                  : `Wszystkie piny (${allComments.length})`}
-              </h3>
-            </div>
-            <div className="flex gap-1">
+          <div className="fixed md:relative inset-y-0 right-0 z-30 md:z-auto w-[min(288px,100vw)] md:w-72 md:flex-shrink-0 border-l bg-card flex flex-col shadow-xl md:shadow-none">
+
+            {/* Tab switcher */}
+            <div className="flex border-b flex-shrink-0">
               <button
-                onClick={() => { setPinFilter("current"); sessionStorage.setItem("renderflow_pinFilter", "current"); }}
-                className={`text-xs px-2.5 py-1 rounded-md border transition-colors font-medium ${
-                  pinFilter === "current"
-                    ? "bg-gray-900 text-white border-gray-900 dark:bg-gray-100 dark:text-gray-900 dark:border-gray-100"
-                    : "border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-gray-400"
+                onClick={() => setSidebarTab("pins")}
+                className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-semibold transition-colors border-b-2 ${
+                  sidebarTab === "pins"
+                    ? "border-gray-900 dark:border-gray-100 text-gray-900 dark:text-gray-100"
+                    : "border-transparent text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
                 }`}
               >
-                Ten render
+                <Pin size={13} />
+                Piny {pinComments.length > 0 && <span className="bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 rounded-full px-1.5 py-0.5 text-[10px]">{pinComments.length}</span>}
               </button>
               <button
-                onClick={() => {
-                  setPinFilter("all");
-                  sessionStorage.setItem("renderflow_pinFilter", "all");
-                  fetchAllComments();
-                }}
-                className={`text-xs px-2.5 py-1 rounded-md border transition-colors font-medium ${
-                  pinFilter === "all"
-                    ? "bg-gray-900 text-white border-gray-900 dark:bg-gray-100 dark:text-gray-900 dark:border-gray-100"
-                    : "border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-gray-400"
+                onClick={() => { setSidebarTab("chat"); markChatRead(); }}
+                className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-semibold transition-colors border-b-2 ${
+                  sidebarTab === "chat"
+                    ? "border-gray-900 dark:border-gray-100 text-gray-900 dark:text-gray-100"
+                    : "border-transparent text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
                 }`}
               >
-                Wszystkie
+                <MessageSquare size={13} />
+                Czat {comments.filter(c => c.posX === null).length > 0 && <span className={`rounded-full px-1.5 py-0.5 text-[10px] ${chatUnreadCount > 0 ? "bg-blue-500 text-white" : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300"}`}>{comments.filter(c => c.posX === null).length}</span>}
               </button>
             </div>
-          </div>
 
-          <div className="flex-1 overflow-y-auto divide-y divide-gray-100 dark:divide-gray-800">
-            {pinFilter === "all" && loadingAllComments ? (
-              <p className="text-xs text-gray-400 text-center py-8">Ładowanie pinów...</p>
-            ) : (() => {
-              const listItems: CommentWithMeta[] = pinFilter === "all"
-                ? allComments
-                : comments.map((c) => ({ ...c, renderId, renderName: renderName ?? "" }));
-
-              if (listItems.length === 0) {
-                return (
-                  <p className="text-xs text-gray-400 text-center py-8">
-                    {mode === "pin" ? "Kliknij na obraz aby dodać pin" : "Brak pinów"}
-                  </p>
-                );
-              }
-
-              return listItems.map((c, i) => {
-                const isFromOtherRender = pinFilter === "all" && c.renderId !== renderId;
-                const isSelected = selectedId === c.id;
-                const displayTitle = c.title || `Pin #${i + 1}`;
-                const totalReplies = c.replies.length;
-                return (
-                  <div
-                    key={c.id}
-                    className={`px-4 py-3 cursor-pointer transition-colors ${
-                      isSelected ? "bg-blue-50 dark:bg-blue-900/20" : "hover:bg-muted/50"
-                    }`}
-                    onClick={() => {
-                      if (isFromOtherRender && projectId) {
-                        router.push(`/projects/${projectId}/renders/${c.renderId}?pinId=${c.id}`);
-                        return;
-                      }
-                      setSelectedId(c.id === selectedId ? null : c.id);
-                      cancelPending();
-                      setReplyContent("");
-                    }}
-                  >
-                    <div className="flex items-start gap-2">
-                      <span
-                        className={`w-5 h-5 rounded-full text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5 ${c.isInternal ? "bg-slate-500" : STATUS_PIN_COLOR[c.status]}`}
-                      >
-                        {i + 1}
-                      </span>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{displayTitle}</span>
-                          {c.isInternal && (
-                            <Lock size={11} className="text-slate-400 flex-shrink-0" aria-label="Notatka wewnętrzna — niewidoczna dla klienta" />
-                          )}
-                          <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${STATUS_BADGE[c.status]}`}>
-                            {STATUS_LABEL[c.status]}
-                          </span>
-                        </div>
-                        {c.content && (
-                          <p className="text-xs text-gray-700 dark:text-gray-300 mt-1 line-clamp-2">{c.content}</p>
-                        )}
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                          {c.author} · {formatDate(c.createdAt)}
-                          {totalReplies > 0 && (
-                            <span className="ml-1 text-blue-500">{totalReplies} {totalReplies === 1 ? "odpowiedź" : totalReplies < 5 ? "odpowiedzi" : "odpowiedzi"}</span>
-                          )}
-                        </p>
-                        {isFromOtherRender && (
-                          <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5 italic truncate">{c.renderName}</p>
-                        )}
-                      </div>
-                    </div>
+            {/* ── PINY TAB ── */}
+            {sidebarTab === "pins" && (
+              <>
+                <div className="px-4 py-2.5 border-b flex-shrink-0">
+                  <div className="flex gap-1">
+                    <button
+                      onClick={() => { setPinFilter("current"); sessionStorage.setItem("renderflow_pinFilter", "current"); }}
+                      className={`text-xs px-2.5 py-1 rounded-md border transition-colors font-medium ${
+                        pinFilter === "current"
+                          ? "bg-gray-900 text-white border-gray-900 dark:bg-gray-100 dark:text-gray-900 dark:border-gray-100"
+                          : "border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-gray-400"
+                      }`}
+                    >
+                      Ten render
+                    </button>
+                    <button
+                      onClick={() => {
+                        setPinFilter("all");
+                        sessionStorage.setItem("renderflow_pinFilter", "all");
+                        fetchAllComments();
+                      }}
+                      className={`text-xs px-2.5 py-1 rounded-md border transition-colors font-medium ${
+                        pinFilter === "all"
+                          ? "bg-gray-900 text-white border-gray-900 dark:bg-gray-100 dark:text-gray-900 dark:border-gray-100"
+                          : "border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-gray-400"
+                      }`}
+                    >
+                      Wszystkie
+                    </button>
                   </div>
-                );
+                </div>
+
+                <div className="flex-1 overflow-y-auto divide-y divide-gray-100 dark:divide-gray-800">
+                  {pinFilter === "all" && loadingAllComments ? (
+                    <p className="text-xs text-gray-400 text-center py-8">Ładowanie pinów...</p>
+                  ) : (() => {
+                    const listItems: CommentWithMeta[] = pinFilter === "all"
+                      ? allComments.filter(c => c.posX !== null)
+                      : pinComments.map((c) => ({ ...c, renderId, renderName: renderName ?? "" }));
+
+                    if (listItems.length === 0) {
+                      return (
+                        <p className="text-xs text-gray-400 text-center py-8">
+                          {mode === "pin" ? "Kliknij na obraz aby dodać pin" : "Brak pinów"}
+                        </p>
+                      );
+                    }
+
+                    return listItems.map((c, i) => {
+                      const isFromOtherRender = pinFilter === "all" && c.renderId !== renderId;
+                      const isSelected = selectedId === c.id;
+                      const displayTitle = c.title || `Pin #${i + 1}`;
+                      const totalReplies = c.replies.length;
+                      return (
+                        <div
+                          key={c.id}
+                          className={`px-4 py-3 cursor-pointer transition-colors ${
+                            isSelected ? "bg-blue-50 dark:bg-blue-900/20" : "hover:bg-muted/50"
+                          }`}
+                          onClick={() => {
+                            if (isFromOtherRender && projectId) {
+                              router.push(`/projects/${projectId}/renders/${c.renderId}?pinId=${c.id}`);
+                              return;
+                            }
+                            setSelectedId(c.id === selectedId ? null : c.id);
+                            cancelPending();
+                            setReplyContent("");
+                          }}
+                        >
+                          <div className="flex items-start gap-2">
+                            <span className={`w-5 h-5 rounded-full text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5 ${c.isInternal ? "bg-slate-500" : STATUS_PIN_COLOR[c.status]}`}>
+                              {i + 1}
+                            </span>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{displayTitle}</span>
+                                {c.isInternal && <Lock size={11} className="text-slate-400 flex-shrink-0" />}
+                                <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${STATUS_BADGE[c.status]}`}>
+                                  {STATUS_LABEL[c.status]}
+                                </span>
+                              </div>
+                              {c.content && (
+                                <p className="text-xs text-gray-700 dark:text-gray-300 mt-1 line-clamp-2">{c.content}</p>
+                              )}
+                              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                                {c.author} · {formatDate(c.createdAt)}
+                                {totalReplies > 0 && (
+                                  <span className="ml-1 text-blue-500">{totalReplies} {totalReplies === 1 ? "odpowiedź" : "odpowiedzi"}</span>
+                                )}
+                              </p>
+                              {isFromOtherRender && (
+                                <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5 italic truncate">{c.renderName}</p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    });
+                  })()}
+                </div>
+              </>
+            )}
+
+            {/* ── CZAT TAB ── */}
+            {sidebarTab === "chat" && (() => {
+              const chatItems = [...comments]
+                .filter(c => !c.isInternal || isDesigner)
+                .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+
+              // Group by calendar day
+              type DayGroup = { label: string; items: Comment[] };
+              const groups: DayGroup[] = [];
+              chatItems.forEach(item => {
+                const label = new Date(item.createdAt).toLocaleDateString("pl-PL", { day: "2-digit", month: "long", year: "numeric" });
+                const last = groups[groups.length - 1];
+                if (!last || last.label !== label) groups.push({ label, items: [item] });
+                else last.items.push(item);
               });
+
+              return (
+                <>
+                  <div className="flex-1 overflow-y-auto px-3 py-3 space-y-1">
+                    {chatItems.length === 0 && (
+                      <p className="text-xs text-gray-400 text-center py-8">Brak wiadomości — napisz pierwszą!</p>
+                    )}
+                    {groups.map(group => (
+                      <div key={group.label}>
+                        {/* Date separator */}
+                        <div className="flex items-center gap-2 my-3">
+                          <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700" />
+                          <span className="text-[10px] text-gray-400 flex-shrink-0 select-none">{group.label}</span>
+                          <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700" />
+                        </div>
+                        {group.items.map(item => {
+                          if (item.posX !== null) {
+                            // Pin card
+                            const pinIdx = pinComments.findIndex(c => c.id === item.id);
+                            const isSelected = selectedId === item.id;
+                            return (
+                              <div
+                                key={item.id}
+                                className={`flex items-start gap-2 px-3 py-2.5 rounded-xl cursor-pointer transition-colors mb-1.5 border ${
+                                  isSelected
+                                    ? "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800"
+                                    : "bg-gray-50 dark:bg-muted/40 border-gray-100 dark:border-gray-800 hover:bg-gray-100 dark:hover:bg-muted/60"
+                                }`}
+                                onClick={() => {
+                                  setSelectedId(item.id === selectedId ? null : item.id);
+                                  cancelPending();
+                                  setReplyContent("");
+                                }}
+                              >
+                                <span className={`w-5 h-5 rounded-full text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5 ${item.isInternal ? "bg-slate-500" : STATUS_PIN_COLOR[item.status]}`}>
+                                  {pinIdx + 1}
+                                </span>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-1 flex-wrap">
+                                    <Pin size={9} className="text-gray-400 flex-shrink-0" />
+                                    <span className="text-xs font-semibold text-gray-800 dark:text-gray-100 truncate">
+                                      {item.title || `Pin #${pinIdx + 1}`}
+                                    </span>
+                                    {item.isInternal && <Lock size={9} className="text-slate-400" />}
+                                    <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${STATUS_BADGE[item.status]}`}>
+                                      {STATUS_LABEL[item.status]}
+                                    </span>
+                                  </div>
+                                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-2 leading-relaxed">{item.content}</p>
+                                  <p className="text-[10px] text-gray-400 mt-0.5">{item.author} · {formatDate(item.createdAt)}</p>
+                                </div>
+                              </div>
+                            );
+                          } else {
+                            // Chat bubble
+                            const isOwn = item.author === authorName;
+                            return (
+                              <div key={item.id} className={`flex mb-2 ${isOwn ? "justify-end" : "justify-start"}`}>
+                                <div className={`max-w-[85%] flex flex-col ${isOwn ? "items-end" : "items-start"}`}>
+                                  {!isOwn && (
+                                    <span className="text-[10px] text-gray-500 dark:text-gray-400 mb-1 ml-1 font-medium">{item.author}</span>
+                                  )}
+                                  <div className={`px-3 py-2 text-sm leading-relaxed break-words ${
+                                    isOwn
+                                      ? "bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 rounded-2xl rounded-tr-sm"
+                                      : "bg-gray-100 dark:bg-muted text-gray-800 dark:text-gray-200 rounded-2xl rounded-tl-sm"
+                                  }`}>
+                                    {item.content}
+                                  </div>
+                                  <div className={`flex items-center gap-1.5 mt-1 ${isOwn ? "flex-row-reverse" : "flex-row"}`}>
+                                    <span className="text-[10px] text-gray-400">{formatDate(item.createdAt)}</span>
+                                    {(isDesigner || item.author === authorName) && (
+                                      <button
+                                        onClick={() => deleteComment(item.id)}
+                                        className="text-gray-300 hover:text-red-400 transition-colors"
+                                        title="Usuń"
+                                      >
+                                        <X size={10} />
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          }
+                        })}
+                      </div>
+                    ))}
+                    <div ref={chatEndRef} />
+                  </div>
+
+                  {/* Message input */}
+                  {(isDesigner || allowClientComments) && (
+                    <div className="px-3 py-3 border-t flex gap-2 items-end flex-shrink-0">
+                      <Textarea
+                        value={chatMessage}
+                        onChange={(e) => setChatMessage(e.target.value)}
+                        placeholder="Napisz wiadomość…"
+                        className="text-sm resize-none flex-1 max-h-28 overflow-y-auto"
+                        rows={1}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && !e.shiftKey) {
+                            e.preventDefault();
+                            submitChatMessage();
+                          }
+                        }}
+                      />
+                      <Button
+                        size="sm"
+                        className="flex-shrink-0 mb-px"
+                        onClick={submitChatMessage}
+                        disabled={sendingChatMessage || !chatMessage.trim()}
+                      >
+                        <Send size={13} />
+                      </Button>
+                    </div>
+                  )}
+                </>
+              );
             })()}
+
           </div>
-        </div>
         </>}
       </div>
 
@@ -1370,15 +1604,15 @@ export default function RenderViewer({
               />
 
               {/* Pins overlay — interactive */}
-              {!hidePins && (lightboxRender.id === renderId ? comments : lightboxComments).map((c, i) => (
+              {!hidePins && (lightboxRender.id === renderId ? pinComments : lightboxComments.filter(c => c.posX !== null)).map((c, i) => (
                 <button
                   key={c.id}
                   className={`absolute w-7 h-7 rounded-full border-2 border-white text-white text-xs font-bold flex items-center justify-center shadow-lg z-10 transition-transform hover:scale-110 ${STATUS_PIN_COLOR[c.status]} ${
                     selectedId === c.id ? "scale-125 ring-2 ring-white ring-offset-1" : ""
                   }`}
                   style={{
-                    left: `calc(${c.posX}% - 14px)`,
-                    top: `calc(${c.posY}% - 14px)`,
+                    left: `calc(${c.posX!}% - 14px)`,
+                    top: `calc(${c.posY!}% - 14px)`,
                   }}
                   onClick={(e) => {
                     e.stopPropagation();
@@ -1428,7 +1662,7 @@ export default function RenderViewer({
                     value={newContent}
                     onChange={(e) => setNewContent(e.target.value)}
                     placeholder="Opisz co wymaga zmiany..."
-                    className="mb-3 text-sm resize-none"
+                    className="mb-3 text-sm resize-none max-h-40 overflow-y-auto"
                     rows={3}
                     autoFocus
                     onKeyDown={(e) => {
@@ -1450,7 +1684,7 @@ export default function RenderViewer({
                 <div
                   className="fixed z-50 bg-card rounded-xl shadow-xl border border-border w-72 flex flex-col"
                   style={{
-                    ...getPopupStyle(selectedComment.posX, selectedComment.posY, lightboxImgRef.current),
+                    ...getPopupStyle(selectedComment.posX!, selectedComment.posY!, lightboxImgRef.current),
                     maxHeight: "360px",
                   }}
                   onClick={(e) => e.stopPropagation()}

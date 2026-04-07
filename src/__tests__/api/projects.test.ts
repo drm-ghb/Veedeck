@@ -8,6 +8,7 @@ vi.mock("@/lib/prisma", () => ({
     project: {
       findMany: vi.fn(),
       create: vi.fn(),
+      findUnique: vi.fn().mockResolvedValue(null), // dla uniqueSlug
     },
   },
 }));

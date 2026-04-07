@@ -26,13 +26,19 @@ export async function GET(
           notifyClientOnReply: true,
           allowClientVersionRestore: true,
           showProjectTitle: true,
+          navMode: true,
         },
+      },
+      shoppingLists: {
+        where: { archived: false },
+        select: { id: true, name: true, shareToken: true },
       },
       rooms: {
         where: { archived: false },
         orderBy: { order: "asc" },
         include: {
           folders: {
+            where: { archived: false },
             orderBy: { order: "asc" },
             select: { id: true, name: true, pinned: true },
           },

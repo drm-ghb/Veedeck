@@ -18,7 +18,9 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const { renderId, title, content, posX, posY, author, isInternal } = await req.json();
 
-  if (!renderId || !content || posX === undefined || posY === undefined || !author) {
+  const isPin = posX !== null && posX !== undefined && posY !== null && posY !== undefined;
+
+  if (!renderId || !content || !author) {
     return NextResponse.json({ error: "Brakujące pola" }, { status: 400 });
   }
 
@@ -33,30 +35,42 @@ export async function POST(req: NextRequest) {
 
   const user = render.project.user;
 
-  // Require pin title
-  if (user.requirePinTitle && !title?.trim()) {
-    return NextResponse.json({ error: "Tytuł pinu jest wymagany" }, { status: 400 });
-  }
+  if (isPin) {
+    // Require pin title (only for pins)
+    if (user.requirePinTitle && !title?.trim()) {
+      return NextResponse.json({ error: "Tytuł pinu jest wymagany" }, { status: 400 });
+    }
 
-  // Max pins per render
-  if (user.maxPinsPerRender !== null) {
-    const count = await prisma.comment.count({ where: { renderId } });
-    if (count >= user.maxPinsPerRender) {
-      return NextResponse.json({ error: `Osiągnięto limit ${user.maxPinsPerRender} pinów na render` }, { status: 400 });
+    // Max pins per render (only for pins)
+    if (user.maxPinsPerRender !== null) {
+      const count = await prisma.comment.count({ where: { renderId, posX: { not: null as unknown as number } } });
+      if (count >= user.maxPinsPerRender) {
+        return NextResponse.json({ error: `Osiągnięto limit ${user.maxPinsPerRender} pinów na render` }, { status: 400 });
+      }
     }
   }
 
   const comment = await prisma.comment.create({
-    data: { renderId, title: title || null, content, posX, posY, author, isInternal: isInternal ?? false },
+    data: {
+      render: { connect: { id: renderId } },
+      title: title || null,
+      content,
+      ...(isPin ? { posX, posY } : {}),
+      author,
+      isInternal: isInternal ?? false,
+    },
   });
 
   await pusherServer.trigger(`render-${renderId}`, "new-comment", comment);
 
   if (render.project.userId) {
+    const notifMessage = isPin
+      ? `${author} dodał pin w projekcie "${render.project.title}"`
+      : `${author} wysłał wiadomość w projekcie "${render.project.title}"`;
     const notif = await prisma.notification.create({
       data: {
         userId: render.project.userId,
-        message: `${author} dodał komentarz w projekcie "${render.project.title}"`,
+        message: notifMessage,
         link: `/projects/${render.project.id}/renders/${renderId}`,
         projectId: render.project.id,
         projectTitle: render.project.title,

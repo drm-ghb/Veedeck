@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import ShareNavbar from "@/components/share/ShareNavbar";
 import ShareListClient from "@/components/listy/ShareListClient";
+import ShareSidebar from "@/components/share/ShareSidebar";
 
 function parsePrice(price: string | null): number | null {
   if (!price) return null;
@@ -26,8 +27,10 @@ export default async function PublicListPage({ params }: { params: Promise<{ tok
           title: true,
           shareToken: true,
           archived: true,
+          hiddenModules: true,
           renders: { select: { id: true }, take: 1 },
-          user: { select: { clientLogoUrl: true, name: true } },
+          shoppingLists: { where: { archived: false }, select: { id: true, name: true, shareToken: true } },
+          user: { select: { clientLogoUrl: true, name: true, navMode: true } },
         },
       },
       sections: {
@@ -53,9 +56,11 @@ export default async function PublicListPage({ params }: { params: Promise<{ tok
   const grandCurrency = getCurrency(allProducts.find((p) => getCurrency(p.price))?.price ?? null);
   const hasTotal = allProducts.some((p) => parsePrice(p.price) !== null);
 
-  const homeHref = list.project
-    ? `/share/${list.project.shareToken}/home`
-    : undefined;
+  const isSidebar = list.project?.user?.navMode === "sidebar";
+  const projectToken = list.project?.shareToken;
+  const showRenderFlow = !list.project?.hiddenModules.includes("renderflow");
+  const showListy = !list.project?.hiddenModules.includes("listy");
+  const hasRenders = (list.project?.renders.length ?? 0) > 0;
 
   const sections = list.sections.map((s) => ({
     id: s.id,
@@ -79,56 +84,74 @@ export default async function PublicListPage({ params }: { params: Promise<{ tok
     })),
   }));
 
+  const mainContent = (
+    <main className="flex-1 overflow-y-auto px-3 sm:px-6 py-4 sm:py-8">
+      {/* Header */}
+      <div className="flex items-center justify-between gap-3 mb-6">
+        <div className="flex items-center gap-2 min-w-0">
+          {list.project && (
+            <>
+              <a
+                href={`/share/${list.project.shareToken}/home`}
+                className="text-sm text-muted-foreground hover:text-foreground transition-colors shrink-0"
+              >
+                {list.project.title}
+              </a>
+              <span className="text-muted-foreground">/</span>
+            </>
+          )}
+          <h1 className="text-xl font-bold truncate">{list.name}</h1>
+        </div>
+        {hasTotal && (
+          <div className="flex items-center gap-1.5 shrink-0">
+            <span className="text-xs text-muted-foreground">Suma:</span>
+            <span className="text-sm font-semibold tabular-nums">
+              {grandTotal.toLocaleString("pl-PL", { minimumFractionDigits: 0, maximumFractionDigits: 2 })} {grandCurrency}
+            </span>
+          </div>
+        )}
+      </div>
+
+      <ShareListClient
+        listId={list.id}
+        listShareToken={token}
+        listName={list.name}
+        projectTitle={list.project?.title}
+        projectShareToken={list.project?.shareToken}
+        sections={sections}
+        grandTotal={grandTotal}
+        grandCurrency={grandCurrency}
+        hasTotal={hasTotal}
+        designerName={list.project?.user?.name ?? undefined}
+        designerLogoUrl={list.project?.user?.clientLogoUrl ?? undefined}
+      />
+    </main>
+  );
+
   return (
-    <div className="min-h-screen flex flex-col bg-muted/30">
+    <div className={`${isSidebar ? "h-screen" : "min-h-screen"} flex flex-col bg-muted/30`}>
       <ShareNavbar
-        backHref={homeHref}
+        backHref={isSidebar ? undefined : (projectToken ? `/share/${projectToken}/home` : undefined)}
         backLabel={list.project?.title}
         clientLogoUrl={list.project?.user?.clientLogoUrl}
         designerName={list.project?.user?.name}
       />
 
-      <main className="flex-1 px-3 sm:px-6 py-4 sm:py-8">
-        {/* Header */}
-        <div className="flex items-center justify-between gap-3 mb-6">
-          <div className="flex items-center gap-2 min-w-0">
-            {list.project && (
-              <>
-                <a
-                  href={`/share/${list.project.shareToken}/home`}
-                  className="text-sm text-muted-foreground hover:text-foreground transition-colors shrink-0"
-                >
-                  {list.project.title}
-                </a>
-                <span className="text-muted-foreground">/</span>
-              </>
-            )}
-            <h1 className="text-xl font-bold truncate">{list.name}</h1>
-          </div>
-          {hasTotal && (
-            <div className="flex items-center gap-1.5 shrink-0">
-              <span className="text-xs text-muted-foreground">Suma:</span>
-              <span className="text-sm font-semibold tabular-nums">
-                {grandTotal.toLocaleString("pl-PL", { minimumFractionDigits: 0, maximumFractionDigits: 2 })} {grandCurrency}
-              </span>
-            </div>
-          )}
+      {isSidebar && projectToken ? (
+        <div className="flex flex-1 min-h-0">
+          <ShareSidebar
+            token={projectToken}
+            showRenderFlow={showRenderFlow && hasRenders}
+            showListy={showListy}
+            shoppingLists={list.project?.shoppingLists ?? []}
+          />
+          {mainContent}
         </div>
-
-        <ShareListClient
-          listId={list.id}
-          listShareToken={token}
-          listName={list.name}
-          projectTitle={list.project?.title}
-          projectShareToken={list.project?.shareToken}
-          sections={sections}
-          grandTotal={grandTotal}
-          grandCurrency={grandCurrency}
-          hasTotal={hasTotal}
-          designerName={list.project?.user?.name ?? undefined}
-          designerLogoUrl={list.project?.user?.clientLogoUrl ?? undefined}
-        />
-      </main>
+      ) : (
+        <div className="flex-1 flex flex-col">
+          {mainContent}
+        </div>
+      )}
     </div>
   );
 }

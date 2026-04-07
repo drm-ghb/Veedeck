@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import RenderViewer from "@/components/render/RenderViewer";
+import ShareSidebar from "@/components/share/ShareSidebar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { getRoomIcon } from "@/lib/roomIcons";
@@ -84,6 +85,9 @@ interface Project {
   designerName: string | null;
   hasPassword: boolean;
   shareExpiresAt: string | null;
+  navMode: string;
+  hiddenModules: string[];
+  shoppingLists: { id: string; name: string; shareToken: string }[];
 }
 
 export default function SharePage() {
@@ -145,8 +149,8 @@ export default function SharePage() {
   }
 
   useEffect(() => {
-    const saved = localStorage.getItem("renderflow-author");
-    const savedEmail = localStorage.getItem("renderflow-author-email");
+    const saved = localStorage.getItem("veedeck-author");
+    const savedEmail = localStorage.getItem("veedeck-author-email");
     if (saved) { setAuthorName(saved); setNameSet(true); }
     if (savedEmail) setAuthorEmail(savedEmail);
 
@@ -255,8 +259,8 @@ export default function SharePage() {
   function handleSetName() {
     if (!nameInput.trim()) return;
     if (project?.requireClientEmail && !emailInput.trim()) return;
-    localStorage.setItem("renderflow-author", nameInput.trim());
-    if (emailInput.trim()) localStorage.setItem("renderflow-author-email", emailInput.trim());
+    localStorage.setItem("veedeck-author", nameInput.trim());
+    if (emailInput.trim()) localStorage.setItem("veedeck-author-email", emailInput.trim());
     setAuthorName(nameInput.trim());
     setAuthorEmail(emailInput.trim());
     setNameSet(true);
@@ -436,6 +440,8 @@ export default function SharePage() {
 
   if (!project) return null;
 
+  const isSidebar = project.navMode === "sidebar";
+
   // Render view — full screen
   if (view === "render" && selectedRender && selectedRoom) {
     // Scope navigation to current folder if one is selected, otherwise to renders without folder
@@ -448,11 +454,55 @@ export default function SharePage() {
       fileUrl: r.fileUrl,
     }));
 
-    return (
-      <div className="fixed inset-0 z-20 bg-background flex flex-col">
-        <nav className="bg-card border-b flex-shrink-0">
-          <div className="flex items-center justify-between px-3 sm:px-6 py-3 gap-4">
-            <div className="flex items-center gap-3">
+    const renderViewer = (
+      <RenderViewer
+        key={selectedRender.id}
+        renderId={selectedRender.id}
+        renderName={selectedRender.name}
+        projectTitle={project.title}
+        roomName={selectedRoom.name}
+        folderName={selectedRender.folder?.name ?? undefined}
+        imageUrl={selectedRender.fileUrl}
+        initialComments={selectedRender.comments}
+        authorName={authorName}
+        isDesigner={false}
+        roomRenders={roomRenders}
+        initialRenderStatus={selectedRender.status}
+        allowDirectStatusChange={project.allowDirectStatusChange}
+        allowClientComments={project.allowClientComments}
+        allowClientAcceptance={project.allowClientAcceptance}
+        hideCommentCount={project.hideCommentCount}
+        versions={selectedRender.versions.map((v) => ({ ...v, archivedAt: typeof v.archivedAt === "string" ? v.archivedAt : new Date(v.archivedAt).toISOString() }))}
+        allowClientVersionRestore={project.allowClientVersionRestore}
+        onVersionRestore={
+          project.allowClientVersionRestore
+            ? (versionId) => handleVersionRestore(selectedRender.id, versionId)
+            : undefined
+        }
+        onVersionRestoreRequest={
+          !project.allowClientVersionRestore
+            ? (versionId) => handleVersionRestoreRequest(selectedRender.id, versionId)
+            : undefined
+        }
+        onRenderStatusChange={(status) => handleRenderStatusChange(selectedRender.id, status)}
+        onStatusRequest={
+          project.allowDirectStatusChange || pendingRequests.has(selectedRender.id)
+            ? undefined
+            : () => handleStatusRequest(selectedRender.id)
+        }
+        onBack={() => setView("room")}
+        onRenderSelect={(r) => {
+          const full = selectedRoom.renders.find((render) => render.id === r.id);
+          if (full) setSelectedRender(full);
+        }}
+      />
+    );
+
+    const renderNav = (
+      <nav className="bg-card border-b flex-shrink-0">
+        <div className="flex items-center justify-between px-3 sm:px-6 py-3 gap-4">
+          <div className="flex items-center gap-3">
+            {!isSidebar && (
               <Link
                 href={`/share/${token}/home`}
                 title="Strona główna projektu"
@@ -460,105 +510,7 @@ export default function SharePage() {
               >
                 <Grid2x2 size={18} />
               </Link>
-              {project.clientLogoUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={project.clientLogoUrl} alt="Logo" className="h-8 object-contain" />
-              ) : (
-                <>
-                  <Image src="/logo.svg" alt="RenderFlow" width={26} height={26} className="block dark:hidden" />
-                  <Image src="/logo-dark.svg" alt="RenderFlow" width={26} height={26} className="hidden dark:block" />
-                </>
-              )}
-              {project.designerName ? (
-                <span className="font-bold text-gray-900 dark:text-gray-100">{project.designerName}</span>
-              ) : !project.clientLogoUrl && (
-                <span className="font-bold text-lg">Render<span style={{ color: accent }}>Flow</span></span>
-              )}
-            </div>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-                title={theme === "dark" ? "Tryb jasny" : "Tryb ciemny"}
-                className={`relative flex items-center w-14 h-7 rounded-full transition-colors duration-300 flex-shrink-0 ${
-                  theme === "dark" ? "bg-slate-700" : "bg-gray-200"
-                }`}
-              >
-                <Sun size={12} className={`absolute left-1.5 transition-opacity duration-200 ${theme === "dark" ? "opacity-30 text-gray-400" : "opacity-100 text-yellow-500"}`} />
-                <Moon size={12} className={`absolute right-1.5 transition-opacity duration-200 ${theme === "dark" ? "opacity-100 text-blue-300" : "opacity-30 text-gray-400"}`} />
-                <span className={`absolute w-5 h-5 bg-white rounded-full shadow-md transition-transform duration-300 ${
-                  theme === "dark" ? "translate-x-7" : "translate-x-1"
-                }`} />
-              </button>
-              <button
-                onClick={() => setView("settings")}
-                title="Ustawienia"
-                className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
-              >
-                <Settings size={15} />
-                <span className="hidden sm:inline">{authorName}</span>
-              </button>
-            </div>
-          </div>
-        </nav>
-        <div className="flex-1 min-h-0">
-          <RenderViewer
-            renderId={selectedRender.id}
-            renderName={selectedRender.name}
-            projectTitle={project.title}
-            roomName={selectedRoom.name}
-            folderName={selectedRender.folder?.name ?? undefined}
-            imageUrl={selectedRender.fileUrl}
-            initialComments={selectedRender.comments}
-            authorName={authorName}
-            isDesigner={false}
-            roomRenders={roomRenders}
-            initialRenderStatus={selectedRender.status}
-            allowDirectStatusChange={project.allowDirectStatusChange}
-            allowClientComments={project.allowClientComments}
-            allowClientAcceptance={project.allowClientAcceptance}
-            hideCommentCount={project.hideCommentCount}
-            versions={selectedRender.versions.map((v) => ({ ...v, archivedAt: typeof v.archivedAt === "string" ? v.archivedAt : new Date(v.archivedAt).toISOString() }))}
-            allowClientVersionRestore={project.allowClientVersionRestore}
-            onVersionRestore={
-              project.allowClientVersionRestore
-                ? (versionId) => handleVersionRestore(selectedRender.id, versionId)
-                : undefined
-            }
-            onVersionRestoreRequest={
-              !project.allowClientVersionRestore
-                ? (versionId) => handleVersionRestoreRequest(selectedRender.id, versionId)
-                : undefined
-            }
-            onRenderStatusChange={(status) => handleRenderStatusChange(selectedRender.id, status)}
-            onStatusRequest={
-              project.allowDirectStatusChange || pendingRequests.has(selectedRender.id)
-                ? undefined
-                : () => handleStatusRequest(selectedRender.id)
-            }
-            onBack={() => setView("room")}
-            onRenderSelect={(r) => {
-              const full = selectedRoom.renders.find((render) => render.id === r.id);
-              if (full) setSelectedRender(full);
-            }}
-          />
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="min-h-screen flex flex-col bg-background">
-      {/* Nav */}
-      <nav className="bg-card border-b flex-shrink-0">
-        <div className="flex items-center justify-between px-3 sm:px-6 py-3 gap-4">
-          <div className="flex items-center gap-3">
-            <Link
-              href={`/share/${token}/home`}
-              title="Strona główna projektu"
-              className="text-muted-foreground hover:text-foreground transition-colors p-1.5 rounded-md hover:bg-muted"
-            >
-              <Grid2x2 size={18} />
-            </Link>
+            )}
             {project.clientLogoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={project.clientLogoUrl} alt="Logo" className="h-8 object-contain" />
@@ -599,219 +551,246 @@ export default function SharePage() {
           </div>
         </div>
       </nav>
+    );
 
-      <div className="flex-1 px-3 sm:px-6 py-4 sm:py-8">
-        {/* Settings view */}
-        {view === "settings" && (
-          <ClientSettingsView
-            authorName={authorName}
-            onSave={(newName) => {
-              localStorage.setItem("renderflow-author", newName);
-              setAuthorName(newName);
-            }}
-            onBack={() => setView("rooms")}
-          />
-        )}
+    if (isSidebar) {
+      return (
+        <div className="h-screen flex flex-col bg-background">
+          {renderNav}
+          <div className="flex flex-1 min-h-0">
+            <ShareSidebar
+              token={token}
+              showRenderFlow={!project.hiddenModules.includes("renderflow")}
+              showListy={!project.hiddenModules.includes("listy")}
+              shoppingLists={project.shoppingLists}
+              onRenderFlowClick={() => setView("rooms")}
+            />
+            <div className="flex-1 min-h-0">
+              {renderViewer}
+            </div>
+          </div>
+        </div>
+      );
+    }
 
-        {/* Rooms view */}
-        {view === "rooms" && (
+    return (
+      <div className="fixed inset-0 z-20 bg-background flex flex-col">
+        {renderNav}
+        <div className="flex-1 min-h-0">
+          {renderViewer}
+        </div>
+      </div>
+    );
+  }
+
+  const pageContent = (
+    <>
+      {/* Settings view */}
+      {view === "settings" && (
+        <ClientSettingsView
+          authorName={authorName}
+          onSave={(newName) => { localStorage.setItem("veedeck-author", newName); setAuthorName(newName); }}
+          onBack={() => setView("rooms")}
+        />
+      )}
+
+      {/* Rooms view */}
+      {view === "rooms" && (
+        <>
+          {project.clientWelcomeMessage && (
+            <div className="mb-6 p-4 bg-muted rounded-xl text-sm text-gray-600 dark:text-gray-400">
+              {project.clientWelcomeMessage}
+            </div>
+          )}
+          <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-6">Pomieszczenia</h2>
+          {project.rooms.length === 0 ? (
+            <p className="text-gray-400 text-center py-16">Brak pomieszczeń w tym projekcie.</p>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-4">
+              {project.rooms.map((room) => {
+                const Icon = getRoomIcon(room.type, room.icon);
+                const renderCount = room.renders.length;
+                return (
+                  <button key={room.id} onClick={() => { setSelectedRoom(room); setSelectedFolder(null); setView("room"); }} className="group text-left bg-card border border-border rounded-2xl p-5 shadow-sm hover:shadow-[0_4px_16px_rgba(25,33,61,0.2)] hover:border-[#19213D]/30 transition-all">
+                    <div className="w-14 h-14 bg-gray-100 rounded-xl flex items-center justify-center mb-4 group-hover:bg-gray-200 transition-colors">
+                      <Icon size={28} className="text-[#19213D]" />
+                    </div>
+                    <p className="font-semibold text-gray-800 dark:text-gray-100 truncate">{room.name}</p>
+                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">{renderCount} render{renderCount === 1 ? "" : renderCount < 5 ? "y" : "ów"}</p>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Room renders view */}
+      {view === "room" && selectedRoom && (() => {
+        const sortedFolders = [...selectedRoom.folders].sort((a, b) => (a.pinned === b.pinned ? 0 : a.pinned ? -1 : 1));
+        const ungrouped = selectedRoom.renders.filter((r) => !r.folder);
+        const folderRenders = selectedFolder ? selectedRoom.renders.filter((r) => r.folder?.id === selectedFolder.id) : [];
+        const hasContent = selectedRoom.folders.length > 0 || selectedRoom.renders.length > 0;
+        const goToRooms = () => { setView("rooms"); setSelectedRoom(null); setSelectedFolder(null); };
+        const goToRoom = () => setSelectedFolder(null);
+        return (
           <>
-            {project.clientWelcomeMessage && (
-              <div className="mb-6 p-4 bg-muted rounded-xl text-sm text-gray-600 dark:text-gray-400">
-                {project.clientWelcomeMessage}
-              </div>
-            )}
-            <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-6">Pomieszczenia</h2>
-            {project.rooms.length === 0 ? (
-              <p className="text-gray-400 text-center py-16">Brak pomieszczeń w tym projekcie.</p>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-4">
-                {project.rooms.map((room) => {
-                  const Icon = getRoomIcon(room.type, room.icon);
-                  const renderCount = room.renders.length;
-                  return (
-                    <button
-                      key={room.id}
-                      onClick={() => { setSelectedRoom(room); setSelectedFolder(null); setView("room"); }}
-                      className="group text-left bg-card border border-border rounded-2xl p-5 shadow-sm hover:shadow-[0_4px_16px_rgba(25,33,61,0.2)] hover:border-[#19213D]/30 transition-all"
-                    >
-                      <div className="w-14 h-14 bg-gray-100 rounded-xl flex items-center justify-center mb-4 group-hover:bg-gray-200 transition-colors">
-                        <Icon size={28} className="text-[#19213D]" />
+            <nav className="flex items-center gap-2 mb-6">
+              <button onClick={selectedFolder ? goToRoom : goToRooms} className="flex-shrink-0 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors">
+                <ChevronLeft size={20} />
+              </button>
+              <div className="w-px h-4 bg-gray-200 dark:bg-gray-700 flex-shrink-0" />
+              <ol className="flex items-center gap-1 text-sm min-w-0">
+                <li className="flex items-center gap-1 min-w-0">
+                  <button onClick={goToRooms} className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors truncate max-w-[160px]">{project.title}</button>
+                </li>
+                <li className="flex items-center gap-1 min-w-0">
+                  <ChevronRight size={13} className="flex-shrink-0 text-gray-300 dark:text-gray-600" />
+                  {selectedFolder ? (
+                    <button onClick={goToRoom} className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors truncate max-w-[160px]">{selectedRoom.name}</button>
+                  ) : (
+                    <span className="text-gray-900 dark:text-gray-100 truncate">{selectedRoom.name}</span>
+                  )}
+                </li>
+                {selectedFolder && (
+                  <li className="flex items-center gap-1 min-w-0">
+                    <ChevronRight size={13} className="flex-shrink-0 text-gray-300 dark:text-gray-600" />
+                    <span className="text-gray-900 dark:text-gray-100 truncate">{selectedFolder.name}</span>
+                  </li>
+                )}
+              </ol>
+            </nav>
+            <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-6">{selectedFolder ? selectedFolder.name : selectedRoom.name}</h2>
+            {!hasContent ? (
+              <p className="text-gray-400 text-center py-16">Brak plików w tym pomieszczeniu.</p>
+            ) : selectedFolder ? (
+              folderRenders.length === 0 ? (
+                <p className="text-gray-400 text-center py-16">Brak plików w tym folderze.</p>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-4">
+                  {folderRenders.map((render) => (
+                    <button key={render.id} onClick={() => { setSelectedRender(render); setView("render"); fetch(`/api/share/${token}/renders/${render.id}/view`, { method: "POST" }); }} className="text-left bg-card border border-border rounded-xl overflow-hidden shadow-sm hover:shadow-[0_4px_16px_rgba(25,33,61,0.2)] hover:border-[#19213D]/30 transition-all group">
+                      <div className="aspect-video bg-muted overflow-hidden">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={render.fileUrl} alt={render.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" />
                       </div>
-                      <p className="font-semibold text-gray-800 dark:text-gray-100 truncate">{room.name}</p>
-                      <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                        {renderCount} render{renderCount === 1 ? "" : renderCount < 5 ? "y" : "ów"}
-                      </p>
+                      <div className="p-3">
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="text-sm font-medium text-gray-800 dark:text-gray-100 truncate">{render.name}</p>
+                          <span className={`flex-shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${render.status === "ACCEPTED" ? "bg-green-100 text-green-700" : "bg-blue-100 text-blue-700"}`}>{render.status === "ACCEPTED" ? "Zaakceptowany" : "Do weryfikacji"}</span>
+                        </div>
+                        {!project.hideCommentCount && <p className="text-xs text-gray-400 dark:text-gray-500 mt-1 flex items-center gap-1"><MessageSquare size={11} />{render.comments.length > 0 ? `${render.comments.length} uwag` : "Brak uwag"}</p>}
+                      </div>
                     </button>
-                  );
-                })}
+                  ))}
+                </div>
+              )
+            ) : (
+              <div className="space-y-8">
+                {sortedFolders.length > 0 && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-4">
+                    {sortedFolders.map((folder) => {
+                      const count = selectedRoom.renders.filter((r) => r.folder?.id === folder.id).length;
+                      return (
+                        <button key={folder.id} onClick={() => setSelectedFolder(folder)} className="group relative text-left bg-white dark:bg-card border border-gray-100 dark:border-border rounded-2xl p-5 shadow-sm hover:shadow-[0_4px_16px_rgba(25,33,61,0.2)] hover:border-[#19213D]/30 transition-all">
+                          <div className="w-14 h-14 bg-gray-100 dark:bg-muted rounded-xl flex items-center justify-center mb-4 group-hover:bg-gray-200 dark:group-hover:bg-muted/80 transition-colors">
+                            <Folder size={28} className="text-[#19213D] dark:text-foreground" />
+                          </div>
+                          <p className="font-semibold text-gray-800 dark:text-foreground truncate">{folder.name}</p>
+                          <p className="text-xs text-gray-400 mt-1">{count} plik{count === 1 ? "" : count < 5 ? "i" : "ów"}</p>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+                {ungrouped.length > 0 && (
+                  <div>
+                    {sortedFolders.length > 0 && <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Pozostałe pliki</p>}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-4">
+                      {ungrouped.map((render) => (
+                        <button key={render.id} onClick={() => { setSelectedRender(render); setView("render"); fetch(`/api/share/${token}/renders/${render.id}/view`, { method: "POST" }); }} className="text-left bg-card border border-border rounded-xl overflow-hidden shadow-sm hover:shadow-[0_4px_16px_rgba(25,33,61,0.2)] hover:border-[#19213D]/30 transition-all group">
+                          <div className="aspect-video bg-muted overflow-hidden">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={render.fileUrl} alt={render.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" />
+                          </div>
+                          <div className="p-3">
+                            <div className="flex items-start justify-between gap-2">
+                              <p className="text-sm font-medium text-gray-800 dark:text-gray-100 truncate">{render.name}</p>
+                              <span className={`flex-shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${render.status === "ACCEPTED" ? "bg-green-100 text-green-700" : "bg-blue-100 text-blue-700"}`}>{render.status === "ACCEPTED" ? "Zaakceptowany" : "Do weryfikacji"}</span>
+                            </div>
+                            {!project.hideCommentCount && <p className="text-xs text-gray-400 dark:text-gray-500 mt-1 flex items-center gap-1"><MessageSquare size={11} />{render.comments.length > 0 ? `${render.comments.length} uwag` : "Brak uwag"}</p>}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </>
-        )}
+        );
+      })()}
+    </>
+  );
 
-        {/* Room renders view */}
-        {view === "room" && selectedRoom && (() => {
-          const sortedFolders = [...selectedRoom.folders].sort((a, b) => (a.pinned === b.pinned ? 0 : a.pinned ? -1 : 1));
-          const ungrouped = selectedRoom.renders.filter((r) => !r.folder);
-          const folderRenders = selectedFolder
-            ? selectedRoom.renders.filter((r) => r.folder?.id === selectedFolder.id)
-            : [];
-          const hasContent = selectedRoom.folders.length > 0 || selectedRoom.renders.length > 0;
+  return (
+    <div className={`${isSidebar ? "h-screen" : "min-h-screen"} flex flex-col bg-background`}>
+      {/* Nav */}
+      <nav className="bg-card border-b flex-shrink-0">
+        <div className="flex items-center justify-between px-3 sm:px-6 py-3 gap-4">
+          <div className="flex items-center gap-3">
+            {!isSidebar && (
+              <Link href={`/share/${token}/home`} title="Strona główna projektu" className="text-muted-foreground hover:text-foreground transition-colors p-1.5 rounded-md hover:bg-muted">
+                <Grid2x2 size={18} />
+              </Link>
+            )}
+            {project.clientLogoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={project.clientLogoUrl} alt="Logo" className="h-8 object-contain" />
+            ) : (
+              <>
+                <Image src="/logo.svg" alt="RenderFlow" width={26} height={26} className="block dark:hidden" />
+                <Image src="/logo-dark.svg" alt="RenderFlow" width={26} height={26} className="hidden dark:block" />
+              </>
+            )}
+            {project.designerName ? (
+              <span className="font-bold text-gray-900 dark:text-gray-100">{project.designerName}</span>
+            ) : !project.clientLogoUrl && (
+              <span className="font-bold text-lg">Render<span style={{ color: accent }}>Flow</span></span>
+            )}
+          </div>
+          <div className="flex items-center gap-3">
+            <button onClick={() => setTheme(theme === "dark" ? "light" : "dark")} title={theme === "dark" ? "Tryb jasny" : "Tryb ciemny"} className={`relative flex items-center w-14 h-7 rounded-full transition-colors duration-300 flex-shrink-0 ${theme === "dark" ? "bg-slate-700" : "bg-gray-200"}`}>
+              <Sun size={12} className={`absolute left-1.5 transition-opacity duration-200 ${theme === "dark" ? "opacity-30 text-gray-400" : "opacity-100 text-yellow-500"}`} />
+              <Moon size={12} className={`absolute right-1.5 transition-opacity duration-200 ${theme === "dark" ? "opacity-100 text-blue-300" : "opacity-30 text-gray-400"}`} />
+              <span className={`absolute w-5 h-5 bg-white rounded-full shadow-md transition-transform duration-300 ${theme === "dark" ? "translate-x-7" : "translate-x-1"}`} />
+            </button>
+            <button onClick={() => setView("settings")} title="Ustawienia" className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors">
+              <Settings size={15} />
+              <span className="hidden sm:inline">{authorName}</span>
+            </button>
+          </div>
+        </div>
+      </nav>
 
-          const goToRooms = () => { setView("rooms"); setSelectedRoom(null); setSelectedFolder(null); };
-          const goToRoom = () => setSelectedFolder(null);
-
-          return (
-            <>
-              {/* Breadcrumb — identyczny jak u projektanta */}
-              <nav className="flex items-center gap-2 mb-6">
-                <button
-                  onClick={selectedFolder ? goToRoom : goToRooms}
-                  className="flex-shrink-0 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
-                >
-                  <ChevronLeft size={20} />
-                </button>
-                <div className="w-px h-4 bg-gray-200 dark:bg-gray-700 flex-shrink-0" />
-                <ol className="flex items-center gap-1 text-sm min-w-0">
-                  <li className="flex items-center gap-1 min-w-0">
-                    <button
-                      onClick={goToRooms}
-                      className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors truncate max-w-[160px]"
-                    >
-                      {project.title}
-                    </button>
-                  </li>
-                  <li className="flex items-center gap-1 min-w-0">
-                    <ChevronRight size={13} className="flex-shrink-0 text-gray-300 dark:text-gray-600" />
-                    {selectedFolder ? (
-                      <button
-                        onClick={goToRoom}
-                        className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors truncate max-w-[160px]"
-                      >
-                        {selectedRoom.name}
-                      </button>
-                    ) : (
-                      <span className="text-gray-900 dark:text-gray-100 truncate">{selectedRoom.name}</span>
-                    )}
-                  </li>
-                  {selectedFolder && (
-                    <li className="flex items-center gap-1 min-w-0">
-                      <ChevronRight size={13} className="flex-shrink-0 text-gray-300 dark:text-gray-600" />
-                      <span className="text-gray-900 dark:text-gray-100 truncate">{selectedFolder.name}</span>
-                    </li>
-                  )}
-                </ol>
-              </nav>
-              <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-6">
-                {selectedFolder ? selectedFolder.name : selectedRoom.name}
-              </h2>
-
-              {!hasContent ? (
-                <p className="text-gray-400 text-center py-16">Brak plików w tym pomieszczeniu.</p>
-              ) : selectedFolder ? (
-                /* Folder content view */
-                folderRenders.length === 0 ? (
-                  <p className="text-gray-400 text-center py-16">Brak plików w tym folderze.</p>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-4">
-                    {folderRenders.map((render) => (
-                      <button
-                        key={render.id}
-                        onClick={() => { setSelectedRender(render); setView("render"); fetch(`/api/share/${token}/renders/${render.id}/view`, { method: "POST" }); }}
-                        className="text-left bg-card border border-border rounded-xl overflow-hidden shadow-sm hover:shadow-[0_4px_16px_rgba(25,33,61,0.2)] hover:border-[#19213D]/30 transition-all group"
-                      >
-                        <div className="aspect-video bg-muted overflow-hidden">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={render.fileUrl} alt={render.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" />
-                        </div>
-                        <div className="p-3">
-                          <div className="flex items-start justify-between gap-2">
-                            <p className="text-sm font-medium text-gray-800 dark:text-gray-100 truncate">{render.name}</p>
-                            <span className={`flex-shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${render.status === "ACCEPTED" ? "bg-green-100 text-green-700" : "bg-blue-100 text-blue-700"}`}>
-                              {render.status === "ACCEPTED" ? "Zaakceptowany" : "Do weryfikacji"}
-                            </span>
-                          </div>
-                          {!project.hideCommentCount && (
-                            <p className="text-xs text-gray-400 dark:text-gray-500 mt-1 flex items-center gap-1">
-                              <MessageSquare size={11} />
-                              {render.comments.length > 0 ? `${render.comments.length} uwag` : "Brak uwag"}
-                            </p>
-                          )}
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                )
-              ) : (
-                /* Room overview: folders + ungrouped renders */
-                <div className="space-y-8">
-                  {sortedFolders.length > 0 && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-4">
-                      {sortedFolders.map((folder) => {
-                        const count = selectedRoom.renders.filter((r) => r.folder?.id === folder.id).length;
-                        return (
-                          <button
-                            key={folder.id}
-                            onClick={() => setSelectedFolder(folder)}
-                            className="group relative text-left bg-white dark:bg-card border border-gray-100 dark:border-border rounded-2xl p-5 shadow-sm hover:shadow-[0_4px_16px_rgba(25,33,61,0.2)] hover:border-[#19213D]/30 transition-all"
-                          >
-                            <div className="w-14 h-14 bg-gray-100 dark:bg-muted rounded-xl flex items-center justify-center mb-4 group-hover:bg-gray-200 dark:group-hover:bg-muted/80 transition-colors">
-                              <Folder size={28} className="text-[#19213D] dark:text-foreground" />
-                            </div>
-                            <p className="font-semibold text-gray-800 dark:text-foreground truncate">{folder.name}</p>
-                            <p className="text-xs text-gray-400 mt-1">
-                              {count} plik{count === 1 ? "" : count < 5 ? "i" : "ów"}
-                            </p>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-
-                  {ungrouped.length > 0 && (
-                    <div>
-                      {sortedFolders.length > 0 && (
-                        <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">
-                          Pozostałe pliki
-                        </p>
-                      )}
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-4">
-                        {ungrouped.map((render) => (
-                          <button
-                            key={render.id}
-                            onClick={() => { setSelectedRender(render); setView("render"); fetch(`/api/share/${token}/renders/${render.id}/view`, { method: "POST" }); }}
-                            className="text-left bg-card border border-border rounded-xl overflow-hidden shadow-sm hover:shadow-[0_4px_16px_rgba(25,33,61,0.2)] hover:border-[#19213D]/30 transition-all group"
-                          >
-                            <div className="aspect-video bg-muted overflow-hidden">
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img src={render.fileUrl} alt={render.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" />
-                            </div>
-                            <div className="p-3">
-                              <div className="flex items-start justify-between gap-2">
-                                <p className="text-sm font-medium text-gray-800 dark:text-gray-100 truncate">{render.name}</p>
-                                <span className={`flex-shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${render.status === "ACCEPTED" ? "bg-green-100 text-green-700" : "bg-blue-100 text-blue-700"}`}>
-                                  {render.status === "ACCEPTED" ? "Zaakceptowany" : "Do weryfikacji"}
-                                </span>
-                              </div>
-                              {!project.hideCommentCount && (
-                                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1 flex items-center gap-1">
-                                  <MessageSquare size={11} />
-                                  {render.comments.length > 0 ? `${render.comments.length} uwag` : "Brak uwag"}
-                                </p>
-                              )}
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </>
-          );
-        })()}
-      </div>
+      {isSidebar ? (
+        <div className="flex flex-1 min-h-0">
+          <ShareSidebar
+            token={token}
+            showRenderFlow={!project.hiddenModules.includes("renderflow")}
+            showListy={!project.hiddenModules.includes("listy")}
+            shoppingLists={project.shoppingLists}
+            onRenderFlowClick={() => setView("rooms")}
+          />
+          <main className="flex-1 overflow-y-auto px-3 sm:px-6 py-4 sm:py-8">
+            {pageContent}
+          </main>
+        </div>
+      ) : (
+        <div className="flex-1 px-3 sm:px-6 py-4 sm:py-8">
+          {pageContent}
+        </div>
+      )}
     </div>
   );
 }

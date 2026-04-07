@@ -354,7 +354,7 @@ export function SettingsGeneral({
               },
               {
                 value: "sidebar",
-                label: "Pasek boczny",
+                label: "Panel boczny",
                 description: "Stały pasek po lewej stronie z listą modułów widoczny przez cały czas.",
                 Icon: PanelLeft,
               },

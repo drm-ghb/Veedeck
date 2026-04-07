@@ -21,7 +21,7 @@ export default async function RoomPage({ params }: Props) {
 
   if (!room || room.project.userId !== session!.user!.id!) notFound();
 
-  const [renders, archivedRenders, folders] = await Promise.all([
+  const [renders, archivedRenders, folders, archivedFolders] = await Promise.all([
     prisma.render.findMany({
       where: { roomId, archived: false },
       include: { _count: { select: { comments: true } } },
@@ -33,7 +33,11 @@ export default async function RoomPage({ params }: Props) {
       orderBy: { order: "asc" },
     }),
     prisma.folder.findMany({
-      where: { roomId },
+      where: { roomId, archived: false },
+      orderBy: { order: "asc" },
+    }),
+    prisma.folder.findMany({
+      where: { roomId, archived: true },
       orderBy: { order: "asc" },
     }),
   ]);
@@ -84,6 +88,11 @@ export default async function RoomPage({ params }: Props) {
           name: f.name,
           renderCount: renders.filter((r) => r.folderId === f.id).length,
           pinned: f.pinned,
+        }))}
+        archivedFolders={archivedFolders.map((f) => ({
+          id: f.id,
+          name: f.name,
+          renderCount: renders.filter((r) => r.folderId === f.id).length,
         }))}
       />
     </div>

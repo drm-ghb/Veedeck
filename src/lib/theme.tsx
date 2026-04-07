@@ -13,7 +13,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = useState<Theme>("light");
 
   useEffect(() => {
-    const saved = localStorage.getItem("renderflow-theme") as Theme | null;
+    const saved = localStorage.getItem("veedeck-theme") as Theme | null;
     if (saved) setThemeState(saved);
   }, []);
 
@@ -22,23 +22,23 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
     const applyDark = (dark: boolean) => {
       root.classList.toggle("dark", dark);
-      document.cookie = `renderflow-theme=${dark ? "dark" : "light"}; path=/; max-age=31536000; SameSite=Lax`;
+      document.cookie = `veedeck-theme=${dark ? "dark" : "light"}; path=/; max-age=31536000; SameSite=Lax`;
     };
 
     if (theme === "dark") {
       applyDark(true);
-      localStorage.setItem("renderflow-theme", "dark");
+      localStorage.setItem("veedeck-theme", "dark");
       return;
     }
 
     if (theme === "light") {
       applyDark(false);
-      localStorage.setItem("renderflow-theme", "light");
+      localStorage.setItem("veedeck-theme", "light");
       return;
     }
 
     // system
-    localStorage.setItem("renderflow-theme", "system");
+    localStorage.setItem("veedeck-theme", "system");
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
     applyDark(mq.matches);
 

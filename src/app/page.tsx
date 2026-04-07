@@ -11,9 +11,9 @@ export default async function Home() {
   return (
     <main className="flex flex-col items-center justify-center min-h-screen px-4 text-center">
       <div className="max-w-2xl">
-        <Image src="/icon.svg" alt="RenderFlow" width={80} height={80} className="mx-auto mb-6" />
+        <Image src="/icon.svg" alt="Veedeck" width={80} height={80} className="mx-auto mb-6" />
         <h1 className="text-5xl font-bold tracking-tight mb-4">
-          Render<span className="text-[#19213D] dark:text-white">Flow</span>
+          Veedeck
         </h1>
         <p className="text-xl text-gray-600 mb-8">
           Centralizuj feedback do wizualizacji wnętrz. Komentarze przypięte
