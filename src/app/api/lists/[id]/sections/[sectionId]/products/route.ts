@@ -55,6 +55,8 @@ export async function POST(
 
   const count = await prisma.listProduct.count({ where: { sectionId } });
 
+  const userId = session.user.id;
+
   const product = await prisma.listProduct.create({
     data: {
       name: name.trim(),
@@ -72,6 +74,35 @@ export async function POST(
       order: count,
     },
   });
+
+  // Auto-save to product library (dedup by name or URL)
+  const existing = await prisma.product.findFirst({
+    where: {
+      userId,
+      OR: [
+        { name: { equals: name.trim(), mode: "insensitive" } },
+        ...(url?.trim() ? [{ url: url.trim() }] : []),
+      ],
+    },
+  });
+  if (!existing) {
+    await prisma.product.create({
+      data: {
+        name: name.trim(),
+        url: url || null,
+        imageUrl: imageUrl || null,
+        price: price || null,
+        manufacturer: manufacturer || null,
+        color: color || null,
+        size: size || null,
+        description: description || null,
+        deliveryTime: deliveryTime || null,
+        quantity: typeof quantity === "number" && quantity >= 1 ? quantity : 1,
+        category: category || null,
+        userId,
+      },
+    });
+  }
 
   return NextResponse.json(product, { status: 201 });
 }

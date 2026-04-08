@@ -2,7 +2,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import Image from "next/image";
-import { ShoppingCart, Briefcase } from "lucide-react";
+import { ShoppingCart, Briefcase, Package } from "lucide-react";
 
 export default async function HomePage() {
   const session = await auth();
@@ -81,6 +81,22 @@ export default async function HomePage() {
             <div className="text-center">
               <p className="text-sm font-medium text-foreground leading-tight">Listy</p>
               <p className="text-[11px] text-muted-foreground mt-0.5 leading-tight">Listy zakupowe dla klientów</p>
+            </div>
+          </Link>
+        )}
+
+        {/* Produkty */}
+        {!hidden.includes("produkty") && (
+          <Link
+            href="/produkty"
+            className="group flex flex-col items-center gap-3 p-4 rounded-xl bg-card border border-border hover:shadow-md hover:border-gray-300 dark:hover:border-gray-600 transition-all cursor-pointer"
+          >
+            <div className="w-16 h-16 rounded-2xl flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform duration-150 bg-[#7c3aed]">
+              <Package size={32} className="text-white" />
+            </div>
+            <div className="text-center">
+              <p className="text-sm font-medium text-foreground leading-tight">Produkty</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5 leading-tight">Baza produktów projektanta</p>
             </div>
           </Link>
         )}

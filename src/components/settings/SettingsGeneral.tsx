@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { User, Mail, Lock, Info, Sun, Moon, Monitor, Palette, Image as ImageIcon, Layers, ShoppingCart, LayoutDashboard, PanelLeft } from "lucide-react";
+import { User, Mail, Lock, Info, Sun, Moon, Monitor, Palette, Image as ImageIcon, Layers, ShoppingCart, Package, LayoutDashboard, PanelLeft } from "lucide-react";
 import Image from "next/image";
 import { useTheme, type Theme } from "@/lib/theme";
 import { UploadButton } from "@uploadthing/react";
@@ -288,6 +288,16 @@ async function handleRemoveLogo() {
               icon: (
                 <div className="w-9 h-9 rounded-xl bg-[#0f766e] flex items-center justify-center flex-shrink-0">
                   <ShoppingCart size={18} className="text-white" />
+                </div>
+              ),
+            },
+            {
+              slug: "produkty",
+              label: "Produkty",
+              description: "Baza produktów projektanta — centralna biblioteka produktów.",
+              icon: (
+                <div className="w-9 h-9 rounded-xl bg-[#7c3aed] flex items-center justify-center flex-shrink-0">
+                  <Package size={18} className="text-white" />
                 </div>
               ),
             },

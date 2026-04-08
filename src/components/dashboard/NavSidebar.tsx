@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { LayoutDashboard, Briefcase, ShoppingCart, PanelLeftClose, PanelLeftOpen, Settings, Sun, Moon, HelpCircle, X, CheckCircle } from "lucide-react";
+import { LayoutDashboard, Briefcase, ShoppingCart, Package, PanelLeftClose, PanelLeftOpen, Settings, Sun, Moon, HelpCircle, X, CheckCircle } from "lucide-react";
 import { useTheme } from "@/lib/theme";
 
 interface NavSidebarProps {
@@ -16,6 +16,7 @@ const items = [
   { label: "Projekty", href: "/projekty", icon: <Briefcase size={18} />, slug: null },
   { label: "RenderFlow", href: "/renderflow", icon: null, slug: "renderflow" },
   { label: "Listy", href: "/listy", icon: <ShoppingCart size={18} />, slug: "listy" },
+  { label: "Produkty", href: "/produkty", icon: <Package size={18} />, slug: "produkty" },
 ];
 
 function getSettingsHref(pathname: string): string {

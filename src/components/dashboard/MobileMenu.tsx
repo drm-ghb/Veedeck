@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { Menu, X, LayoutDashboard, Briefcase, ShoppingCart, Settings, LogOut, HelpCircle, Sun, Moon, CheckCircle } from "lucide-react";
+import { Menu, X, LayoutDashboard, Briefcase, ShoppingCart, Package, Settings, LogOut, HelpCircle, Sun, Moon, CheckCircle } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { useTheme } from "@/lib/theme";
 
@@ -19,6 +19,7 @@ const navItems = [
   { label: "Projekty", href: "/projekty", icon: <Briefcase size={18} />, slug: null },
   { label: "RenderFlow", href: "/renderflow", icon: null, slug: "renderflow" },
   { label: "Listy", href: "/listy", icon: <ShoppingCart size={18} />, slug: "listy" },
+  { label: "Produkty", href: "/produkty", icon: <Package size={18} />, slug: "produkty" },
 ];
 
 export default function MobileMenu({ userName, logoUrl, hiddenModules = [] }: MobileMenuProps) {
