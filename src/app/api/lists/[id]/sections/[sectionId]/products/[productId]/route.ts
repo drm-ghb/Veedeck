@@ -63,6 +63,25 @@ export async function PATCH(
       });
       return NextResponse.json(updated);
     }
+
+    if (body.sectionId !== undefined) {
+      const targetSection = await prisma.listSection.findFirst({
+        where: { id: body.sectionId, listId: id, list: { userId: session.user.id } },
+      });
+      if (!targetSection) return NextResponse.json({ error: "Nie znaleziono sekcji" }, { status: 404 });
+
+      const agg = await prisma.listProduct.aggregate({
+        where: { sectionId: body.sectionId },
+        _max: { order: true },
+      });
+      const newOrder = (agg._max.order ?? -1) + 1;
+
+      const updated = await prisma.listProduct.update({
+        where: { id: productId },
+        data: { sectionId: body.sectionId, order: newOrder },
+      });
+      return NextResponse.json(updated);
+    }
   } catch (err) {
     console.error("[PATCH product] error:", err);
     return NextResponse.json({ error: "Błąd serwera", detail: String(err) }, { status: 500 });

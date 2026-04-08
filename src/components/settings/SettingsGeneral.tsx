@@ -26,7 +26,6 @@ interface Props {
   initialGlobalHiddenModules: string[];
   initialClientLogoUrl: string | null;
   initialClientWelcomeMessage: string | null;
-  initialAccentColor: string | null;
   initialNavMode: string;
 }
 
@@ -37,7 +36,6 @@ export function SettingsGeneral({
   initialGlobalHiddenModules,
   initialClientLogoUrl,
   initialClientWelcomeMessage,
-  initialAccentColor,
   initialNavMode,
 }: Props) {
   const router = useRouter();
@@ -57,8 +55,7 @@ export function SettingsGeneral({
   const [clientLogoUrl, setClientLogoUrl] = useState<string | null>(initialClientLogoUrl);
   const [welcomeMsg, setWelcomeMsg] = useState(initialClientWelcomeMessage ?? "");
   const [welcomeLoading, setWelcomeLoading] = useState(false);
-  const [accentColor, setAccentColor] = useState(initialAccentColor ?? "#2563eb");
-  const [navMode, setNavMode] = useState(initialNavMode);
+const [navMode, setNavMode] = useState(initialNavMode);
 
   async function handleNameSave() {
     if (!name.trim()) return;
@@ -127,16 +124,11 @@ export function SettingsGeneral({
   async function handleNavModeChange(mode: string) {
     setNavMode(mode);
     const res = await patchUser({ navMode: mode });
-    if (res.ok) toast.success("Zapisano");
+    if (res.ok) { toast.success("Zapisano"); router.refresh(); }
     else { setNavMode(navMode); toast.error("Błąd podczas zapisywania"); }
   }
 
-  async function handleAccentColorSave(color: string) {
-    setAccentColor(color);
-    await patchUser({ accentColor: color });
-  }
-
-  async function handleRemoveLogo() {
+async function handleRemoveLogo() {
     const res = await patchUser({ clientLogoUrl: null });
     if (res.ok) { setClientLogoUrl(null); toast.success("Logo usunięte"); }
     else toast.error("Błąd podczas usuwania logo");
@@ -256,26 +248,7 @@ export function SettingsGeneral({
             )}
           </div>
 
-          <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <Palette size={15} className="text-gray-400" />
-              <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Kolor akcentu</p>
-            </div>
-            <p className="text-xs text-gray-400">Główny kolor brandu widoczny na stronie klienta.</p>
-            <div className="flex items-center gap-3">
-              <input
-                type="color"
-                value={accentColor}
-                onChange={(e) => setAccentColor(e.target.value)}
-                onBlur={(e) => handleAccentColorSave(e.target.value)}
-                className="w-10 h-10 rounded-lg border border-border cursor-pointer p-0.5"
-              />
-              <span className="text-sm text-gray-500 font-mono">{accentColor}</span>
-              <Button size="sm" variant="outline" onClick={() => handleAccentColorSave(accentColor)}>Zapisz</Button>
-            </div>
-          </div>
-
-          <div className="space-y-3">
+<div className="space-y-3">
             <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Wiadomość powitalna</p>
             <p className="text-xs text-gray-400">Tekst widoczny na stronie klienta przed listą pomieszczeń.</p>
             <Textarea
@@ -303,7 +276,7 @@ export function SettingsGeneral({
               label: "RenderFlow",
               description: "Wizualizacje projektu — moduł z renderami do akceptacji.",
               icon: (
-                <div className="w-9 h-9 rounded-xl bg-[#19213D] flex items-center justify-center flex-shrink-0">
+                <div className="w-9 h-9 rounded-xl bg-[#C45824] flex items-center justify-center flex-shrink-0">
                   <Image src="/logo-dark.svg" alt="RenderFlow" width={22} height={22} />
                 </div>
               ),

@@ -17,11 +17,24 @@ export default async function ListPage({ params, searchParams }: { params: Promi
         userId: session.user.id,
         OR: [{ slug }, { id: slug }],
       },
-      include: {
+      select: {
+        id: true, name: true, shareToken: true, budget: true,
         project: { select: { id: true, title: true, hiddenModules: true } },
         sections: {
           orderBy: { order: "asc" },
-          include: { products: { orderBy: { order: "asc" }, include: { _count: { select: { comments: true } } } } },
+          select: {
+            id: true, name: true, order: true, sortBy: true, budget: true,
+            products: {
+              orderBy: { order: "asc" },
+              select: {
+                id: true, name: true, url: true, imageUrl: true, price: true,
+                manufacturer: true, color: true, size: true, description: true,
+                deliveryTime: true, quantity: true, order: true, category: true,
+                hidden: true, approval: true,
+                _count: { select: { comments: true } },
+              },
+            },
+          },
         },
       },
     }),
@@ -39,12 +52,14 @@ export default async function ListPage({ params, searchParams }: { params: Promi
         id: list.id,
         name: list.name,
         shareToken: list.shareToken,
+        budget: list.budget ?? null,
         project: list.project ? { id: list.project.id, title: list.project.title, hiddenModules: list.project.hiddenModules } : null,
         sections: list.sections.map((s) => ({
           id: s.id,
           name: s.name,
           order: s.order,
           sortBy: s.sortBy,
+          budget: s.budget ?? null,
           products: s.products.map((p) => ({
             id: p.id,
             name: p.name,

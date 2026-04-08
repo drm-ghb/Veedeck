@@ -56,7 +56,7 @@ function Avatar({ name, logoUrl }: { name: string; logoUrl?: string }) {
     .toUpperCase()
     .slice(0, 2);
   return (
-    <div className="w-7 h-7 rounded-full bg-[#19213D]/10 flex items-center justify-center text-xs font-semibold text-[#19213D] shrink-0">
+    <div className="w-7 h-7 rounded-full bg-[#C45824]/10 flex items-center justify-center text-xs font-semibold text-[#C45824] shrink-0">
       {initials}
     </div>
   );
@@ -330,13 +330,13 @@ export default function ProductCommentPanel({
                     }}
                     placeholder="Odpowiedz..."
                     rows={1}
-                    className="flex-1 px-2 py-1.5 text-xs border border-border rounded-lg bg-background focus:outline-none focus:ring-1 focus:ring-[#19213D]/30 resize-none"
+                    className="flex-1 px-2 py-1.5 text-xs border border-border rounded-lg bg-background focus:outline-none focus:ring-1 focus:ring-[#C45824]/30 resize-none"
                     autoFocus
                   />
                   <button
                     onClick={() => handleSendReply(comment.id)}
                     disabled={!replyText.trim() || sendingReply}
-                    className="w-7 h-7 rounded-lg bg-[#19213D] text-white flex items-center justify-center disabled:opacity-40 hover:bg-[#19213D]/80 transition-colors shrink-0 mt-0.5"
+                    className="w-7 h-7 rounded-lg bg-[#C45824] text-white flex items-center justify-center disabled:opacity-40 hover:bg-[#C45824]/80 transition-colors shrink-0 mt-0.5"
                   >
                     <Send size={11} />
                   </button>
@@ -361,12 +361,12 @@ export default function ProductCommentPanel({
             }}
             placeholder="Napisz wiadomość... (Ctrl+Enter)"
             rows={2}
-            className="flex-1 px-3 py-2 text-sm border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-[#19213D]/20 focus:border-[#19213D]/40 resize-none"
+            className="flex-1 px-3 py-2 text-sm border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-[#C45824]/20 focus:border-[#C45824]/40 resize-none"
           />
           <button
             onClick={handleSend}
             disabled={!text.trim() || sending}
-            className="w-9 h-9 rounded-lg bg-[#19213D] text-white flex items-center justify-center disabled:opacity-40 hover:bg-[#19213D]/80 transition-colors self-end shrink-0"
+            className="w-9 h-9 rounded-lg bg-[#C45824] text-white flex items-center justify-center disabled:opacity-40 hover:bg-[#C45824]/80 transition-colors self-end shrink-0"
           >
             <Send size={15} />
           </button>

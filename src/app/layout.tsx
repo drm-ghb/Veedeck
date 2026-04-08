@@ -16,7 +16,7 @@ const dmSans = DM_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Veedeck – Feedback do wizualizacji",
+  title: "Veedeck – cały projekt w jednym miejscu",
   description: "Centralizuj feedback do renderów w jednym miejscu",
 };
 

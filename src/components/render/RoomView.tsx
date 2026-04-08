@@ -125,7 +125,7 @@ export default function RoomView({ projectId, roomId, renders, archivedRenders, 
           >
             Pliki
             {(folders.length > 0 || renders.length > 0) && (
-              <span className="ml-1.5 text-xs bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full">
+              <span className={`ml-1.5 text-xs px-1.5 py-0.5 rounded-full ${tab === "active" ? "bg-foreground text-background" : "bg-muted text-muted-foreground"}`}>
                 {folders.length + renders.length}
               </span>
             )}
@@ -140,7 +140,7 @@ export default function RoomView({ projectId, roomId, renders, archivedRenders, 
           >
             Zarchiwizowane
             {(archivedRenders.length + archivedFolders.length) > 0 && (
-              <span className="ml-1.5 text-xs bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full">
+              <span className={`ml-1.5 text-xs px-1.5 py-0.5 rounded-full ${tab === "archived" ? "bg-foreground text-background" : "bg-muted text-muted-foreground"}`}>
                 {archivedRenders.length + archivedFolders.length}
               </span>
             )}
@@ -193,7 +193,7 @@ export default function RoomView({ projectId, roomId, renders, archivedRenders, 
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-4">
                     {ungrouped.map((render) => (
                       <Link key={render.id} href={`/projects/${projectId}/renders/${render.id}`}>
-                        <Card className="overflow-hidden hover:shadow-[0_4px_16px_rgba(25,33,61,0.2)] hover:border-[#19213D]/30 transition-all cursor-pointer group relative">
+                        <Card className="overflow-hidden hover:shadow-[0_4px_16px_rgba(25,33,61,0.2)] hover:border-[#C45824]/30 transition-all cursor-pointer group relative">
                           {render.pinned && (
                             <div className="absolute top-2 left-2 z-10">
                               <Pin size={13} className="text-red-500 fill-red-500 drop-shadow" />
@@ -303,7 +303,7 @@ export default function RoomView({ projectId, roomId, renders, archivedRenders, 
                 {archivedFolders.map((folder) => (
                   <Card key={folder.id} className="p-5 opacity-60">
                     <div className="w-14 h-14 bg-gray-100 dark:bg-muted rounded-xl flex items-center justify-center mb-4">
-                      <Folder size={28} className="text-[#19213D] dark:text-foreground" />
+                      <Folder size={28} className="text-[#C45824] dark:text-foreground" />
                     </div>
                     <p className="font-semibold text-gray-800 dark:text-foreground truncate mb-1">{folder.name}</p>
                     <p className="text-xs text-gray-400 mb-3">

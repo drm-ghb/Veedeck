@@ -92,6 +92,7 @@ export default function ShareListClient({
   });
   const [unreadProducts, setUnreadProducts] = useState<Set<string>>(() => new Set(getUnreadSet(listId)));
   const [authorName, setAuthorName] = useState("Klient");
+  const [lightbox, setLightbox] = useState<string | null>(null);
   const commentsPanelProductIdRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -99,7 +100,7 @@ export default function ShareListClient({
   }, [commentsPanelProductId]);
 
   useEffect(() => {
-    const stored = localStorage.getItem("renderflow-author");
+    const stored = localStorage.getItem(`renderflow-author-${listShareToken}`);
     if (stored) setAuthorName(stored);
     // Initialize unread set from localStorage + module-level store
     const store = getUnreadSet(listId);
@@ -236,103 +237,104 @@ export default function ShareListClient({
 
                 const unread = unreadProducts.has(product.id);
                 const approval = approvals[product.id] ?? null;
+                const approvalButtons = (
+                  <>
+                    <button
+                      onClick={() => handleApproval(product.id, approval === "accepted" ? null : "accepted")}
+                      className={`w-7 h-7 rounded flex items-center justify-center transition-colors ${approval === "accepted" ? "bg-green-500 text-white" : "text-muted-foreground hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-950"}`}
+                      title={approval === "accepted" ? "Cofnij akceptację" : "Zaakceptuj"}
+                    ><Check size={14} /></button>
+                    <button
+                      onClick={() => handleApproval(product.id, approval === "rejected" ? null : "rejected")}
+                      className={`w-7 h-7 rounded flex items-center justify-center transition-colors ${approval === "rejected" ? "bg-red-500 text-white" : "text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950"}`}
+                      title={approval === "rejected" ? "Cofnij odrzucenie" : "Odrzuć"}
+                    ><X size={14} /></button>
+                  </>
+                );
+                const commentBtn = (size: number) => (
+                  <button onClick={() => openCommentsPanel(product.id)} className="relative flex items-center justify-center w-7 h-7 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors" title="Komentarze">
+                    <MessageSquare size={size} className={unread ? "text-blue-500" : ""} />
+                    {count > 0 && <span className={`absolute -top-1 -right-1 min-w-[14px] h-[14px] rounded-full text-white text-[9px] font-bold flex items-center justify-center px-0.5 leading-none ${unread ? "bg-blue-500" : "bg-muted-foreground/40"}`}>{count > 99 ? "99+" : count}</span>}
+                  </button>
+                );
                 return (
-                  <div key={product.id} className={`flex items-center gap-2 px-4 py-4 hover:bg-muted/30 transition-colors ${!last ? "border-b border-border" : ""}`}>
-                    <span className="w-5 text-right text-xs text-muted-foreground tabular-nums shrink-0">{i + 1}</span>
-
-                    <div className="w-32 h-32 shrink-0 rounded-xl bg-muted flex items-center justify-center overflow-hidden">
-                      {product.imageUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={product.imageUrl} alt={product.name} className="w-full h-full object-contain" />
-                      ) : (
-                        <span className="text-3xl text-muted-foreground/30 select-none">📦</span>
-                      )}
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <p className="font-medium text-sm truncate">{product.name}</p>
-                        {approval === "accepted" && (
-                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 shrink-0">
-                            Zaakceptowane
-                          </span>
-                        )}
-                        {approval === "rejected" && (
-                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 shrink-0">
-                            Odrzucone
-                          </span>
+                  <div key={product.id} className={!last ? "border-b border-border" : ""}>
+                    {/* ── DESKTOP (md+) ── */}
+                    <div className="hidden md:flex items-center gap-2 px-4 py-4 hover:bg-muted/30 transition-colors">
+                      <div className="w-32 h-32 shrink-0 rounded-xl bg-muted flex items-center justify-center overflow-hidden">
+                        {product.imageUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={product.imageUrl} alt={product.name} className="w-full h-full object-contain" />
+                        ) : (
+                          <span className="text-3xl text-muted-foreground/30 select-none">📦</span>
                         )}
                       </div>
-                      {product.manufacturer && <p className="text-xs text-muted-foreground mt-0.5">{product.manufacturer}</p>}
-                      <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-1">
-                        {product.color && <span className="text-xs text-muted-foreground">Kolor: {product.color}</span>}
-                        {product.size && <span className="text-xs text-muted-foreground">Rozmiar: {product.size}</span>}
-                        {product.deliveryTime && <span className="text-xs text-muted-foreground">Dostawa: {product.deliveryTime}</span>}
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-3 shrink-0">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-xs text-muted-foreground">Szt.:</span>
-                        <span className="text-sm font-medium tabular-nums">{product.quantity}</span>
-                      </div>
-
-                      {totalPrice !== null && (
-                        <div className="text-right min-w-[72px]">
-                          <p className="text-sm font-semibold tabular-nums">
-                            {totalPrice.toLocaleString("pl-PL", { minimumFractionDigits: 0, maximumFractionDigits: 2 })} {currency}
-                          </p>
-                          {product.quantity > 1 && unitPrice !== null && (
-                            <p className="text-xs text-muted-foreground tabular-nums">
-                              {unitPrice.toLocaleString("pl-PL", { minimumFractionDigits: 0, maximumFractionDigits: 2 })} / szt.
-                            </p>
-                          )}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="font-medium text-sm truncate">{product.name}</p>
+                          {approval === "accepted" && <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 shrink-0">Zaakceptowane</span>}
+                          {approval === "rejected" && <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 shrink-0">Odrzucone</span>}
                         </div>
-                      )}
-
-                      {product.url ? (
-                        <a href={product.url} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground transition-colors" title="Otwórz produkt">
-                          <ExternalLink size={13} />
-                        </a>
-                      ) : <span className="w-4" />}
-
-                      {/* Approval buttons */}
-                      <button
-                        onClick={() => handleApproval(product.id, approval === "accepted" ? null : "accepted")}
-                        className={`w-7 h-7 rounded flex items-center justify-center transition-colors ${
-                          approval === "accepted"
-                            ? "bg-green-500 text-white"
-                            : "text-muted-foreground hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-950"
-                        }`}
-                        title={approval === "accepted" ? "Cofnij akceptację" : "Zaakceptuj"}
-                      >
-                        <Check size={14} />
-                      </button>
-                      <button
-                        onClick={() => handleApproval(product.id, approval === "rejected" ? null : "rejected")}
-                        className={`w-7 h-7 rounded flex items-center justify-center transition-colors ${
-                          approval === "rejected"
-                            ? "bg-red-500 text-white"
-                            : "text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950"
-                        }`}
-                        title={approval === "rejected" ? "Cofnij odrzucenie" : "Odrzuć"}
-                      >
-                        <X size={14} />
-                      </button>
-
-                      {/* Comment icon */}
-                      <button
-                        onClick={() => openCommentsPanel(product.id)}
-                        className="relative flex items-center justify-center w-7 h-7 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                        title="Komentarze"
-                      >
-                        <MessageSquare size={14} className={unread ? "text-blue-500" : ""} />
-                        {count > 0 && (
-                          <span className={`absolute -top-1 -right-1 min-w-[14px] h-[14px] rounded-full text-white text-[9px] font-bold flex items-center justify-center px-0.5 leading-none transition-colors ${unread ? "bg-blue-500" : "bg-[#19213D]"}`}>
-                            {count > 99 ? "99+" : count}
-                          </span>
+                        {product.manufacturer && <p className="text-xs text-muted-foreground mt-0.5">{product.manufacturer}</p>}
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-1">
+                          {product.color && <span className="text-xs text-muted-foreground">Kolor: {product.color}</span>}
+                          {product.size && <span className="text-xs text-muted-foreground">Rozmiar: {product.size}</span>}
+                          {product.deliveryTime && <span className="text-xs text-muted-foreground">Dostawa: {product.deliveryTime}</span>}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3 shrink-0">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs text-muted-foreground">Szt.:</span>
+                          <span className="text-sm font-medium tabular-nums">{product.quantity}</span>
+                        </div>
+                        {totalPrice !== null && (
+                          <div className="text-right min-w-[72px]">
+                            <p className="text-sm font-semibold tabular-nums">{totalPrice.toLocaleString("pl-PL", { minimumFractionDigits: 0, maximumFractionDigits: 2 })} {currency}</p>
+                            {product.quantity > 1 && unitPrice !== null && <p className="text-xs text-muted-foreground tabular-nums">{unitPrice.toLocaleString("pl-PL", { minimumFractionDigits: 0, maximumFractionDigits: 2 })} / szt.</p>}
+                          </div>
                         )}
-                      </button>
+                        {product.url ? <a href={product.url} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground transition-colors"><ExternalLink size={13} /></a> : <span className="w-4" />}
+                        {approvalButtons}
+                        {commentBtn(14)}
+                      </div>
+                    </div>
+
+                    {/* ── MOBILE (< md) ── */}
+                    <div className="md:hidden flex items-start gap-2 px-3 py-2.5 hover:bg-muted/30 transition-colors">
+                      <div className="w-14 h-14 shrink-0 rounded-lg overflow-hidden bg-muted flex items-center justify-center">
+                        {product.imageUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={product.imageUrl} alt={product.name} className="w-full h-full object-contain cursor-pointer" onClick={() => setLightbox(product.imageUrl!)} />
+                        ) : (
+                          <span className="text-xl text-muted-foreground/30">📦</span>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        {/* Row 1: name + actions */}
+                        <div className="flex items-start justify-between gap-1">
+                          <div className="min-w-0 flex-1">
+                            <p className="font-medium text-sm text-foreground leading-tight truncate">{product.name}</p>
+                            {product.manufacturer && <p className="text-xs text-muted-foreground truncate">{product.manufacturer}</p>}
+                          </div>
+                          <div className="flex items-center gap-0.5 shrink-0 -mt-0.5">
+                            {approvalButtons}
+                          </div>
+                        </div>
+                        {/* Row 2: price + approval badge */}
+                        <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                          {totalPrice !== null && <span className="text-sm font-semibold text-foreground tabular-nums">{totalPrice.toLocaleString("pl-PL", { minimumFractionDigits: 0, maximumFractionDigits: 2 })} {currency}</span>}
+                          {approval === "accepted" && <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">Zaakceptowane</span>}
+                          {approval === "rejected" && <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">Odrzucone</span>}
+                        </div>
+                        {/* Row 3: qty + link | comments */}
+                        <div className="flex items-center justify-between mt-1.5">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-muted-foreground">Szt.: <span className="font-medium text-foreground">{product.quantity}</span></span>
+                            {product.url && <a href={product.url} target="_blank" rel="noopener noreferrer" className="w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"><ExternalLink size={13} /></a>}
+                          </div>
+                          {commentBtn(14)}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 );
@@ -358,6 +360,14 @@ export default function ShareListClient({
           />
         ) : null;
       })()}
+
+      {lightbox && (
+        <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4" onClick={() => setLightbox(null)}>
+          <button onClick={() => setLightbox(null)} className="absolute top-4 right-4 text-white/80 hover:text-white bg-black/40 rounded-full p-2"><X size={20} /></button>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={lightbox} alt="" className="max-w-full max-h-full object-contain rounded-xl" onClick={(e) => e.stopPropagation()} />
+        </div>
+      )}
     </div>
   );
 }

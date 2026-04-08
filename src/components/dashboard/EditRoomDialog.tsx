@@ -88,7 +88,7 @@ export default function EditRoomDialog({
           {/* Icon preview */}
           <div className="flex justify-center">
             <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center">
-              <SelectedIcon size={32} className="text-[#19213D]" />
+              <SelectedIcon size={32} className="text-[#C45824]" />
             </div>
           </div>
 
@@ -139,7 +139,7 @@ export default function EditRoomDialog({
                       : "border-gray-200 bg-white text-gray-500 hover:border-gray-400"
                   }`}
                 >
-                  <Icon size={20} className={icon === key ? "text-white" : "text-[#19213D]"} />
+                  <Icon size={20} className={icon === key ? "text-white" : "text-[#C45824]"} />
                   <span className="truncate w-full text-center leading-tight">{label}</span>
                 </button>
               ))}

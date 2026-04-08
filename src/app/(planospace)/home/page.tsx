@@ -9,17 +9,20 @@ export default async function HomePage() {
   const user = session?.user?.id
     ? await prisma.user.findUnique({
         where: { id: session.user.id },
-        select: { globalHiddenModules: true, navMode: true },
+        select: { globalHiddenModules: true, navMode: true, name: true, email: true },
       })
     : null;
 
   const hidden = user?.globalHiddenModules ?? [];
   const navMode = user?.navMode ?? "dashboard";
+  const displayName = user?.name || user?.email || null;
 
   if (navMode === "sidebar") {
     return (
       <div className="flex flex-col items-start justify-start">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Witamy w Veedeck!</h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+          {displayName ? `Witamy, ${displayName}!` : "Witamy w Veedeck!"}
+        </h1>
         <p className="text-sm text-muted-foreground mt-2">Wybierz moduł z paska bocznego, aby rozpocząć pracę.</p>
       </div>
     );
@@ -27,6 +30,9 @@ export default async function HomePage() {
 
   return (
     <div>
+      <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-6">
+        {displayName ? `Witamy, ${displayName}!` : "Witamy w Veedeck!"}
+      </h1>
       <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-6">
         MODUŁY
       </h2>
@@ -38,7 +44,7 @@ export default async function HomePage() {
           href="/projekty"
           className="group flex flex-col items-center gap-3 p-4 rounded-xl bg-card border border-border hover:shadow-md hover:border-gray-300 dark:hover:border-gray-600 transition-all cursor-pointer"
         >
-          <div className="w-16 h-16 rounded-2xl flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform duration-150 bg-[#19213D]">
+          <div className="w-16 h-16 rounded-2xl flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform duration-150 bg-[#C45824]">
             <Briefcase size={32} className="text-white" />
           </div>
           <div className="text-center">
@@ -53,7 +59,7 @@ export default async function HomePage() {
             href="/renderflow"
             className="group flex flex-col items-center gap-3 p-4 rounded-xl bg-card border border-border hover:shadow-md hover:border-gray-300 dark:hover:border-gray-600 transition-all cursor-pointer"
           >
-            <div className="w-16 h-16 rounded-2xl flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform duration-150 bg-[#19213D]">
+            <div className="w-16 h-16 rounded-2xl flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform duration-150 bg-[#C45824]">
               <Image src="/logo-dark.svg" alt="RenderFlow" width={48} height={48} />
             </div>
             <div className="text-center">
@@ -69,7 +75,7 @@ export default async function HomePage() {
             href="/listy"
             className="group flex flex-col items-center gap-3 p-4 rounded-xl bg-card border border-border hover:shadow-md hover:border-gray-300 dark:hover:border-gray-600 transition-all cursor-pointer"
           >
-            <div className="w-16 h-16 rounded-2xl flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform duration-150 bg-[#19213D]">
+            <div className="w-16 h-16 rounded-2xl flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform duration-150 bg-[#C45824]">
               <ShoppingCart size={32} className="text-white" />
             </div>
             <div className="text-center">

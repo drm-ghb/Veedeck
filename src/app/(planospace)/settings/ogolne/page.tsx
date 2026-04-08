@@ -16,7 +16,6 @@ export default async function SettingsOgolnePage() {
       globalHiddenModules: true,
       clientLogoUrl: true,
       clientWelcomeMessage: true,
-      accentColor: true,
       navMode: true,
     },
   });
@@ -31,7 +30,6 @@ export default async function SettingsOgolnePage() {
       initialGlobalHiddenModules={user.globalHiddenModules}
       initialClientLogoUrl={user.clientLogoUrl}
       initialClientWelcomeMessage={user.clientWelcomeMessage}
-      initialAccentColor={user.accentColor}
       initialNavMode={user.navMode}
     />
   );

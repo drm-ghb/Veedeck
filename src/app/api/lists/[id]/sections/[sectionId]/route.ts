@@ -10,7 +10,7 @@ export async function PATCH(
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id, sectionId } = await params;
-  const { name, sortBy } = await req.json();
+  const { name, sortBy, budget } = await req.json();
 
   const section = await prisma.listSection.findFirst({
     where: { id: sectionId, listId: id, list: { userId: session.user.id } },
@@ -24,6 +24,7 @@ export async function PATCH(
     data.name = name.trim();
   }
   if (sortBy !== undefined) data.sortBy = sortBy;
+  if (budget !== undefined) data.budget = budget !== null ? parseFloat(budget) : null;
 
   const updated = await prisma.listSection.update({
     where: { id: sectionId },

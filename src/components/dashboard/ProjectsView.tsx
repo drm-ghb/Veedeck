@@ -111,19 +111,19 @@ export default function ProjectsView({ projects, archivedProjects }: ProjectsVie
       </div>
 
       {/* Tabs + view toggle */}
-      <div className="flex items-center justify-between border-b border-gray-200 mb-6">
+      <div className="flex items-center justify-between border-b border-border mb-6">
         <div className="flex items-center gap-1">
           <button
             onClick={() => setTab("active")}
             className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px ${
               tab === "active"
-                ? "border-gray-900 text-gray-900"
-                : "border-transparent text-gray-400 hover:text-gray-600"
+                ? "border-foreground text-foreground"
+                : "border-transparent text-muted-foreground hover:text-foreground"
             }`}
           >
             Aktywne
             {projects.length > 0 && (
-              <span className="ml-1.5 text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">
+              <span className={`ml-1.5 text-xs px-1.5 py-0.5 rounded-full ${tab === "active" ? "bg-foreground text-background" : "bg-muted text-muted-foreground"}`}>
                 {projects.length}
               </span>
             )}
@@ -132,13 +132,13 @@ export default function ProjectsView({ projects, archivedProjects }: ProjectsVie
             onClick={() => setTab("archived")}
             className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px ${
               tab === "archived"
-                ? "border-gray-900 text-gray-900"
-                : "border-transparent text-gray-400 hover:text-gray-600"
+                ? "border-foreground text-foreground"
+                : "border-transparent text-muted-foreground hover:text-foreground"
             }`}
           >
             Zarchiwizowane
             {archivedProjects.length > 0 && (
-              <span className="ml-1.5 text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">
+              <span className={`ml-1.5 text-xs px-1.5 py-0.5 rounded-full ${tab === "archived" ? "bg-foreground text-background" : "bg-muted text-muted-foreground"}`}>
                 {archivedProjects.length}
               </span>
             )}

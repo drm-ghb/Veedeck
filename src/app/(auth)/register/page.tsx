@@ -44,7 +44,7 @@ export default function RegisterPage() {
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle className="text-2xl text-center">
-            Render<span className="text-[#19213D] dark:text-white">Flow</span>
+            Render<span className="text-[#C45824] dark:text-white">Flow</span>
           </CardTitle>
           <p className="text-center text-gray-500">Utwórz konto projektanta</p>
         </CardHeader>

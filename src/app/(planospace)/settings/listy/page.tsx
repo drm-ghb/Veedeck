@@ -116,7 +116,7 @@ export default function SettingsListyPage() {
                   dragging === index
                     ? "opacity-50 bg-muted border-border"
                     : dragOver === index
-                    ? "border-[#19213D]/40 bg-[#19213D]/5"
+                    ? "border-[#C45824]/40 bg-[#C45824]/5"
                     : "border-border bg-background hover:bg-muted/40"
                 }`}
               >

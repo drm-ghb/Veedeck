@@ -310,7 +310,7 @@ export default function ProjectDetailView({ project }: { project: ProjectData })
         </section>
 
         {/* === Clients section === */}
-        <section className="bg-card border border-border rounded-xl p-5">
+        <section id="klienci" className="bg-card border border-border rounded-xl p-5">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
               Klienci
@@ -394,14 +394,14 @@ export default function ProjectDetailView({ project }: { project: ProjectData })
                 <div
                   key={client.id}
                   className={`flex items-center justify-between px-4 py-3 rounded-lg border bg-background transition-colors ${
-                    client.isMainContact ? "border-[#19213D]/30 bg-[#19213D]/5" : "border-border"
+                    client.isMainContact ? "border-[#C45824]/30 bg-[#C45824]/5" : "border-border"
                   }`}
                 >
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <p className="text-sm font-medium truncate">{client.name}</p>
                       {client.isMainContact && (
-                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-[#19213D] text-white flex-shrink-0">
+                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-[#C45824] text-white flex-shrink-0">
                           Główny kontakt
                         </span>
                       )}
@@ -453,7 +453,7 @@ export default function ProjectDetailView({ project }: { project: ProjectData })
                   <div className="flex items-start gap-3">
                     <div
                       className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
-                        active ? "bg-[#19213D]" : "bg-muted"
+                        active ? "bg-[#C45824]" : "bg-muted"
                       }`}
                     >
                       {mod.icon === "renderflow" ? (

@@ -12,6 +12,8 @@ interface ShareNavbarProps {
   backLabel?: string;
   clientLogoUrl?: string | null;
   designerName?: string | null;
+  listToken?: string;
+  projectShareToken?: string;
 }
 
 const THEME_OPTIONS: { value: Theme; label: string; Icon: React.ElementType }[] = [
@@ -20,21 +22,24 @@ const THEME_OPTIONS: { value: Theme; label: string; Icon: React.ElementType }[] 
   { value: "system", label: "Systemowy", Icon: Monitor },
 ];
 
-export default function ShareNavbar({ backHref, backLabel, clientLogoUrl, designerName }: ShareNavbarProps) {
+export default function ShareNavbar({ backHref, backLabel, clientLogoUrl, designerName, listToken, projectShareToken }: ShareNavbarProps) {
   const { theme, setTheme } = useTheme();
   const [authorName, setAuthorName] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [nameInput, setNameInput] = useState("");
 
   useEffect(() => {
-    const saved = localStorage.getItem("renderflow-author") || "";
+    const key = listToken ? `renderflow-author-${listToken}` : "renderflow-author";
+    const saved = localStorage.getItem(key) || "";
     setAuthorName(saved);
     setNameInput(saved);
-  }, []);
+  }, [listToken]);
 
   function saveSettings() {
     const name = nameInput.trim();
-    localStorage.setItem("renderflow-author", name);
+    const key = listToken ? `renderflow-author-${listToken}` : "renderflow-author";
+    localStorage.setItem(key, name);
+    if (projectShareToken) localStorage.setItem(`veedeck-author-${projectShareToken}`, name);
     setAuthorName(name);
     setSettingsOpen(false);
   }

@@ -140,7 +140,7 @@ export default function NewListDialog() {
                 onClick={() => handleModeChange("none")}
                 className={`flex-1 text-sm py-2 px-3 rounded-lg border font-medium transition-colors ${
                   mode === "none"
-                    ? "bg-[#19213D] text-white border-[#19213D]"
+                    ? "bg-[#C45824] text-white border-[#C45824]"
                     : "border-border text-muted-foreground hover:text-foreground hover:border-foreground/30"
                 }`}
               >
@@ -151,7 +151,7 @@ export default function NewListDialog() {
                 onClick={() => handleModeChange("project")}
                 className={`flex-1 text-sm py-2 px-3 rounded-lg border font-medium transition-colors ${
                   mode === "project"
-                    ? "bg-[#19213D] text-white border-[#19213D]"
+                    ? "bg-[#C45824] text-white border-[#C45824]"
                     : "border-border text-muted-foreground hover:text-foreground hover:border-foreground/30"
                 }`}
               >

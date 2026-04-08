@@ -231,13 +231,13 @@ export default function ListyView({ lists: initialLists }: ListyViewProps) {
             onClick={() => setTab("active")}
             className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
               tab === "active"
-                ? "border-[#19213D] text-[#19213D] dark:border-white dark:text-white"
+                ? "border-foreground text-foreground"
                 : "border-transparent text-muted-foreground hover:text-foreground"
             }`}
           >
             Aktywne
             {activeLists.length > 0 && (
-              <span className="ml-2 inline-flex items-center justify-center min-w-[18px] h-[18px] rounded-full bg-muted text-[10px] font-semibold text-muted-foreground px-1">
+              <span className={`ml-1.5 text-xs px-1.5 py-0.5 rounded-full ${tab === "active" ? "bg-foreground text-background" : "bg-muted text-muted-foreground"}`}>
                 {activeLists.length}
               </span>
             )}
@@ -246,13 +246,13 @@ export default function ListyView({ lists: initialLists }: ListyViewProps) {
             onClick={() => setTab("archived")}
             className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
               tab === "archived"
-                ? "border-[#19213D] text-[#19213D] dark:border-white dark:text-white"
+                ? "border-foreground text-foreground"
                 : "border-transparent text-muted-foreground hover:text-foreground"
             }`}
           >
             Zarchiwizowane
             {archivedLists.length > 0 && (
-              <span className="ml-2 inline-flex items-center justify-center min-w-[18px] h-[18px] rounded-full bg-muted text-[10px] font-semibold text-muted-foreground px-1">
+              <span className={`ml-1.5 text-xs px-1.5 py-0.5 rounded-full ${tab === "archived" ? "bg-foreground text-background" : "bg-muted text-muted-foreground"}`}>
                 {archivedLists.length}
               </span>
             )}
@@ -305,8 +305,8 @@ export default function ListyView({ lists: initialLists }: ListyViewProps) {
       {/* Empty state — no lists at all */}
       {lists.length === 0 && (
         <div className="flex flex-col items-center justify-center py-24 text-center">
-          <div className="w-16 h-16 rounded-2xl bg-[#19213D]/10 flex items-center justify-center mb-4">
-            <ShoppingCart size={28} className="text-[#19213D]" />
+          <div className="w-16 h-16 rounded-2xl bg-[#C45824]/10 flex items-center justify-center mb-4">
+            <ShoppingCart size={28} className="text-[#C45824]" />
           </div>
           <h2 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-1">Brak list zakupowych</h2>
           <p className="text-sm text-gray-400 max-w-xs">Kliknij „Nowa lista" aby stworzyć pierwszą listę zakupową dla swojego klienta.</p>
@@ -332,15 +332,15 @@ export default function ListyView({ lists: initialLists }: ListyViewProps) {
       {filtered.length > 0 && view === "grid" && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-4">
           {filtered.map((list) => (
-            <div key={list.id} className="rounded-xl border border-border bg-card hover:shadow-sm hover:border-[#19213D]/20 transition-all group relative">
+            <div key={list.id} className="rounded-xl border border-border bg-card hover:shadow-sm hover:border-[#C45824]/20 transition-all group relative">
               {list.pinned && (
                 <div className="absolute top-3 left-3 z-10">
                   <Pin size={12} className="text-red-500 fill-red-500" />
                 </div>
               )}
               <Link href={`/listy/${list.slug ?? list.id}`} className={`flex items-start gap-3 p-4 pr-16 block ${list.pinned ? "pl-8" : ""}`}>
-                <div className="w-9 h-9 rounded-lg bg-[#19213D]/10 flex items-center justify-center shrink-0">
-                  <ShoppingCart size={16} className="text-[#19213D]" />
+                <div className="w-9 h-9 rounded-lg bg-[#C45824]/10 flex items-center justify-center shrink-0">
+                  <ShoppingCart size={16} className="text-[#C45824]" />
                 </div>
                 <div className="min-w-0">
                   <p className="font-semibold text-sm text-foreground truncate">{list.name}</p>
@@ -375,32 +375,28 @@ export default function ListyView({ lists: initialLists }: ListyViewProps) {
       {/* List view */}
       {filtered.length > 0 && view === "list" && (
         <div className="bg-card border border-border rounded-xl overflow-hidden">
-          <div className="hidden sm:grid grid-cols-[1fr_180px_140px_72px] gap-4 px-5 py-3 bg-muted/50 border-b border-border text-xs font-medium text-muted-foreground uppercase tracking-wide">
-            <span>Nazwa</span>
-            <span>Projekt</span>
-            <span>Data</span>
-            <span />
-          </div>
           {filtered.map((list, i) => (
             <div
               key={list.id}
               onClick={() => router.push(`/listy/${list.slug ?? list.id}`)}
-              className={`grid grid-cols-[1fr_auto] sm:grid-cols-[1fr_180px_140px_72px] gap-4 px-5 py-4 items-center hover:bg-muted/30 transition-colors group cursor-pointer ${i !== filtered.length - 1 ? "border-b border-border" : ""}`}
+              className={`flex items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors cursor-pointer ${i !== filtered.length - 1 ? "border-b border-border" : ""}`}
             >
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="w-8 h-8 rounded-lg bg-[#19213D]/10 flex items-center justify-center shrink-0">
-                  <ShoppingCart size={14} className="text-[#19213D]" />
-                </div>
-                <span className="font-semibold text-gray-900 dark:text-gray-100 truncate flex items-center gap-1.5">
-                  {list.pinned && <Pin size={11} className="text-red-500 fill-red-500 flex-shrink-0" />}
-                  {list.name}
-                </span>
+              <div className="w-8 h-8 rounded-lg bg-[#C45824]/10 flex items-center justify-center shrink-0">
+                <ShoppingCart size={14} className="text-[#C45824]" />
               </div>
-              <p className="hidden sm:block text-sm text-muted-foreground truncate">{list.project?.title ?? "—"}</p>
-              <p className="hidden sm:block text-sm text-muted-foreground whitespace-nowrap">
-                {new Date(list.createdAt).toLocaleDateString("pl-PL", { day: "2-digit", month: "short", year: "numeric" })}
-              </p>
-              <div className="flex items-center justify-end gap-0.5" onClick={(e) => e.stopPropagation()}>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5">
+                  {list.pinned && <Pin size={11} className="text-red-500 fill-red-500 flex-shrink-0" />}
+                  <span className="font-semibold text-sm text-gray-900 dark:text-gray-100 truncate">{list.name}</span>
+                </div>
+                <div className="flex items-center gap-2 mt-0.5">
+                  {list.project && <span className="text-xs text-muted-foreground truncate">{list.project.title}</span>}
+                  <span className="text-xs text-muted-foreground whitespace-nowrap">
+                    {new Date(list.createdAt).toLocaleDateString("pl-PL", { day: "2-digit", month: "short", year: "numeric" })}
+                  </span>
+                </div>
+              </div>
+              <div className="flex items-center gap-0.5 shrink-0" onClick={(e) => e.stopPropagation()}>
                 {(unreadListCounts[list.id] ?? 0) > 0 && (
                   <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-blue-500 text-white text-[10px] font-bold leading-none mr-1">
                     <MessageSquare size={10} />

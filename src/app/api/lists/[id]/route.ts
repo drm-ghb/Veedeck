@@ -29,6 +29,7 @@ export async function PATCH(
   if (body.archived !== undefined) data.archived = body.archived;
   if (body.pinned !== undefined) data.pinned = body.pinned;
   if (body.projectId !== undefined) data.projectId = body.projectId ?? null;
+  if (body.budget !== undefined) data.budget = body.budget !== null ? parseFloat(body.budget) : null;
 
   const updated = await prisma.shoppingList.update({ where: { id }, data });
   return NextResponse.json(updated);

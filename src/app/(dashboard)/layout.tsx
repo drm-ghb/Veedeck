@@ -2,12 +2,13 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { Settings, ShieldCheck } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
 import { SignOutButton } from "@/components/dashboard/SignOutButton";
 import NotificationBell from "@/components/dashboard/NotificationBell";
 import { HomeLinkIcon } from "@/components/dashboard/HomeLinkIcon";
 import MobileMenu from "@/components/dashboard/MobileMenu";
 import NavSidebar from "@/components/dashboard/NavSidebar";
+import GlobalSearch from "@/components/dashboard/GlobalSearch";
 import { prisma } from "@/lib/prisma";
 
 export default async function DashboardLayout({
@@ -20,64 +21,65 @@ export default async function DashboardLayout({
 
   const dbUser = await prisma.user.findUnique({
     where: { id: session.user.id! },
-    select: { name: true, email: true, isAdmin: true, navMode: true, globalHiddenModules: true },
+    select: { name: true, email: true, isAdmin: true, navMode: true, globalHiddenModules: true, clientLogoUrl: true },
   });
 
   const displayName = dbUser?.name || dbUser?.email || null;
   const navMode = dbUser?.navMode ?? "dashboard";
   const hiddenModules = dbUser?.globalHiddenModules ?? [];
+  const logoUrl = dbUser?.clientLogoUrl ?? null;
 
   return (
-    <div className="h-screen flex flex-col">
-      <nav className="bg-card border-b">
-        <div className="px-3 sm:px-6 flex items-center justify-between py-3 gap-4">
-
-          {/* Home (Planospace launcher) */}
-          <HomeLinkIcon hidden={navMode === "sidebar"} />
-
-          {/* Logo */}
-          <Link href="/renderflow" className="flex items-center gap-2 shrink-0">
-            <Image src="/logo.svg" alt="Veedeck" width={28} height={28} className="block dark:hidden" />
-            <Image src="/logo-dark.svg" alt="Veedeck" width={28} height={28} className="hidden dark:block" />
-            <span className="text-xl font-bold">Veedeck</span>
-          </Link>
-
-          {/* Desktop: center links */}
-          <div className="hidden md:flex items-center gap-6 flex-1 justify-center">
+    <div className="h-screen flex flex-col bg-muted/60">
+      <nav>
+        <div className="px-4 flex items-center gap-4 py-3 relative">
+          {/* Left: home + logo */}
+          <div className="flex items-center gap-2 shrink-0">
+            <HomeLinkIcon hidden={navMode === "sidebar"} />
+            <Link href="/renderflow" className="flex items-center gap-2 shrink-0">
+              <div className="w-8 h-8 bg-black rounded-lg flex items-center justify-center shrink-0 overflow-hidden">
+                <Image src="/logo2.png" alt="Veedeck" width={32} height={32} style={{ width: 32, height: 32 }} />
+              </div>
+              <span className="text-xl font-bold">Veedeck</span>
+            </Link>
             {dbUser?.isAdmin && (
-              <Link href="/admin" className="flex items-center gap-1.5 text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-200 transition-colors">
+              <Link href="/admin" className="hidden md:flex items-center gap-1.5 text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 transition-colors ml-2">
                 <ShieldCheck size={16} />
                 Admin
               </Link>
             )}
           </div>
 
-          {/* Desktop: right actions */}
-          <div className="hidden md:flex items-center gap-4 shrink-0">
-            <span className="text-sm text-gray-500 dark:text-gray-400">{displayName}</span>
-            <NotificationBell userId={session.user.id!} iconOnly />
-            <Link
-              href="/settings/renderflow"
-              title="Ustawienia"
-              className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-muted"
-            >
-              <Settings size={18} />
-            </Link>
-            <SignOutButton />
+          {/* Search - centered */}
+          <div className="absolute left-1/2 -translate-x-1/2 w-full max-w-sm px-4 hidden sm:block">
+            <GlobalSearch />
           </div>
 
-          {/* Mobile: bell + hamburger */}
-          <div className="md:hidden flex items-center gap-2 shrink-0">
+          {/* Right: bell + avatar + logout */}
+          <div className="flex items-center gap-2 shrink-0 ml-auto">
             <NotificationBell userId={session.user.id!} iconOnly />
-            <MobileMenu userName={displayName} />
+            {displayName && (
+              <div className="hidden md:flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-semibold shrink-0 overflow-hidden">
+                  {logoUrl
+                    ? <img src={logoUrl} alt="Logo" className="w-full h-full object-cover" />
+                    : displayName[0].toUpperCase()
+                  }
+                </div>
+                <span className="text-sm font-medium text-foreground">{displayName}</span>
+              </div>
+            )}
+            <div className="hidden md:block"><SignOutButton /></div>
+            <div className="md:hidden">
+              <MobileMenu userName={displayName} logoUrl={logoUrl} hiddenModules={hiddenModules} />
+            </div>
           </div>
-
         </div>
       </nav>
       {navMode === "sidebar" ? (
         <div className="flex flex-1 min-h-0">
           <NavSidebar hiddenModules={hiddenModules} />
-          <main className="flex-1 px-3 sm:px-6 py-4 sm:py-8 overflow-y-auto">
+          <main className="flex-1 px-6 py-6 overflow-y-auto bg-background rounded-tl-2xl">
             {children}
           </main>
         </div>

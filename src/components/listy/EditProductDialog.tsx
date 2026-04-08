@@ -195,7 +195,7 @@ export default function EditProductDialog({
               id="ep-category"
               value={form.category}
               onChange={(e) => set("category", e.target.value)}
-              className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#19213D]/20 focus:border-[#19213D]/40"
+              className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#C45824]/20 focus:border-[#C45824]/40"
             >
               <option value="">Brak kategorii</option>
               {CATEGORIES.map((c) => (

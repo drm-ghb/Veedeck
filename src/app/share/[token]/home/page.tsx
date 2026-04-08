@@ -14,7 +14,7 @@ export default async function ProjectHomePage({ params }: { params: Promise<{ to
     include: {
       renders: { where: { archived: false }, select: { id: true }, take: 1 },
       shoppingLists: { select: { id: true, name: true, shareToken: true } },
-      user: { select: { clientLogoUrl: true, name: true, navMode: true } },
+      user: { select: { clientLogoUrl: true, name: true, navMode: true, clientWelcomeMessage: true } },
     },
   });
 
@@ -24,9 +24,15 @@ export default async function ProjectHomePage({ params }: { params: Promise<{ to
   const showRenderFlow = !project.hiddenModules.includes("renderflow");
   const showListy = !project.hiddenModules.includes("listy");
   const isSidebar = project.user.navMode === "sidebar";
+  const welcomeMessage = project.user.clientWelcomeMessage?.trim() || null;
+  const greeting = project.clientName ? `Witamy, ${project.clientName}!` : "Witaj w projekcie!";
 
   const tilesContent = (
     <>
+      <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">{greeting}</h1>
+      {welcomeMessage && (
+        <p className="text-sm text-muted-foreground mb-4">{welcomeMessage}</p>
+      )}
       <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-6">
         {project.title}
       </h2>
@@ -38,7 +44,7 @@ export default async function ProjectHomePage({ params }: { params: Promise<{ to
             href={`/share/${token}`}
             className="group flex flex-col items-center gap-3 p-4 rounded-xl bg-card border border-border hover:shadow-md hover:border-gray-300 dark:hover:border-gray-600 transition-all cursor-pointer"
           >
-            <div className="w-16 h-16 rounded-2xl flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform duration-150 bg-[#19213D]">
+            <div className="w-16 h-16 rounded-2xl flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform duration-150 bg-[#C45824]">
               <Image src="/logo-dark.svg" alt="RenderFlow" width={40} height={40} />
             </div>
             <div className="text-center">
@@ -54,7 +60,7 @@ export default async function ProjectHomePage({ params }: { params: Promise<{ to
             href={`/share/list/${list.shareToken}`}
             className="group flex flex-col items-center gap-3 p-4 rounded-xl bg-card border border-border hover:shadow-md hover:border-gray-300 dark:hover:border-gray-600 transition-all cursor-pointer"
           >
-            <div className="w-16 h-16 rounded-2xl flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform duration-150 bg-[#19213D]">
+            <div className="w-16 h-16 rounded-2xl flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform duration-150 bg-[#C45824]">
               <ShoppingCart size={32} className="text-white" />
             </div>
             <div className="text-center">
@@ -70,8 +76,10 @@ export default async function ProjectHomePage({ params }: { params: Promise<{ to
 
   const welcomeContent = (
     <div className="flex flex-col items-start justify-start">
-      <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Witaj w projekcie!</h1>
-      <p className="text-sm text-muted-foreground mt-2">Wybierz moduł z paska bocznego, aby przeglądać projekt.</p>
+      <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{greeting}</h1>
+      <p className="text-sm text-muted-foreground mt-2">
+        {welcomeMessage ?? "Wybierz moduł z paska bocznego, aby przeglądać projekt."}
+      </p>
     </div>
   );
 
