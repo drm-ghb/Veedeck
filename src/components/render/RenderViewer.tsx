@@ -904,11 +904,6 @@ export default function RenderViewer({
                 <Pin size={14} /> Dodaj pin
               </button>
             )}
-            {/* Ukryj/Pokaż piny */}
-            <button onClick={() => setHidePins((v) => !v)} className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md border transition-colors flex-shrink-0 ${hidePins ? "bg-gray-900 text-white border-gray-900" : "border-transparent text-gray-500 dark:text-gray-400 hover:bg-muted"}`}>
-              {hidePins ? <EyeOff size={14} /> : <Eye size={14} />}
-              {hidePins ? "Pokaż" : "Ukryj"}
-            </button>
             {/* Dyskusja */}
             <button
               onClick={() => setShowComments((v) => { const next = !v; sessionStorage.setItem("renderflow_showComments", String(next)); if (next && sidebarTabRef.current === "chat") markChatRead(); return next; })}
@@ -920,6 +915,11 @@ export default function RenderViewer({
                   {chatUnreadCount > 99 ? "99+" : chatUnreadCount}
                 </span>
               )}
+            </button>
+            {/* Ukryj/Pokaż piny */}
+            <button onClick={() => setHidePins((v) => !v)} className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md border transition-colors flex-shrink-0 ${hidePins ? "bg-gray-900 text-white border-gray-900" : "border-transparent text-gray-500 dark:text-gray-400 hover:bg-muted"}`}>
+              {hidePins ? <EyeOff size={14} /> : <Eye size={14} />}
+              {hidePins ? "Pokaż" : "Ukryj"}
             </button>
             <div className="w-px h-5 bg-gray-200 dark:bg-gray-700 mx-0.5 flex-shrink-0" />
             {/* Wersje */}
