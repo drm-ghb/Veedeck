@@ -74,7 +74,7 @@ export default async function DashboardLayout({
       </nav>
       {navMode === "sidebar" ? (
         <div className="flex flex-1 min-h-0">
-          <NavSidebar hiddenModules={hiddenModules} />
+          <NavSidebar hiddenModules={hiddenModules} isAdmin={dbUser?.isAdmin ?? false} />
           <main className="flex-1 px-6 py-6 overflow-y-auto bg-background rounded-tl-2xl">
             {children}
           </main>

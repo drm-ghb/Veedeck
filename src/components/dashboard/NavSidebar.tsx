@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { LayoutDashboard, Briefcase, ShoppingCart, Package, PanelLeftClose, PanelLeftOpen, Settings, Sun, Moon, HelpCircle, X, CheckCircle, PictureInPicture } from "lucide-react";
+import { LayoutDashboard, Briefcase, ShoppingCart, Package, PanelLeftClose, PanelLeftOpen, Settings, Sun, Moon, HelpCircle, X, CheckCircle, PictureInPicture, ShieldCheck } from "lucide-react";
 import { useTheme } from "@/lib/theme";
 import { useT } from "@/lib/i18n";
 
 interface NavSidebarProps {
   hiddenModules: string[];
+  isAdmin?: boolean;
 }
 
 function getSettingsHref(pathname: string): string {
@@ -22,7 +23,7 @@ const HIDDEN_ON: RegExp[] = [
   /^\/listy\/.+/,
 ];
 
-export default function NavSidebar({ hiddenModules }: NavSidebarProps) {
+export default function NavSidebar({ hiddenModules, isAdmin }: NavSidebarProps) {
   const pathname = usePathname();
   const { theme, setTheme } = useTheme();
   const t = useT();
@@ -79,6 +80,27 @@ export default function NavSidebar({ hiddenModules }: NavSidebarProps) {
           );
         })}
       </nav>
+
+      {isAdmin && (
+        <div className="px-2 pb-1">
+          <div className="border-t border-border pt-1">
+            <Link
+              href="/admin"
+              title={isCollapsed ? "Admin" : undefined}
+              className={`flex items-center gap-3 px-2.5 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                pathname.startsWith("/admin")
+                  ? "bg-blue-500/10 text-blue-600 dark:text-blue-400"
+                  : "text-blue-600 dark:text-blue-400 hover:bg-blue-500/10"
+              }`}
+            >
+              <span className="flex-shrink-0 w-5 flex items-center justify-center">
+                <ShieldCheck size={18} />
+              </span>
+              {!isCollapsed && "Admin"}
+            </Link>
+          </div>
+        </div>
+      )}
 
       <div className="p-2 space-y-0.5">
         {/* Theme toggle */}
