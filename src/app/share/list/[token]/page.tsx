@@ -28,6 +28,7 @@ export default async function PublicListPage({ params }: { params: Promise<{ tok
           shareToken: true,
           archived: true,
           hiddenModules: true,
+          clientName: true,
           renders: { select: { id: true }, take: 1 },
           shoppingLists: { where: { archived: false }, select: { id: true, name: true, shareToken: true } },
           user: { select: { clientLogoUrl: true, name: true, navMode: true } },
@@ -152,6 +153,7 @@ export default async function PublicListPage({ params }: { params: Promise<{ tok
         backLabel={list.project?.title}
         clientLogoUrl={list.project?.user?.clientLogoUrl}
         designerName={list.project?.user?.name}
+        clientName={list.project?.clientName}
         listToken={token}
         projectShareToken={list.project?.shareToken}
       />

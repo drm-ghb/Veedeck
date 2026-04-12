@@ -13,11 +13,12 @@ interface ShareNavbarProps {
   backLabel?: string;
   clientLogoUrl?: string | null;
   designerName?: string | null;
+  clientName?: string | null;
   listToken?: string;
   projectShareToken?: string;
 }
 
-export default function ShareNavbar({ backHref, backLabel, clientLogoUrl, designerName, listToken, projectShareToken }: ShareNavbarProps) {
+export default function ShareNavbar({ backHref, backLabel, clientLogoUrl, designerName, clientName, listToken, projectShareToken }: ShareNavbarProps) {
   const t = useT();
   const { theme, setTheme } = useTheme();
 
@@ -87,13 +88,18 @@ export default function ShareNavbar({ backHref, backLabel, clientLogoUrl, design
                 theme === "dark" ? "translate-x-7" : "translate-x-1"
               }`} />
             </button>
+            {clientName && (
+              <span className="hidden sm:flex items-center gap-1.5 text-sm text-muted-foreground">
+                <span className="font-medium text-foreground">Panel klienta:</span>
+                {clientName}
+              </span>
+            )}
             <button
               onClick={() => { setNameInput(authorName); setSettingsOpen(true); }}
               title="Ustawienia"
               className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
             >
               <Settings size={15} />
-              <span className="hidden sm:inline">{authorName || t.nav.settings}</span>
             </button>
           </div>
         </div>
