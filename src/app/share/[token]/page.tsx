@@ -621,11 +621,6 @@ export default function SharePage() {
       {/* Rooms view */}
       {view === "rooms" && (
         <>
-          {project.clientWelcomeMessage && (
-            <div className="mb-6 p-4 bg-muted rounded-xl text-sm text-gray-600 dark:text-gray-400">
-              {project.clientWelcomeMessage}
-            </div>
-          )}
           <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-6">Pomieszczenia</h2>
           {project.rooms.length === 0 ? (
             <p className="text-gray-400 text-center py-16">Brak pomieszczeń w tym projekcie.</p>
