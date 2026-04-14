@@ -57,8 +57,8 @@ export default function NavSidebar({ hiddenModules, isAdmin }: NavSidebarProps) 
 
   return (
     <>
-    <aside className={`hidden md:flex flex-col flex-shrink-0 transition-all duration-200 ${isCollapsed ? "w-14" : "w-52"}`}>
-      <nav className="flex-1 p-2 space-y-0.5">
+    <aside className={`hidden md:flex flex-col flex-shrink-0 h-full transition-all duration-200 ${isCollapsed ? "w-14" : "w-52"}`}>
+      <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto">
         {visible.map((item) => {
           const active = pathname === item.href || pathname.startsWith(item.href + "/");
           return (
