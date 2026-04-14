@@ -1046,19 +1046,18 @@ export default function RenderViewer({
               <ChevronRight size={20} />
             </button>
           )}
-          <div className="absolute inset-0 overflow-auto flex items-start justify-center p-2 sm:p-6">
+          <div className="absolute inset-0 overflow-auto flex items-start justify-start sm:justify-center p-2 sm:p-6">
           <div
             ref={imgRef}
             className={`relative select-none ${mode === "pin" ? "cursor-crosshair" : "cursor-default"}`}
-            style={{ maxWidth: "100%" }}
             onClick={handleImageClick}
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={imageUrl}
               alt="Render"
-              className="block rounded-lg shadow-sm"
-              style={{ maxWidth: "100%", maxHeight: "calc(100vh - 180px)" }}
+              className="block rounded-lg shadow-sm sm:max-w-full"
+              style={{ maxHeight: "calc(100vh - 180px)" }}
               draggable={false}
             />
 
