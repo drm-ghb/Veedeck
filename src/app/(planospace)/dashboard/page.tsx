@@ -18,7 +18,7 @@ export default async function DashboardPage() {
   const navMode = user?.navMode ?? "dashboard";
   const displayName = user?.name || user?.email || null;
 
-  // Fetch all active projects (for stats + recent + pending requests)
+  // Fetch all active projects (for stats + recent + requests)
   const allProjects = await prisma.project.findMany({
     where: { userId, archived: false },
     select: {
@@ -39,46 +39,152 @@ export default async function DashboardPage() {
   });
 
   const projectIds = allProjects.map((p) => p.id);
-  const recentProjects = allProjects.slice(0, 6);
   const activeProjectCount = allProjects.length;
+  const projectMap = new Map(allProjects.map((p) => [p.id, p]));
 
-  // Parallel queries for remaining stats
-  const [renderCount, listCount, pendingRequests, rendersWithComments] =
+  const [recentProjects, recentLists] = await Promise.all([prisma.project.findMany({
+    where: { userId, archived: false, modules: { has: "renderflow" } },
+    select: {
+      id: true,
+      slug: true,
+      title: true,
+      clientName: true,
+      pinned: true,
+      updatedAt: true,
+      renders: {
+        where: { archived: false },
+        select: { fileUrl: true },
+        orderBy: { createdAt: "desc" },
+        take: 1,
+      },
+      _count: { select: { renders: { where: { archived: false } } } },
+    },
+    orderBy: [{ pinned: "desc" }, { updatedAt: "desc" }],
+    take: 3,
+  }),
+
+  prisma.shoppingList.findMany({
+    where: { userId, archived: false },
+    select: {
+      id: true,
+      slug: true,
+      name: true,
+      pinned: true,
+      updatedAt: true,
+      project: { select: { title: true } },
+      _count: { select: { sections: true } },
+    },
+    orderBy: [{ pinned: "desc" }, { updatedAt: "desc" }],
+    take: 3,
+  }),
+  ]);
+
+  const [renderCount, listCount, notificationCount, pins, statusRequests, versionRequests, renderDiscussions, listMessages] =
     await Promise.all([
       prisma.render.count({ where: { project: { userId }, archived: false } }),
       prisma.shoppingList.count({ where: { userId, archived: false } }),
+      prisma.notification.count({ where: { userId, read: false } }),
 
+      // Unviewed pins (NEW status, not yet viewed by designer, with position = pin)
+      prisma.comment.findMany({
+        where: {
+          posX: { not: null },
+          status: "NEW",
+          isInternal: false,
+          viewedByDesigner: false,
+          render: { project: { userId }, archived: false },
+        },
+        select: {
+          id: true,
+          title: true,
+          content: true,
+          author: true,
+          createdAt: true,
+          renderId: true,
+          render: {
+            select: {
+              name: true,
+              projectId: true,
+              project: { select: { id: true, title: true, slug: true } },
+            },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+        take: 10,
+      }),
+
+      // Pending status change requests
       projectIds.length > 0
         ? prisma.statusChangeRequest.findMany({
             where: { projectId: { in: projectIds }, status: "PENDING" },
             orderBy: { createdAt: "desc" },
-            take: 5,
+            take: 10,
           })
         : Promise.resolve([]),
 
-      prisma.render.findMany({
+      // Pending version restore requests
+      projectIds.length > 0
+        ? prisma.versionRestoreRequest.findMany({
+            where: { projectId: { in: projectIds }, status: "PENDING" },
+            orderBy: { createdAt: "desc" },
+            take: 10,
+          })
+        : Promise.resolve([]),
+
+      // Unread render discussions (non-pin comments from clients)
+      prisma.comment.findMany({
         where: {
-          project: { userId },
-          archived: false,
-          comments: { some: { status: "NEW", isInternal: false } },
+          posX: null,
+          isInternal: false,
+          isAiSummary: false,
+          viewedByDesigner: false,
+          render: { project: { userId }, archived: false },
         },
         select: {
           id: true,
-          name: true,
-          fileUrl: true,
-          projectId: true,
-          project: { select: { title: true, slug: true } },
-          _count: {
-            select: { comments: { where: { status: "NEW", isInternal: false } } },
+          content: true,
+          author: true,
+          createdAt: true,
+          renderId: true,
+          render: {
+            select: {
+              name: true,
+              projectId: true,
+              project: { select: { id: true, title: true } },
+            },
           },
         },
-        take: 5,
         orderBy: { createdAt: "desc" },
+        take: 10,
+      }),
+
+      // Unread shopping list comments
+      prisma.listProductComment.findMany({
+        where: {
+          viewedByDesigner: false,
+          product: { section: { list: { userId } } },
+        },
+        select: {
+          id: true,
+          content: true,
+          author: true,
+          createdAt: true,
+          productId: true,
+          product: {
+            select: {
+              name: true,
+              section: {
+                select: {
+                  list: { select: { id: true, name: true, slug: true } },
+                },
+              },
+            },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+        take: 10,
       }),
     ]);
-
-  // Build project map for pending requests
-  const projectMap = new Map(allProjects.map((p) => [p.id, p]));
 
   return (
     <DashboardView
@@ -89,22 +195,31 @@ export default async function DashboardPage() {
         projects: activeProjectCount,
         renders: renderCount,
         lists: listCount,
-        newComments: rendersWithComments.reduce(
-          (sum, r) => sum + (r._count.comments ?? 0),
-          0
-        ),
-        pendingRequests: pendingRequests.length,
+        notificationCount,
       }}
       recentProjects={recentProjects.map((p) => ({
         id: p.id,
         slug: p.slug,
         title: p.title,
         clientName: p.clientName,
+        pinned: p.pinned,
         renderCount: p._count.renders,
         lastRenderUrl: p.renders[0]?.fileUrl ?? null,
         updatedAt: p.updatedAt.toISOString(),
       }))}
-      pendingRequests={pendingRequests.map((r) => ({
+      pins={pins.map((c) => ({
+        id: c.id,
+        title: c.title,
+        content: c.content,
+        author: c.author,
+        createdAt: c.createdAt.toISOString(),
+        renderId: c.renderId,
+        renderName: c.render.name,
+        projectId: c.render.project.id,
+        projectTitle: c.render.project.title,
+        projectSlug: c.render.project.slug,
+      }))}
+      statusRequests={statusRequests.map((r) => ({
         id: r.id,
         renderName: r.renderName,
         clientName: r.clientName ?? null,
@@ -113,14 +228,44 @@ export default async function DashboardPage() {
         projectSlug: projectMap.get(r.projectId)?.slug ?? null,
         createdAt: r.createdAt.toISOString(),
       }))}
-      rendersWithComments={rendersWithComments.map((r) => ({
+      versionRequests={versionRequests.map((r) => ({
         id: r.id,
-        name: r.name,
-        fileUrl: r.fileUrl,
+        renderName: r.renderName,
+        clientName: r.clientName ?? null,
         projectId: r.projectId,
-        projectTitle: r.project.title,
-        projectSlug: r.project.slug,
-        newCommentsCount: r._count.comments ?? 0,
+        projectTitle: projectMap.get(r.projectId)?.title ?? "",
+        projectSlug: projectMap.get(r.projectId)?.slug ?? null,
+        createdAt: r.createdAt.toISOString(),
+      }))}
+      recentLists={recentLists.map((l) => ({
+        id: l.id,
+        slug: l.slug,
+        name: l.name,
+        pinned: l.pinned,
+        projectTitle: l.project?.title ?? null,
+        sectionCount: l._count.sections,
+        updatedAt: l.updatedAt.toISOString(),
+      }))}
+      renderDiscussions={renderDiscussions.map((c) => ({
+        id: c.id,
+        content: c.content,
+        author: c.author,
+        createdAt: c.createdAt.toISOString(),
+        renderId: c.renderId,
+        renderName: c.render.name,
+        projectId: c.render.project.id,
+        projectTitle: c.render.project.title,
+      }))}
+      listMessages={listMessages.map((c) => ({
+        id: c.id,
+        content: c.content,
+        author: c.author,
+        createdAt: c.createdAt.toISOString(),
+        productId: c.productId,
+        productName: c.product.name,
+        listId: c.product.section.list.id,
+        listName: c.product.section.list.name,
+        listSlug: c.product.section.list.slug,
       }))}
     />
   );

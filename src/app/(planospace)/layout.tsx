@@ -76,7 +76,7 @@ export default async function VeedeckLayout({
           </main>
         </div>
       ) : (
-        <main className="flex-1 px-3 sm:px-6 py-4 sm:py-8">
+        <main className="flex-1 px-3 sm:px-6 py-4 sm:py-6 overflow-y-auto">
           {children}
         </main>
       )}

@@ -171,13 +171,14 @@ model ListProduct {
 }
 
 model ListProductComment {
-  id        String             @id @default(cuid())
-  content   String
-  author    String
-  createdAt DateTime           @default(now())
-  productId String
-  product   ListProduct        @relation(fields: [productId], references: [id], onDelete: Cascade)
-  replies   ListProductReply[]
+  id               String             @id @default(cuid())
+  content          String
+  author           String
+  createdAt        DateTime           @default(now())
+  productId        String
+  viewedByDesigner Boolean            @default(false)
+  product          ListProduct        @relation(fields: [productId], references: [id], onDelete: Cascade)
+  replies          ListProductReply[]
 }
 
 model ListProductReply {
@@ -273,8 +274,9 @@ model Comment {
   updatedAt  DateTime      @updatedAt
   renderId   String
   title      String?
-  isInternal  Boolean       @default(false)
-  isAiSummary Boolean       @default(false)
+  isInternal        Boolean       @default(false)
+  isAiSummary       Boolean       @default(false)
+  viewedByDesigner  Boolean       @default(false)
   render      Render        @relation(fields: [renderId], references: [id], onDelete: Cascade)
   replies    Reply[]
 }
