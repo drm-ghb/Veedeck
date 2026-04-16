@@ -8,6 +8,7 @@ import { HomeLinkIcon } from "@/components/dashboard/HomeLinkIcon";
 import NavSidebar from "@/components/dashboard/NavSidebar";
 import MobileMenu from "@/components/dashboard/MobileMenu";
 import MobileSearch from "@/components/dashboard/MobileSearch";
+import { QuickNoteButton } from "@/components/notatnik/QuickNoteButton";
 import { prisma } from "@/lib/prisma";
 
 export default async function ListyLayout({
@@ -48,6 +49,7 @@ export default async function ListyLayout({
           {/* Right: bell + avatar + logout */}
           <div className="flex items-center gap-2 shrink-0 ml-auto">
             <div className="md:hidden"><MobileSearch /></div>
+            <QuickNoteButton />
             <NotificationBell userId={session.user.id!} iconOnly />
             {displayName && (
               <div className="hidden md:flex items-center gap-2">
