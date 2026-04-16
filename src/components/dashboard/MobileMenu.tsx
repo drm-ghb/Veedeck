@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { Menu, X, LayoutDashboard, Briefcase, ShoppingCart, Package, Settings, LogOut, HelpCircle, Sun, Moon, CheckCircle, CalendarDays, NotebookText } from "lucide-react";
+import { Menu, X, LayoutDashboard, Briefcase, ShoppingCart, Package, Settings, LogOut, HelpCircle, Sun, Moon, CheckCircle, CalendarDays, NotebookText, PictureInPicture } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { useTheme } from "@/lib/theme";
 import { useT } from "@/lib/i18n";
@@ -28,7 +28,7 @@ export default function MobileMenu({ userName, logoUrl, hiddenModules = [] }: Mo
   const navItems = [
     { label: t.nav.dashboard, href: "/dashboard", icon: <LayoutDashboard size={18} />, slug: null },
     { label: t.nav.projects, href: "/projekty", icon: <Briefcase size={18} />, slug: null },
-    { label: t.nav.renderflow, href: "/renderflow", icon: null, slug: "renderflow" },
+    { label: t.nav.renderflow, href: "/renderflow", icon: <PictureInPicture size={18} />, slug: "renderflow" },
     { label: t.nav.lists, href: "/listy", icon: <ShoppingCart size={18} />, slug: "listy" },
     { label: t.nav.products, href: "/produkty", icon: <Package size={18} />, slug: "produkty" },
     { label: t.nav.calendar, href: "/kalendarz", icon: <CalendarDays size={18} />, slug: null },

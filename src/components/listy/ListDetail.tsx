@@ -1747,6 +1747,17 @@ export default function ListDetail({ list, designerName, designerEmail, designer
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-2 min-w-0">
                         {dragHandle}
+                        <button
+                          onClick={() => setCollapsedSections((prev) => {
+                            const next = new Set(prev);
+                            next.has(section.id) ? next.delete(section.id) : next.add(section.id);
+                            return next;
+                          })}
+                          className="w-6 h-6 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"
+                          title={collapsedSections.has(section.id) ? "Rozwiń sekcję" : "Zwiń sekcję"}
+                        >
+                          {collapsedSections.has(section.id) ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
+                        </button>
                         {editingSectionId === section.id ? (
                           <input
                             ref={sectionEditRef}
@@ -1769,15 +1780,12 @@ export default function ListDetail({ list, designerName, designerEmail, designer
                           </h2>
                         )}
                         <button
-                          onClick={() => setCollapsedSections((prev) => {
-                            const next = new Set(prev);
-                            next.has(section.id) ? next.delete(section.id) : next.add(section.id);
-                            return next;
-                          })}
-                          className="w-6 h-6 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"
-                          title={collapsedSections.has(section.id) ? "Rozwiń sekcję" : "Zwiń sekcję"}
+                          onClick={() => setDialogState({ open: true, sectionId: section.id })}
+                          className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground border border-border hover:border-foreground/30 rounded-md px-2 py-0.5 transition-colors shrink-0"
+                          title="Dodaj produkt"
                         >
-                          {collapsedSections.has(section.id) ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
+                          <Plus size={13} />
+                          <span className="hidden sm:inline">Dodaj produkt</span>
                         </button>
                       </div>
                       <div className="flex items-center gap-3">
