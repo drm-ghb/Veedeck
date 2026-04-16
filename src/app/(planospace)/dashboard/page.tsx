@@ -79,11 +79,26 @@ export default async function DashboardPage() {
   }),
   ]);
 
-  const [renderCount, listCount, notificationCount, pins, statusRequests, versionRequests, renderDiscussions, listMessages] =
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const todayEnd = new Date();
+  todayEnd.setHours(23, 59, 59, 999);
+
+  const [renderCount, listCount, notificationCount, todayEvents, pins, statusRequests, versionRequests, renderDiscussions, listMessages] =
     await Promise.all([
       prisma.render.count({ where: { project: { userId }, archived: false } }),
       prisma.shoppingList.count({ where: { userId, archived: false } }),
       prisma.notification.count({ where: { userId, read: false } }),
+
+      // Today's calendar events
+      prisma.calendarEvent.findMany({
+        where: {
+          userId,
+          startAt: { gte: todayStart, lte: todayEnd },
+        },
+        select: { id: true, title: true, type: true, startAt: true, endAt: true },
+        orderBy: { startAt: "asc" },
+      }),
 
       // Unviewed pins (NEW status, not yet viewed by designer, with position = pin)
       prisma.comment.findMany({
@@ -186,6 +201,14 @@ export default async function DashboardPage() {
       }),
     ]);
 
+  const todayEventsFormatted = todayEvents.map((e) => ({
+    id: e.id,
+    title: e.title,
+    type: e.type as string,
+    startAt: e.startAt.toISOString(),
+    endAt: e.endAt?.toISOString() ?? null,
+  }));
+
   return (
     <DashboardView
       displayName={displayName}
@@ -256,6 +279,7 @@ export default async function DashboardPage() {
         projectId: c.render.project.id,
         projectTitle: c.render.project.title,
       }))}
+      todayEvents={todayEventsFormatted}
       listMessages={listMessages.map((c) => ({
         id: c.id,
         content: c.content,

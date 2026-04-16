@@ -19,6 +19,7 @@ import {
   CheckCircle2,
   Check,
   X,
+  CalendarDays,
 } from "lucide-react";
 import NewProjectDialog from "./NewProjectDialog";
 import { useT } from "@/lib/i18n";
@@ -107,6 +108,14 @@ interface RecentList {
   updatedAt: string;
 }
 
+interface TodayEvent {
+  id: string;
+  title: string;
+  type: string;
+  startAt: string;
+  endAt: string | null;
+}
+
 interface DashboardViewProps {
   displayName: string | null;
   navMode: string;
@@ -119,6 +128,7 @@ interface DashboardViewProps {
   versionRequests: VersionRequest[];
   renderDiscussions: RenderDiscussion[];
   listMessages: ListMessage[];
+  todayEvents: TodayEvent[];
 }
 
 function InfoTooltip({ items }: { items: string[] }) {
@@ -149,6 +159,12 @@ function timeAgo(dateStr: string): string {
   return "Przed chwilą";
 }
 
+const EVENT_TYPE_COLORS: Record<string, { bar: string; bg: string; text: string }> = {
+  WYDARZENIE:    { bar: "bg-blue-400 dark:bg-blue-500",   bg: "bg-blue-50 dark:bg-blue-900/30",   text: "text-blue-700 dark:text-blue-300" },
+  ZADANIE:       { bar: "bg-violet-400 dark:bg-violet-500", bg: "bg-violet-50 dark:bg-violet-900/30", text: "text-violet-700 dark:text-violet-300" },
+  PRZYPOMNIENIE: { bar: "bg-amber-400 dark:bg-amber-500", bg: "bg-amber-50 dark:bg-amber-900/30", text: "text-amber-700 dark:text-amber-300" },
+};
+
 export default function DashboardView({
   displayName,
   navMode,
@@ -161,6 +177,7 @@ export default function DashboardView({
   versionRequests,
   renderDiscussions,
   listMessages,
+  todayEvents,
 }: DashboardViewProps) {
   const t = useT();
 
@@ -464,8 +481,8 @@ export default function DashboardView({
             )}
         </div>{/* end Listy */}
 
-        {/* Do zrobienia: order-3 mobile | col3 row3 desktop */}
-        <div className="order-3 lg:col-start-3 lg:row-start-3 space-y-3">
+        {/* Do zrobienia: order-6 mobile | col3 row4 desktop */}
+        <div className="order-6 lg:col-start-3 lg:row-start-4 space-y-3">
             <div className="flex items-center gap-1.5">
               <h2 className="text-sm font-semibold text-foreground">Do zrobienia</h2>
               <InfoTooltip items={[
@@ -611,8 +628,60 @@ export default function DashboardView({
           )}
         </div>{/* end Do zrobienia */}
 
-        {/* Nieprzeczytane: order-2 mobile | col3 rows1-2 desktop */}
-        <div className="order-2 lg:col-start-3 lg:row-start-1 lg:row-span-2 space-y-3">
+        {/* Kalendarz dziś: order-2 mobile | col3 row1 desktop */}
+        <div className="order-2 lg:col-start-3 lg:row-start-1 space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-foreground">Kalendarz — dziś</h2>
+            <Link href="/kalendarz" className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-0.5 transition-colors">
+              Otwórz <ChevronRight size={13} />
+            </Link>
+          </div>
+          <div className="rounded-xl border border-border bg-card overflow-hidden">
+            {/* Date header */}
+            <div className="px-4 py-3 border-b border-border flex items-center justify-between bg-primary/5">
+              <div>
+                <p className="text-[11px] text-muted-foreground capitalize">
+                  {new Date().toLocaleDateString("pl-PL", { weekday: "long" })}
+                </p>
+                <p className="text-base font-bold leading-tight">
+                  {new Date().toLocaleDateString("pl-PL", { day: "numeric", month: "long" })}
+                </p>
+              </div>
+              <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center shrink-0">
+                <span className="text-primary-foreground text-sm font-bold">{new Date().getDate()}</span>
+              </div>
+            </div>
+            {/* Events list */}
+            {todayEvents.length === 0 ? (
+              <div className="px-4 py-5 flex flex-col items-center gap-1.5 text-center">
+                <CalendarDays size={24} className="text-muted-foreground/30" />
+                <p className="text-sm text-muted-foreground">Brak wydarzeń na dziś</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-border">
+                {todayEvents.map((ev) => {
+                  const c = EVENT_TYPE_COLORS[ev.type] ?? EVENT_TYPE_COLORS["WYDARZENIE"];
+                  const timeStr = new Date(ev.startAt).toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit" });
+                  return (
+                    <div key={ev.id} className="flex items-center gap-3 px-4 py-2.5">
+                      <div className={`w-1 h-8 rounded-full shrink-0 ${c.bar}`} />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium truncate">{ev.title}</p>
+                        <p className="text-xs text-muted-foreground">{timeStr}</p>
+                      </div>
+                      <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-md ${c.bg} ${c.text} shrink-0`}>
+                        {ev.type === "WYDARZENIE" ? "Wydarzenie" : ev.type === "ZADANIE" ? "Zadanie" : "Przyp."}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>{/* end Kalendarz */}
+
+        {/* Nieprzeczytane: order-3 mobile | col3 rows2-3 desktop */}
+        <div className="order-3 lg:col-start-3 lg:row-start-2 lg:row-span-2 space-y-3">
             <div className="flex items-center gap-1.5">
               <h2 className="text-sm font-semibold text-foreground">Nieprzeczytane wiadomości</h2>
               <InfoTooltip items={["Nieprzeczytane wiadomości z dyskusji w projektach RenderFlow", "Nieprzeczytane komentarze na listach zakupowych"]} />
