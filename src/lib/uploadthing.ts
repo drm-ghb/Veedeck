@@ -32,6 +32,15 @@ export const ourFileRouter = {
     .onUploadComplete(async ({ file }) => {
       return { url: file.url, key: file.key };
     }),
+  noteAttachmentUploader: f({ blob: { maxFileSize: "64MB", maxFileCount: 1 } })
+    .middleware(async () => {
+      const session = await auth();
+      if (!session?.user?.id) throw new Error("Unauthorized");
+      return { userId: session.user.id };
+    })
+    .onUploadComplete(async ({ file }) => {
+      return { url: file.url, key: file.key, name: file.name };
+    }),
   clientRenderUploader: f({ image: { maxFileSize: "16MB", maxFileCount: 10 } })
     .middleware(async ({ req }) => {
       const token = req.headers.get("x-share-token");

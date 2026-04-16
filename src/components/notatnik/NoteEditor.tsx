@@ -6,7 +6,10 @@ import TaskList from "@tiptap/extension-task-list";
 import TaskItem from "@tiptap/extension-task-item";
 import Underline from "@tiptap/extension-underline";
 import Placeholder from "@tiptap/extension-placeholder";
-import { useEffect } from "react";
+import Image from "@tiptap/extension-image";
+import { useEffect, useRef } from "react";
+import { toast } from "sonner";
+import { useUploadThing } from "@/lib/uploadthing-client";
 import {
   Bold,
   Italic,
@@ -15,14 +18,30 @@ import {
   List,
   ListOrdered,
   ListChecks,
+  Paperclip,
+  Loader2,
 } from "lucide-react";
+
+const IMAGE_EXTENSIONS = /\.(jpg|jpeg|png|svg|heif|heic)$/i;
+const IMAGE_MIME_TYPES = ["image/jpeg", "image/png", "image/svg+xml", "image/heif", "image/heic"];
 
 interface NoteEditorProps {
   content: string;
-  contentKey: string; // when note changes → reset editor
+  contentKey: string;
   onChange: (html: string) => void;
   placeholder?: string;
   autoFocus?: boolean;
+  noteId?: string | null;
+  onAttachmentAdded?: () => void;
+  createdAt?: string;
+}
+
+function formatDate(iso: string) {
+  const d = new Date(iso);
+  return d.toLocaleDateString("pl-PL", {
+    day: "numeric", month: "long", year: "numeric",
+    hour: "2-digit", minute: "2-digit",
+  });
 }
 
 function ToolBtn({
@@ -30,22 +49,25 @@ function ToolBtn({
   onClick,
   title,
   children,
+  disabled,
 }: {
   active: boolean;
   onClick: () => void;
   title: string;
   children: React.ReactNode;
+  disabled?: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
       title={title}
+      disabled={disabled}
       className={`p-1.5 rounded transition-colors ${
         active
           ? "bg-primary/15 text-primary"
           : "text-muted-foreground hover:text-foreground hover:bg-muted"
-      }`}
+      } disabled:opacity-40 disabled:cursor-not-allowed`}
     >
       {children}
     </button>
@@ -58,7 +80,38 @@ export function NoteEditor({
   onChange,
   placeholder,
   autoFocus,
+  noteId,
+  onAttachmentAdded,
 }: NoteEditorProps) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const pendingFileRef = useRef<{ isImage: boolean; name: string } | null>(null);
+
+  const { startUpload, isUploading } = useUploadThing("noteAttachmentUploader", {
+    onClientUploadComplete: (res) => {
+      const f = res?.[0];
+      if (!f || !pendingFileRef.current) return;
+      const { isImage, name } = pendingFileRef.current;
+      pendingFileRef.current = null;
+
+      if (isImage) {
+        editor?.chain().focus().setImage({ src: f.url, alt: name }).run();
+      } else {
+        fetch(`/api/notes/${noteId}/attachments`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name, url: f.url, key: f.key }),
+        }).then((r) => {
+          if (r.ok) onAttachmentAdded?.();
+          else toast.error("Błąd zapisywania załącznika");
+        });
+      }
+    },
+    onUploadError: () => {
+      pendingFileRef.current = null;
+      toast.error("Błąd przesyłania pliku");
+    },
+  });
+
   const editor = useEditor({
     extensions: [
       StarterKit,
@@ -66,6 +119,7 @@ export function NoteEditor({
       TaskList,
       TaskItem.configure({ nested: false }),
       Placeholder.configure({ placeholder }),
+      Image.configure({ inline: false, allowBase64: false }),
     ],
     content,
     immediatelyRender: false,
@@ -75,7 +129,6 @@ export function NoteEditor({
     },
   });
 
-  // Reset content when selected note changes (contentKey changes)
   useEffect(() => {
     if (editor && !editor.isDestroyed) {
       editor.commands.setContent(content, { emitUpdate: false });
@@ -84,7 +137,21 @@ export function NoteEditor({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [contentKey]);
 
+  function handleFileSelected(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file || !noteId) return;
+
+    const isImage =
+      IMAGE_EXTENSIONS.test(file.name) || IMAGE_MIME_TYPES.includes(file.type);
+
+    pendingFileRef.current = { isImage, name: file.name };
+    startUpload([file]);
+    e.target.value = "";
+  }
+
   if (!editor) return null;
+
+  const canAttach = !!noteId && !isUploading;
 
   return (
     <div className="flex flex-col flex-1 min-h-0">
@@ -142,6 +209,26 @@ export function NoteEditor({
         >
           <ListChecks size={15} />
         </ToolBtn>
+
+        <div className="w-px h-4 bg-border mx-1" />
+
+        {/* File attachment */}
+        <button
+          type="button"
+          title={noteId ? "Załącz plik" : "Zapisz notatkę, aby załączyć plik"}
+          disabled={!canAttach}
+          onClick={() => fileInputRef.current?.click()}
+          className="p-1.5 rounded transition-colors text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          {isUploading ? <Loader2 size={15} className="animate-spin" /> : <Paperclip size={15} />}
+        </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          className="hidden"
+          onChange={handleFileSelected}
+          accept=".jpg,.jpeg,.png,.svg,.heif,.heic,.pdf,.csv,.xlsx,.xls,.doc,.docx,.mp4,.mov,.avi,.mkv"
+        />
       </div>
 
       {/* Editor */}

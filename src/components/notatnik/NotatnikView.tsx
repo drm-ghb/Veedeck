@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
-import { Plus, Search, Archive, Trash2, X, ArchiveRestore, ChevronDown, FileText } from "lucide-react";
+import { useState, useMemo, useEffect, useCallback } from "react";
+import { Plus, Search, Archive, Trash2, X, ArchiveRestore, ChevronDown, FileText, Paperclip, Download, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { useT } from "@/lib/i18n";
 import { NoteEditor } from "./NoteEditor";
@@ -13,6 +13,14 @@ interface Note {
   archived: boolean;
   createdAt: string;
   updatedAt: string;
+}
+
+interface Attachment {
+  id: string;
+  name: string;
+  url: string;
+  key: string;
+  createdAt: string;
 }
 
 interface Props {
@@ -69,6 +77,8 @@ export default function NotatnikView({ initialNotes, initialArchivedNotes }: Pro
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [mobileShowDetail, setMobileShowDetail] = useState(false);
 
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
+
   const activeList = showArchived ? archivedNotes : notes;
 
   const filtered = useMemo(() => {
@@ -89,12 +99,23 @@ export default function NotatnikView({ initialNotes, initialArchivedNotes }: Pro
     [notes, archivedNotes, selectedId]
   );
 
+  const fetchAttachments = useCallback(async (noteId: string) => {
+    try {
+      const res = await fetch(`/api/notes/${noteId}/attachments`);
+      if (res.ok) setAttachments(await res.json());
+    } catch { /* ignore */ }
+  }, []);
+
   useEffect(() => {
     if (selectedNote) {
       setEditTitle(selectedNote.title ?? "");
       setEditContent(selectedNote.content);
       setIsDirty(false);
       setConfirmDelete(false);
+      setAttachments([]);
+      fetchAttachments(selectedNote.id);
+    } else {
+      setAttachments([]);
     }
   }, [selectedNote?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -212,6 +233,17 @@ export default function NotatnikView({ initialNotes, initialArchivedNotes }: Pro
       toast.success(t.notatnik.noteDeleted);
     } catch {
       toast.error(t.notatnik.noteDeleteError);
+    }
+  }
+
+  async function handleDeleteAttachment(attachmentId: string) {
+    if (!selectedNote) return;
+    try {
+      const res = await fetch(`/api/notes/${selectedNote.id}/attachments/${attachmentId}`, { method: "DELETE" });
+      if (!res.ok) throw new Error();
+      setAttachments((prev) => prev.filter((a) => a.id !== attachmentId));
+    } catch {
+      toast.error(t.notatnik.operationError);
     }
   }
 
@@ -437,13 +469,58 @@ export default function NotatnikView({ initialNotes, initialArchivedNotes }: Pro
               {formatDate(selectedNote.createdAt)}
             </p>
 
-            {/* TipTap editor */}
-            <NoteEditor
-              content={selectedNote.content}
-              contentKey={selectedNote.id}
-              onChange={(html) => { setEditContent(html); setIsDirty(true); }}
-              placeholder={t.notatnik.noteContentPlaceholder}
-            />
+            {/* TipTap editor + attachments */}
+            <div className="flex flex-col flex-1 min-h-0">
+              <NoteEditor
+                content={selectedNote.content}
+                contentKey={selectedNote.id}
+                onChange={(html) => { setEditContent(html); setIsDirty(true); }}
+                placeholder={t.notatnik.noteContentPlaceholder}
+                noteId={selectedNote.id}
+                onAttachmentAdded={() => fetchAttachments(selectedNote.id)}
+              />
+              {attachments.length > 0 && (
+                <div className="shrink-0 border-t border-border/60 px-6 py-3 max-h-44 overflow-y-auto">
+                  <p className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1.5">
+                    <Paperclip size={12} />
+                    Załączniki ({attachments.length})
+                  </p>
+                  <ul className="space-y-1">
+                    {attachments.map((a) => (
+                      <li key={a.id} className="flex items-center gap-2 group text-sm">
+                        <FileText size={14} className="text-muted-foreground shrink-0" />
+                        <span className="flex-1 truncate text-foreground">{a.name}</span>
+                        <a
+                          href={a.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors opacity-0 group-hover:opacity-100"
+                          title="Otwórz"
+                        >
+                          <ExternalLink size={13} />
+                        </a>
+                        <a
+                          href={a.url}
+                          download={a.name}
+                          className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors opacity-0 group-hover:opacity-100"
+                          title="Pobierz"
+                        >
+                          <Download size={13} />
+                        </a>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteAttachment(a.id)}
+                          className="p-1 rounded text-muted-foreground hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors opacity-0 group-hover:opacity-100"
+                          title="Usuń załącznik"
+                        >
+                          <X size={13} />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center h-full gap-3 text-muted-foreground">
