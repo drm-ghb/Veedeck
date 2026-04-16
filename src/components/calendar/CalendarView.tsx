@@ -5,6 +5,7 @@ import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { toast } from "sonner";
 import AddEventDialog from "./AddEventDialog";
 import EventDetailDialog from "./EventDetailDialog";
+import PushNotificationButton from "./PushNotificationButton";
 
 export type EventType = "WYDARZENIE" | "ZADANIE" | "PRZYPOMNIENIE";
 
@@ -224,6 +225,13 @@ export default function CalendarView() {
   const [addDate, setAddDate] = useState<Date | null>(null);
   const [detailEvent, setDetailEvent] = useState<CalendarEvent | null>(null);
   const [editEvent, setEditEvent] = useState<CalendarEvent | null>(null);
+
+  // Register service worker for push notifications
+  useEffect(() => {
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("/sw.js").catch(() => {});
+    }
+  }, []);
 
   // --- Compute date range for fetching ---
   const { rangeFrom, rangeTo } = useCallback(() => {
@@ -484,9 +492,10 @@ export default function CalendarView() {
           </div>
         </div>
 
-        {/* Row 2: title + Dodaj */}
-        <div className="flex items-center justify-between mt-2">
-          <h2 className="text-sm font-semibold capitalize truncate">{navTitle()}</h2>
+        {/* Row 2: title + Push button + Dodaj */}
+        <div className="flex items-center gap-2 mt-2">
+          <h2 className="text-sm font-semibold capitalize truncate flex-1">{navTitle()}</h2>
+          <PushNotificationButton />
           <button onClick={() => { setAddDate(null); setAddOpen(true); }} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity flex-shrink-0">
             <Plus size={15} />
             Dodaj
