@@ -21,13 +21,14 @@ export async function GET(req: NextRequest) {
   }
 
   const now = new Date();
+  // Grace window: look back up to 25h so late cron runs still catch reminders
+  const lookbackFrom = new Date(now.getTime() - 25 * 60 * 60 * 1000);
 
-  // Find events with reminder not yet sent, in the future, where reminder time has passed
   const events = await prisma.calendarEvent.findMany({
     where: {
       reminder: true,
       reminderSentAt: null,
-      startAt: { gt: now },
+      startAt: { gte: lookbackFrom }, // event not older than 25h
     },
     include: {
       user: { include: { pushSubscriptions: true } },

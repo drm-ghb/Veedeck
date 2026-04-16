@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Bell, BellOff, BellRing } from "lucide-react";
+import { Bell, BellOff, BellRing, FlaskConical } from "lucide-react";
 import { toast } from "sonner";
 
 export default function PushNotificationButton() {
   const [supported, setSupported] = useState(false);
   const [subscribed, setSubscribed] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [testing, setTesting] = useState(false);
 
   useEffect(() => {
     if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
@@ -39,9 +40,10 @@ export default function PushNotificationButton() {
         setSubscribed(false);
         toast.success("Powiadomienia wyłączone");
       } else {
-        // If already denied — browser won't show a dialog, explain manually
         if (Notification.permission === "denied") {
-          toast.error("Powiadomienia są zablokowane w przeglądarce. Odblokuj je w ustawieniach witryny (ikona kłódki przy adresie).");
+          toast.error(
+            "Powiadomienia są zablokowane w przeglądarce. Odblokuj je w ustawieniach witryny (ikona kłódki przy adresie)."
+          );
           return;
         }
 
@@ -59,45 +61,81 @@ export default function PushNotificationButton() {
         });
 
         const json = sub.toJSON();
-        await fetch("/api/push/subscribe", {
+        const res = await fetch("/api/push/subscribe", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ endpoint: json.endpoint, keys: json.keys }),
         });
 
+        if (!res.ok) {
+          toast.error("Błąd zapisu subskrypcji");
+          return;
+        }
+
         setSubscribed(true);
-        toast.success("Powiadomienia włączone");
+        toast.success("Powiadomienia włączone — wyślij test aby sprawdzić");
       }
-    } catch {
-      toast.error("Nie udało się zmienić ustawień powiadomień");
+    } catch (err: any) {
+      toast.error("Nie udało się zmienić ustawień powiadomień: " + (err?.message ?? ""));
     } finally {
       setLoading(false);
     }
   }
 
-  const blocked = Notification.permission === "denied";
+  async function sendTest() {
+    setTesting(true);
+    try {
+      const res = await fetch("/api/push/test", { method: "POST" });
+      const data = await res.json();
+      if (res.ok) {
+        toast.success("Test wysłany — powinieneś zobaczyć powiadomienie");
+      } else if (data.error === "no_subscription") {
+        toast.error("Brak aktywnej subskrypcji — najpierw włącz powiadomienia");
+      } else {
+        toast.error("Błąd wysyłki: " + (data.details ?? data.error));
+      }
+    } catch {
+      toast.error("Błąd testu powiadomień");
+    } finally {
+      setTesting(false);
+    }
+  }
+
+  const blocked = typeof Notification !== "undefined" && Notification.permission === "denied";
 
   return (
-    <button
-      onClick={toggle}
-      disabled={loading}
-      title={
-        blocked
-          ? "Powiadomienia zablokowane — odblokuj w ustawieniach przeglądarki"
-          : subscribed
-          ? "Wyłącz powiadomienia push"
-          : "Włącz powiadomienia push"
-      }
-      className={`p-1.5 rounded-lg transition-colors disabled:opacity-50 ${
-        blocked
-          ? "text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
-          : subscribed
-          ? "text-primary hover:bg-primary/10"
-          : "text-muted-foreground hover:bg-muted hover:text-foreground"
-      }`}
-    >
-      {blocked ? <BellOff size={16} /> : subscribed ? <BellRing size={16} /> : <Bell size={16} />}
-    </button>
+    <div className="flex items-center gap-0.5">
+      <button
+        onClick={toggle}
+        disabled={loading}
+        title={
+          blocked
+            ? "Powiadomienia zablokowane — odblokuj w ustawieniach przeglądarki"
+            : subscribed
+            ? "Wyłącz powiadomienia push"
+            : "Włącz powiadomienia push"
+        }
+        className={`p-1.5 rounded-lg transition-colors disabled:opacity-50 ${
+          blocked
+            ? "text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
+            : subscribed
+            ? "text-primary hover:bg-primary/10"
+            : "text-muted-foreground hover:bg-muted hover:text-foreground"
+        }`}
+      >
+        {blocked ? <BellOff size={16} /> : subscribed ? <BellRing size={16} /> : <Bell size={16} />}
+      </button>
+      {subscribed && (
+        <button
+          onClick={sendTest}
+          disabled={testing}
+          title="Wyślij testowe powiadomienie"
+          className="p-1.5 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors disabled:opacity-50"
+        >
+          <FlaskConical size={14} />
+        </button>
+      )}
+    </div>
   );
 }
 
