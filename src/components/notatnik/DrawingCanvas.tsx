@@ -89,10 +89,9 @@ export function DrawingCanvas({ onSave, onClose }: DrawingCanvasProps) {
       {/* Canvas */}
       <div className="flex-1 min-h-0" style={{ touchAction: "none" }}>
         <Tldraw
+          components={{ Minimap: null }}
           onMount={(editor) => {
             editorRef.current = editor;
-            // Wyłącz animacje które mogą powodować problemy z WebGL na iOS
-            editor.updateInstanceState({ isChangingStyle: false });
           }}
         />
       </div>
