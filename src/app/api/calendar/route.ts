@@ -1,36 +1,43 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getWorkspaceUserId } from "@/lib/workspace";
 
 export async function GET(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const userId = getWorkspaceUserId(session);
+  const userId = session.user.id;
 
   const { searchParams } = new URL(req.url);
   const from = searchParams.get("from");
   const to = searchParams.get("to");
 
+  const dateFilter = {
+    gte: from ? new Date(from) : undefined,
+    lte: to ? new Date(to) : undefined,
+  };
+
   const events = await prisma.calendarEvent.findMany({
     where: {
-      userId,
-      startAt: {
-        gte: from ? new Date(from) : undefined,
-        lte: to ? new Date(to) : undefined,
-      },
+      startAt: dateFilter,
+      OR: [
+        { userId },
+        { guests: { some: { userId } } },
+      ],
     },
     include: { guests: true },
     orderBy: { startAt: "asc" },
   });
 
-  return NextResponse.json(events);
+  // Mark events where user is only a guest (not the owner)
+  const result = events.map((e) => ({ ...e, isGuest: e.userId !== userId }));
+
+  return NextResponse.json(result);
 }
 
 export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const userId = getWorkspaceUserId(session);
+  const userId = session.user.id;
 
   const body = await req.json();
   const { title, type, startAt, endAt, location, description, guests } = body;
@@ -51,11 +58,15 @@ export async function POST(req: NextRequest) {
       guests: {
         create: (guests ?? [])
           .filter((g: any) => g.name?.trim() || g.email?.trim())
-          .map((g: any) => ({ name: g.name?.trim() || null, email: g.email?.trim() || null })),
+          .map((g: any) => ({
+            name: g.name?.trim() || null,
+            email: g.email?.trim() || null,
+            userId: g.userId || null,
+          })),
       },
     },
     include: { guests: true },
   });
 
-  return NextResponse.json(event, { status: 201 });
+  return NextResponse.json({ ...event, isGuest: false }, { status: 201 });
 }

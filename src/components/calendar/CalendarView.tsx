@@ -16,7 +16,8 @@ export interface CalendarEvent {
   endAt: string | null;
   location: string | null;
   description: string | null;
-  guests: { id: string; name: string | null; email: string | null }[];
+  guests: { id: string; name: string | null; email: string | null; userId: string | null }[];
+  isGuest?: boolean;
 }
 
 type View = "month" | "week" | "day";

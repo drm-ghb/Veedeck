@@ -44,6 +44,7 @@ model User {
   teamMembers                User[]         @relation("TeamMembers")
   accounts                   Account[]
   calendarEvents             CalendarEvent[]
+  calendarGuestEntries       CalendarGuest[]
   notifications              Notification[]
   notes                      Note[]
   products                   Product[]
@@ -106,6 +107,8 @@ model CalendarGuest {
   eventId String
   name    String?
   email   String?
+  userId  String?
+  user    User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
   event   CalendarEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
 }
 

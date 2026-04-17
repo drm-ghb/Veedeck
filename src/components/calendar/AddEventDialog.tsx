@@ -8,12 +8,14 @@ import type { CalendarEvent, EventType } from "./CalendarView";
 interface Guest {
   name: string;
   email: string;
+  userId?: string;
 }
 
 interface ClientSuggestion {
   id: string;
   name: string;
   email: string | null;
+  userId: string | null;
 }
 
 interface Props {
@@ -65,7 +67,7 @@ export default function AddEventDialog({
       setEndAt(editEvent.endAt ? toLocalDatetimeValue(editEvent.endAt) : "");
       setLocation(editEvent.location ?? "");
       setDescription(editEvent.description ?? "");
-      setGuests(editEvent.guests.map((g) => ({ name: g.name ?? "", email: g.email ?? "" })));
+      setGuests(editEvent.guests.map((g) => ({ name: g.name ?? "", email: g.email ?? "", userId: g.userId ?? undefined })));
     } else {
       setTitle("");
       setType("WYDARZENIE");
@@ -100,7 +102,7 @@ export default function AddEventDialog({
   function addGuest(client: ClientSuggestion) {
     setGuests((prev) => {
       if (prev.some((g) => g.email === client.email && client.email)) return prev;
-      return [...prev, { name: client.name, email: client.email ?? "" }];
+      return [...prev, { name: client.name, email: client.email ?? "", userId: client.userId ?? undefined }];
     });
     setGuestQuery("");
     setSuggestions([]);

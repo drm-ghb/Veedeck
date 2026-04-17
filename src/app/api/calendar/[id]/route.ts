@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getWorkspaceUserId } from "@/lib/workspace";
 
 export async function DELETE(
   _req: NextRequest,
@@ -9,7 +8,7 @@ export async function DELETE(
 ) {
   const session = await auth();
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const userId = getWorkspaceUserId(session);
+  const userId = session.user.id;
 
   const { id } = await params;
 
@@ -26,7 +25,7 @@ export async function PATCH(
 ) {
   const session = await auth();
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const userId = getWorkspaceUserId(session);
+  const userId = session.user.id;
 
   const { id } = await params;
   const event = await prisma.calendarEvent.findFirst({ where: { id, userId } });
@@ -49,12 +48,16 @@ export async function PATCH(
             deleteMany: {},
             create: guests
               .filter((g: any) => g.name?.trim() || g.email?.trim())
-              .map((g: any) => ({ name: g.name?.trim() || null, email: g.email?.trim() || null })),
+              .map((g: any) => ({
+                name: g.name?.trim() || null,
+                email: g.email?.trim() || null,
+                userId: g.userId || null,
+              })),
           }
         : undefined,
     },
     include: { guests: true },
   });
 
-  return NextResponse.json(updated);
+  return NextResponse.json({ ...updated, isGuest: false });
 }

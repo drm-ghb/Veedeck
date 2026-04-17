@@ -124,22 +124,28 @@ export default function EventDetailDialog({
 
         {/* Footer */}
         <div className="px-5 pb-4 pt-1 flex justify-between">
-          <button
-            onClick={handleDelete}
-            disabled={deleting}
-            className="flex items-center gap-1.5 text-sm text-red-500 hover:text-red-600 transition-colors disabled:opacity-50"
-          >
-            <Trash2 size={14} />
-            {deleting ? "Usuwanie..." : "Usuń"}
-          </button>
-          <div className="flex gap-2">
+          {!event.isGuest ? (
             <button
-              onClick={onEdit}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg border border-border hover:bg-muted transition-colors"
+              onClick={handleDelete}
+              disabled={deleting}
+              className="flex items-center gap-1.5 text-sm text-red-500 hover:text-red-600 transition-colors disabled:opacity-50"
             >
-              <Pencil size={13} />
-              Edytuj
+              <Trash2 size={14} />
+              {deleting ? "Usuwanie..." : "Usuń"}
             </button>
+          ) : (
+            <span className="text-xs text-muted-foreground italic flex items-center">Zaproszony/a</span>
+          )}
+          <div className="flex gap-2">
+            {!event.isGuest && (
+              <button
+                onClick={onEdit}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg border border-border hover:bg-muted transition-colors"
+              >
+                <Pencil size={13} />
+                Edytuj
+              </button>
+            )}
             <button
               onClick={onClose}
               className="px-4 py-1.5 text-sm rounded-lg border border-border hover:bg-muted transition-colors"
