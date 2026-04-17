@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getWorkspaceUserId } from "@/lib/workspace";
 
 async function getOwnedProduct(id: string, userId: string) {
   return prisma.product.findFirst({ where: { id, userId } });
@@ -14,7 +15,7 @@ export async function PATCH(
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
-  const product = await getOwnedProduct(id, session.user.id);
+  const product = await getOwnedProduct(id, getWorkspaceUserId(session));
   if (!product) return NextResponse.json({ error: "Nie znaleziono" }, { status: 404 });
 
   const body = await req.json();
@@ -64,7 +65,7 @@ export async function DELETE(
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
-  const product = await getOwnedProduct(id, session.user.id);
+  const product = await getOwnedProduct(id, getWorkspaceUserId(session));
   if (!product) return NextResponse.json({ error: "Nie znaleziono" }, { status: 404 });
 
   await prisma.product.delete({ where: { id } });
