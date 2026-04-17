@@ -14,44 +14,28 @@ export function DrawingCanvas({ onSave, onClose }: DrawingCanvasProps) {
   const editorRef = useRef<Editor | null>(null);
 
   useEffect(() => {
-    // Zapisz aktualny scroll żeby przywrócić po zamknięciu
     const scrollY = window.scrollY;
 
-    // Blokuj body — position:fixed to najskuteczniejsza metoda na iOS Safari
-    // zatrzymuje pull-to-refresh i chowanie/pokazywanie paska adresu
-    const prevBodyOverflow = document.body.style.overflow;
-    const prevBodyPosition = document.body.style.position;
-    const prevBodyTop = document.body.style.top;
-    const prevBodyWidth = document.body.style.width;
-    const prevHtmlOverflow = document.documentElement.style.overflow;
+    // position:fixed na body blokuje przesuwanie paska adresu Safari
+    // i zapobiega skokowi viewport bez dotykania event listenerów tldraw
+    const prevPosition = document.body.style.position;
+    const prevTop = document.body.style.top;
+    const prevWidth = document.body.style.width;
+    const prevOverflow = document.body.style.overflow;
+    const prevOverscroll = document.body.style.overscrollBehavior;
 
-    document.body.style.overflow = "hidden";
     document.body.style.position = "fixed";
     document.body.style.top = `-${scrollY}px`;
     document.body.style.width = "100%";
-    document.documentElement.style.overflow = "hidden";
-
-    // Blokuj touchmove na document (pull-to-refresh, scroll strony)
-    const preventTouch = (e: TouchEvent) => e.preventDefault();
-    document.addEventListener("touchmove", preventTouch, { passive: false });
-
-    // Blokuj gesturestart (pinch-zoom Safari)
-    const preventGesture = (e: Event) => e.preventDefault();
-    document.addEventListener("gesturestart", preventGesture, { passive: false });
-    document.addEventListener("gesturechange", preventGesture, { passive: false });
+    document.body.style.overflow = "hidden";
+    document.body.style.overscrollBehavior = "none";
 
     return () => {
-      document.removeEventListener("touchmove", preventTouch);
-      document.removeEventListener("gesturestart", preventGesture);
-      document.removeEventListener("gesturechange", preventGesture);
-
-      document.body.style.overflow = prevBodyOverflow;
-      document.body.style.position = prevBodyPosition;
-      document.body.style.top = prevBodyTop;
-      document.body.style.width = prevBodyWidth;
-      document.documentElement.style.overflow = prevHtmlOverflow;
-
-      // Przywróć pozycję scroll
+      document.body.style.position = prevPosition;
+      document.body.style.top = prevTop;
+      document.body.style.width = prevWidth;
+      document.body.style.overflow = prevOverflow;
+      document.body.style.overscrollBehavior = prevOverscroll;
       window.scrollTo(0, scrollY);
     };
   }, []);

@@ -238,10 +238,13 @@ export default function RenderViewer({
     };
   }, []);
 
+  const [highlightedChatId, setHighlightedChatId] = useState<string | null>(null);
+
   const imgRef = useRef<HTMLDivElement>(null);
   const lightboxImgRef = useRef<HTMLDivElement>(null);
   const versionFileInputRef = useRef<HTMLInputElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const chatMessageRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const showCommentsRef = useRef(showComments);
   const sidebarTabRef = useRef(sidebarTab);
   useEffect(() => { showCommentsRef.current = showComments; }, [showComments]);
@@ -260,6 +263,13 @@ export default function RenderViewer({
     if (pinId && comments.some((c) => c.id === pinId)) {
       setSelectedId(pinId);
       setShowComments(true);
+      sessionStorage.setItem("renderflow_showComments", "true");
+    }
+    const chatId = searchParams.get("chatId");
+    if (chatId) {
+      setShowComments(true);
+      setSidebarTab("chat");
+      setHighlightedChatId(chatId);
       sessionStorage.setItem("renderflow_showComments", "true");
     }
     if (pinFilter === "all") {
@@ -746,10 +756,22 @@ export default function RenderViewer({
 
   // Auto-scroll chat to bottom on new messages
   useEffect(() => {
-    if (sidebarTab === "chat" && showComments) {
+    if (sidebarTab === "chat" && showComments && !highlightedChatId) {
       chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }
-  }, [comments, sidebarTab, showComments]);
+  }, [comments, sidebarTab, showComments, highlightedChatId]);
+
+  // Scroll to and highlight a specific chat message (deep-link via ?chatId=)
+  useEffect(() => {
+    if (!highlightedChatId || sidebarTab !== "chat" || !showComments) return;
+    const el = chatMessageRefs.current.get(highlightedChatId);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      // Remove highlight after 3s
+      const timer = setTimeout(() => setHighlightedChatId(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [highlightedChatId, sidebarTab, showComments, comments]);
 
   return (
     <div className="flex flex-col h-full bg-card">
@@ -1566,8 +1588,13 @@ export default function RenderViewer({
                           } else {
                             // Chat bubble
                             const isOwn = item.author === authorName;
+                            const isHighlighted = highlightedChatId === item.id;
                             return (
-                              <div key={item.id} className={`flex mb-2 ${isOwn ? "justify-end" : "justify-start"}`}>
+                              <div
+                                key={item.id}
+                                ref={(el) => { if (el) chatMessageRefs.current.set(item.id, el); else chatMessageRefs.current.delete(item.id); }}
+                                className={`flex mb-2 rounded-xl transition-colors duration-300 ${isOwn ? "justify-end" : "justify-start"} ${isHighlighted ? "bg-yellow-100 dark:bg-yellow-900/30" : ""}`}
+                              >
                                 <div className={`max-w-[85%] flex flex-col ${isOwn ? "items-end" : "items-start"}`}>
                                   {!isOwn && (
                                     <span className="text-[10px] text-gray-500 dark:text-gray-400 mb-1 ml-1 font-medium">{item.author}</span>
