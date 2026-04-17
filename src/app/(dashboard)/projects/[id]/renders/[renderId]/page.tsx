@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getWorkspaceUserId } from "@/lib/workspace";
 import { notFound } from "next/navigation";
 import RenderViewer from "@/components/render/RenderViewer";
 
@@ -25,7 +26,7 @@ export default async function RenderPage({ params }: Props) {
     },
   });
 
-  if (!render || render.project.userId !== session!.user!.id!) notFound();
+  if (!render || render.project.userId !== getWorkspaceUserId(session!)) notFound();
 
   const navUser = await prisma.user.findUnique({
     where: { id: session!.user!.id! },

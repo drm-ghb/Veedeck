@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getWorkspaceUserId } from "@/lib/workspace";
 import { notFound } from "next/navigation";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import RenderUploader from "@/components/render/RenderUploader";
@@ -18,7 +19,7 @@ export default async function FolderPage({ params }: Props) {
     include: { room: { include: { project: true } } },
   });
 
-  if (!folder || folder.room.project.userId !== session!.user!.id!) notFound();
+  if (!folder || folder.room.project.userId !== getWorkspaceUserId(session!)) notFound();
 
   const renders = await prisma.render.findMany({
     where: { folderId, archived: false },

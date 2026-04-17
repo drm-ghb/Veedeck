@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getWorkspaceUserId } from "@/lib/workspace";
 import { notFound } from "next/navigation";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import ProjectView from "@/components/dashboard/ProjectView";
@@ -15,7 +16,7 @@ export default async function ProjectPage({ params }: Props) {
   const { id } = await params;
 
   const project = await prisma.project.findFirst({
-    where: { id, userId: session!.user!.id! },
+    where: { id, userId: getWorkspaceUserId(session!) },
   });
 
   if (!project) notFound();
