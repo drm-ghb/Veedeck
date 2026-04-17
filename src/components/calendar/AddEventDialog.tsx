@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { X, Search, UserPlus, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import type { CalendarEvent, EventType } from "./CalendarView";
@@ -55,7 +55,9 @@ export default function AddEventDialog({
   const [sugOpen, setSugOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const titleRef = useRef<HTMLInputElement>(null);
+  const guestInputRef = useRef<HTMLInputElement>(null);
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [dropdownStyle, setDropdownStyle] = useState<CSSProperties>({});
 
   // Reset / populate form when dialog opens
   useEffect(() => {
@@ -82,6 +84,20 @@ export default function AddEventDialog({
     setSugOpen(false);
     setTimeout(() => titleRef.current?.focus(), 50);
   }, [open]);
+
+  // Update dropdown position when it opens
+  useEffect(() => {
+    if (sugOpen && guestInputRef.current) {
+      const rect = guestInputRef.current.getBoundingClientRect();
+      setDropdownStyle({
+        position: "fixed",
+        top: rect.bottom + 4,
+        left: rect.left,
+        width: rect.width,
+        zIndex: 9999,
+      });
+    }
+  }, [sugOpen]);
 
   // Client search
   useEffect(() => {
@@ -282,6 +298,7 @@ export default function AddEventDialog({
                     <Search size={14} />
                   </div>
                   <input
+                    ref={guestInputRef}
                     type="text"
                     value={guestQuery}
                     onChange={(e) => setGuestQuery(e.target.value)}
@@ -293,7 +310,7 @@ export default function AddEventDialog({
                     className={`${fieldClass} pl-8`}
                   />
                   {sugOpen && (
-                    <div className="absolute top-full mt-1 left-0 right-0 bg-card border border-border rounded-lg shadow-lg z-10 overflow-hidden">
+                    <div className="bg-card border border-border rounded-lg shadow-lg overflow-hidden" style={dropdownStyle}>
                       {suggestions.map((s) => (
                         <button
                           key={s.id}
