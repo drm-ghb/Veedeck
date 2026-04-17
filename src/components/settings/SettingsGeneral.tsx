@@ -18,6 +18,7 @@ interface Props {
   initialName: string;
   initialEmail: string;
   initialShowProfileName: boolean;
+  initialShowClientLogo: boolean;
   initialGlobalHiddenModules: string[];
   initialClientLogoUrl: string | null;
   initialClientWelcomeMessage: string | null;
@@ -28,6 +29,7 @@ export function SettingsGeneral({
   initialName,
   initialEmail,
   initialShowProfileName,
+  initialShowClientLogo,
   initialGlobalHiddenModules,
   initialClientLogoUrl,
   initialClientWelcomeMessage,
@@ -54,6 +56,7 @@ export function SettingsGeneral({
   const [passwordLoading, setPasswordLoading] = useState(false);
 
   const [showProfileName, setShowProfileName] = useState(initialShowProfileName);
+  const [showClientLogo, setShowClientLogo] = useState(initialShowClientLogo);
   const [globalHiddenModules, setGlobalHiddenModules] = useState<string[]>(initialGlobalHiddenModules);
   const [clientLogoUrl, setClientLogoUrl] = useState<string | null>(initialClientLogoUrl);
   const [welcomeMsg, setWelcomeMsg] = useState(initialClientWelcomeMessage ?? "");
@@ -103,6 +106,13 @@ const [navMode, setNavMode] = useState(initialNavMode);
     const next = !showProfileName;
     const res = await patchUser({ showProfileName: next });
     if (res.ok) { setShowProfileName(next); toast.success(t.settings.saved); }
+    else toast.error(t.settings.saveError);
+  }
+
+  async function toggleShowClientLogo() {
+    const next = !showClientLogo;
+    const res = await patchUser({ showClientLogo: next });
+    if (res.ok) { setShowClientLogo(next); toast.success(t.settings.saved); }
     else toast.error(t.settings.saveError);
   }
 
@@ -217,6 +227,12 @@ async function handleRemoveLogo() {
             description={t.settings.showProfileNameDesc}
             checked={showProfileName}
             onToggle={toggleShowProfileName}
+          />
+          <SettingRow
+            label={t.settings.showClientLogo}
+            description={t.settings.showClientLogoDesc}
+            checked={showClientLogo}
+            onToggle={toggleShowClientLogo}
           />
 
           <div className="space-y-3">

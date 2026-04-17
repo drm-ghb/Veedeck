@@ -13,6 +13,7 @@ export default async function SettingsOgolnePage() {
       name: true,
       email: true,
       showProfileName: true,
+      showClientLogo: true,
       globalHiddenModules: true,
       clientLogoUrl: true,
       clientWelcomeMessage: true,
@@ -27,6 +28,7 @@ export default async function SettingsOgolnePage() {
       initialName={user.name ?? ""}
       initialEmail={user.email}
       initialShowProfileName={user.showProfileName}
+      initialShowClientLogo={user.showClientLogo}
       initialGlobalHiddenModules={user.globalHiddenModules}
       initialClientLogoUrl={user.clientLogoUrl}
       initialClientWelcomeMessage={user.clientWelcomeMessage}

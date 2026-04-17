@@ -26,6 +26,7 @@ export async function GET(
           notifyClientOnReply: true,
           allowClientVersionRestore: true,
           showProfileName: true,
+          showClientLogo: true,
           navMode: true,
         },
       },
@@ -90,11 +91,12 @@ export async function GET(
   }
 
   const { user, sharePassword, shareExpiresAt, ...rest } = project;
-  const { name, showProfileName, ...userSettings } = user;
+  const { name, showProfileName, showClientLogo, clientLogoUrl, ...userSettings } = user;
   return NextResponse.json({
     ...rest,
     ...userSettings,
     designerName: showProfileName ? name : null,
+    clientLogoUrl: showClientLogo ? clientLogoUrl : null,
     hasPassword: !!project.sharePassword,
     shareExpiresAt: project.shareExpiresAt?.toISOString() ?? null,
   });

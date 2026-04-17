@@ -15,7 +15,7 @@ export default async function ProjectHomePage({ params }: { params: Promise<{ to
     include: {
       renders: { where: { archived: false }, select: { id: true }, take: 1 },
       shoppingLists: { select: { id: true, name: true, shareToken: true } },
-      user: { select: { clientLogoUrl: true, name: true, navMode: true, clientWelcomeMessage: true, showProfileName: true } },
+      user: { select: { clientLogoUrl: true, name: true, navMode: true, clientWelcomeMessage: true, showProfileName: true, showClientLogo: true } },
       discussion: { select: { id: true } },
     },
   });
@@ -104,7 +104,7 @@ export default async function ProjectHomePage({ params }: { params: Promise<{ to
   return (
     <div className={`${isSidebar ? "h-screen" : "min-h-screen"} flex flex-col bg-muted/60`}>
       <ShareNavbar
-        clientLogoUrl={project.user.clientLogoUrl}
+        clientLogoUrl={project.user.showClientLogo ? project.user.clientLogoUrl : null}
         designerName={project.user.showProfileName ? project.user.name : null}
         projectShareToken={token}
       />

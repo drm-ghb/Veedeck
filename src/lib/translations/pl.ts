@@ -141,6 +141,8 @@ export const pl = {
     clientAppearance: "Wygląd dla klienta",
     showProfileName: "Wyświetlaj nazwę profilu",
     showProfileNameDesc: "Twoja nazwa będzie widoczna w pasku nawigacyjnym na stronie klienta.",
+    showClientLogo: "Wyświetlaj logo firmy",
+    showClientLogoDesc: "Logo firmy wyświetlane jest w pasku nawigacyjnym na lewo od nazwy. Gdy oba są wyłączone, wyświetla się logo Veedeck.",
     logo: "Logo firmy",
     logoDesc: "Wyświetlane zamiast logo RenderFlow na stronie klienta.",
     deleteLogo: "Usuń logo",

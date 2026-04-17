@@ -34,6 +34,7 @@ model User {
   requirePinTitle            Boolean        @default(false)
   allowClientVersionRestore  Boolean        @default(true)
   showProfileName            Boolean        @default(false)
+  showClientLogo             Boolean        @default(false)
   isAdmin                    Boolean        @default(false)
   needsNameSetup             Boolean        @default(false)
   globalHiddenModules        String[]       @default([])

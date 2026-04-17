@@ -143,6 +143,8 @@ export const en: TranslationKeys = {
     clientAppearance: "Client appearance",
     showProfileName: "Show profile name",
     showProfileNameDesc: "Your name will be displayed in the navigation bar on the client page.",
+    showClientLogo: "Show company logo",
+    showClientLogoDesc: "Company logo is displayed in the navigation bar to the left of the name. When both are off, the Veedeck logo is shown.",
     logo: "Company logo",
     logoDesc: "Displayed instead of the RenderFlow logo on the client page.",
     deleteLogo: "Remove logo",

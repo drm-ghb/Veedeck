@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { Grid2x2, Settings, Sun, Moon, Monitor, UserRound } from "lucide-react";
 import { useTheme, type Theme } from "@/lib/theme";
 import { Input } from "@/components/ui/input";
@@ -68,13 +69,23 @@ export default function ShareNavbar({ backHref, backLabel, clientLogoUrl, design
               </Link>
             )}
             <div className="flex items-center gap-2.5">
-              {clientLogoUrl && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={clientLogoUrl} alt="Logo" className="h-8 object-contain" />
+              {!clientLogoUrl && !designerName ? (
+                <>
+                  <Image src="/logo.svg" alt="Veedeck" width={28} height={28} className="block dark:hidden" />
+                  <Image src="/logo-dark.svg" alt="Veedeck" width={28} height={28} className="hidden dark:block" />
+                  <span className="text-2xl font-bold tracking-tight">veedeck</span>
+                </>
+              ) : (
+                <>
+                  {clientLogoUrl && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={clientLogoUrl} alt="Logo" className="h-8 object-contain" />
+                  )}
+                  {designerName && (
+                    <span className="text-2xl font-bold tracking-tight">{designerName}</span>
+                  )}
+                </>
               )}
-              <span className="text-2xl font-bold tracking-tight">
-                {designerName ?? "veedeck"}
-              </span>
             </div>
           </div>
 
