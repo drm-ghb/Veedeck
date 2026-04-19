@@ -114,11 +114,11 @@ export default function ProjectsView({ projects, archivedProjects }: ProjectsVie
       </div>
 
       {/* Tabs + view toggle */}
-      <div className="flex items-center justify-between border-b border-border mb-6">
-        <div className="flex items-center gap-1">
+      <div className="flex items-center justify-between border-b border-border mb-6 gap-2">
+        <div className="flex items-center gap-1 min-w-0 overflow-hidden">
           <button
             onClick={() => setTab("active")}
-            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px ${
+            className={`px-3 sm:px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px flex-shrink-0 ${
               tab === "active"
                 ? "border-foreground text-foreground"
                 : "border-transparent text-muted-foreground hover:text-foreground"
@@ -133,7 +133,7 @@ export default function ProjectsView({ projects, archivedProjects }: ProjectsVie
           </button>
           <button
             onClick={() => setTab("archived")}
-            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px ${
+            className={`px-3 sm:px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px flex-shrink-0 ${
               tab === "archived"
                 ? "border-foreground text-foreground"
                 : "border-transparent text-muted-foreground hover:text-foreground"
@@ -294,7 +294,8 @@ function ProjectListView({ projects }: { projects: Project[] }) {
 
   return (
     <>
-    <div className="bg-card border border-border rounded-xl overflow-hidden">
+    <div className="overflow-x-auto">
+    <div className="bg-card border border-border rounded-xl overflow-hidden min-w-[320px]">
       {/* Header */}
       <div className="grid grid-cols-[1fr_80px] sm:grid-cols-[1fr_180px_160px_80px] gap-4 px-5 py-3 bg-muted/50 border-b border-border text-xs font-medium text-muted-foreground uppercase tracking-wide">
         <span>Projekt</span>
@@ -367,6 +368,7 @@ function ProjectListView({ projects }: { projects: Project[] }) {
           </div>
         </div>
       ))}
+    </div>
     </div>
 
       <Dialog open={!!warningLink} onOpenChange={(open) => { if (!open) setWarningLink(null); }}>

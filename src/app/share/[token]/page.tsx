@@ -586,7 +586,7 @@ export default function SharePage() {
 
     if (isSidebar) {
       return (
-        <div className="h-screen flex flex-col bg-muted/60">
+        <div className="h-dvh flex flex-col bg-muted/60">
           {themeApplier}
           {renderNav}
           <div className="flex flex-1 min-h-0">
@@ -849,7 +849,7 @@ export default function SharePage() {
   );
 
   return (
-    <div className={`${isSidebar ? "h-screen" : "min-h-screen"} flex flex-col bg-muted/60`}>
+    <div className={`${isSidebar ? "h-dvh" : "min-h-screen"} flex flex-col bg-muted/60`}>
       {themeApplier}
       {/* Nav */}
       <ShareNavbar

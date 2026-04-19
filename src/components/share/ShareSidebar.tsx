@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { LayoutDashboard, ShoppingCart, PanelLeftClose, PanelLeftOpen, PictureInPicture, Sun, Moon, HelpCircle, Settings, UserRound, X, CheckCircle, MessageSquare } from "lucide-react";
+import { LayoutDashboard, ShoppingCart, PanelLeftClose, PanelLeftOpen, PictureInPicture, Sun, Moon, HelpCircle, Settings, UserRound, X, CheckCircle, MessageSquare, Menu } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { type Theme } from "@/lib/theme";
@@ -49,6 +49,7 @@ export default function ShareSidebar({
   const [authorName, setAuthorName] = useState("");
   const [nameInput, setNameInput] = useState("");
   const [discussionUnread, setDiscussionUnread] = useState(0);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const pusherRef = useRef<Pusher | null>(null);
   const isDyskusjeActiveRef = useRef(false);
 
@@ -162,49 +163,92 @@ export default function ShareSidebar({
         : "text-gray-600 dark:text-gray-400 hover:bg-muted hover:text-foreground"
     }`;
 
+  // On mobile overlay, always show labels (ignore collapsed state)
+  const showLabels = !isCollapsed || mobileSidebarOpen;
+
   return (
     <>
+    {/* Mobile hamburger button — fixed in navbar area, only on mobile */}
+    {!mobileSidebarOpen && (
+      <button
+        className="md:hidden fixed top-3.5 right-3 z-40 p-1.5 rounded-lg bg-card border border-border shadow-sm"
+        onClick={() => setMobileSidebarOpen(true)}
+        aria-label="Nawigacja"
+      >
+        <Menu size={18} className="text-muted-foreground" />
+      </button>
+    )}
+
+    {/* Mobile backdrop */}
+    {mobileSidebarOpen && (
+      <div
+        className="md:hidden fixed inset-0 z-40 bg-black/40"
+        onClick={() => setMobileSidebarOpen(false)}
+      />
+    )}
+
     <aside
-      className={`hidden md:flex flex-col flex-shrink-0 transition-all duration-200 ${
-        isCollapsed ? "w-14" : "w-52"
-      }`}
+      className={[
+        "flex-col flex-shrink-0 transition-all duration-200",
+        // Mobile: show as fixed overlay when open, hidden otherwise
+        mobileSidebarOpen
+          ? "flex fixed inset-y-0 left-0 z-50 w-64 bg-card border-r border-border shadow-2xl"
+          : "hidden",
+        // Desktop: always flex, static positioning
+        "md:flex md:static md:z-auto md:bg-transparent md:border-0 md:shadow-none",
+        isCollapsed ? "md:w-14" : "md:w-52",
+      ].join(" ")}
     >
-      <nav className="flex-1 p-2 space-y-0.5">
+      {/* Mobile close button */}
+      {mobileSidebarOpen && (
+        <div className="md:hidden flex items-center justify-between px-3 py-3 border-b border-border flex-shrink-0">
+          <span className="text-sm font-semibold text-foreground">Nawigacja</span>
+          <button
+            onClick={() => setMobileSidebarOpen(false)}
+            className="p-1 rounded text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <X size={18} />
+          </button>
+        </div>
+      )}
+      <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto">
         {/* Dashboard */}
         <Link
           href={homeHref}
           title={isCollapsed ? t.share.dashboard : undefined}
           className={linkCls(isHomeActive)}
+          onClick={() => setMobileSidebarOpen(false)}
         >
           <span className="flex-shrink-0 w-5 flex items-center justify-center">
             <LayoutDashboard size={18} />
           </span>
-          {!isCollapsed && t.share.dashboard}
+          {showLabels && t.share.dashboard}
         </Link>
 
         {/* RenderFlow */}
         {showRenderFlow &&
           (onRenderFlowClick ? (
             <button
-              onClick={onRenderFlowClick}
+              onClick={() => { onRenderFlowClick(); setMobileSidebarOpen(false); }}
               title={isCollapsed ? t.share.renderflow : undefined}
               className={`w-full ${linkCls(isRenderActive)}`}
             >
               <span className="flex-shrink-0 w-5 flex items-center justify-center">
                 <PictureInPicture size={18} />
               </span>
-              {!isCollapsed && t.share.renderflow}
+              {showLabels && t.share.renderflow}
             </button>
           ) : (
             <Link
               href={renderHref}
               title={isCollapsed ? t.share.renderflow : undefined}
               className={linkCls(isRenderActive)}
+              onClick={() => setMobileSidebarOpen(false)}
             >
               <span className="flex-shrink-0 w-5 flex items-center justify-center">
                 <PictureInPicture size={18} />
               </span>
-              {!isCollapsed && t.share.renderflow}
+              {showLabels && t.share.renderflow}
             </Link>
           ))}
 
@@ -214,11 +258,12 @@ export default function ShareSidebar({
             href={listHref}
             title={isCollapsed ? t.share.lists : undefined}
             className={linkCls(isListyActive)}
+            onClick={() => setMobileSidebarOpen(false)}
           >
             <span className="flex-shrink-0 w-5 flex items-center justify-center">
               <ShoppingCart size={18} />
             </span>
-            {!isCollapsed && t.share.lists}
+            {showLabels && t.share.lists}
           </Link>
         )}
 
@@ -228,17 +273,18 @@ export default function ShareSidebar({
             href={dyskusjeHref}
             title={isCollapsed ? t.share.discussions : undefined}
             className={linkCls(isDyskusjeActive)}
+            onClick={() => setMobileSidebarOpen(false)}
           >
             <span className="flex-shrink-0 w-5 flex items-center justify-center relative">
               <MessageSquare size={18} />
-              {discussionUnread > 0 && isCollapsed && (
+              {discussionUnread > 0 && isCollapsed && !mobileSidebarOpen && (
                 <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-0.5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center leading-none">
                   {discussionUnread > 99 ? "99+" : discussionUnread}
                 </span>
               )}
             </span>
-            {!isCollapsed && <span className="flex-1">{t.share.discussions}</span>}
-            {!isCollapsed && discussionUnread > 0 && (
+            {showLabels && <span className="flex-1">{t.share.discussions}</span>}
+            {showLabels && discussionUnread > 0 && (
               <span className="ml-auto min-w-[20px] h-5 px-1.5 rounded-full bg-primary text-primary-foreground text-[11px] font-bold flex items-center justify-center leading-none">
                 {discussionUnread > 99 ? "99+" : discussionUnread}
               </span>
@@ -249,7 +295,7 @@ export default function ShareSidebar({
 
       <div className="p-2 space-y-0.5">
         {/* Theme toggle */}
-        {isCollapsed ? (
+        {(isCollapsed && !mobileSidebarOpen) ? (
           <button
             onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
             title={theme === "dark" ? t.nav.switchLight : t.nav.switchDark}
@@ -286,7 +332,7 @@ export default function ShareSidebar({
           <span className="flex-shrink-0 w-5 flex items-center justify-center">
             <HelpCircle size={18} />
           </span>
-          {!isCollapsed && t.nav.help}
+          {showLabels && t.nav.help}
         </button>
 
         {/* Settings */}
@@ -298,14 +344,14 @@ export default function ShareSidebar({
           <span className="flex-shrink-0 w-5 flex items-center justify-center">
             <Settings size={18} />
           </span>
-          {!isCollapsed && t.nav.settings}
+          {showLabels && t.nav.settings}
         </button>
 
-        {/* Collapse toggle */}
+        {/* Collapse toggle — desktop only */}
         <button
           onClick={toggle}
           title={isCollapsed ? t.share.expandSidebar : t.share.collapseSidebar}
-          className="flex items-center justify-center w-full py-2 px-2.5 rounded-lg text-gray-400 hover:bg-muted hover:text-foreground transition-colors"
+          className="hidden md:flex items-center justify-center w-full py-2 px-2.5 rounded-lg text-gray-400 hover:bg-muted hover:text-foreground transition-colors"
         >
           {isCollapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
         </button>

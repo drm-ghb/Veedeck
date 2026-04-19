@@ -111,7 +111,7 @@ export default async function ProjectHomePage({ params }: { params: Promise<{ to
       designerName={project.user.showProfileName ? project.user.name : null}
     >
     <ClientThemeApplier colorTheme={project.user.colorTheme} />
-    <div className={`${isSidebar ? "h-screen" : "min-h-screen"} flex flex-col bg-muted/60`}>
+    <div className={`${isSidebar ? "h-dvh" : "min-h-screen"} flex flex-col bg-muted/60`}>
       <ShareNavbar
         clientLogoUrl={project.user.showClientLogo ? project.user.clientLogoUrl : null}
         designerName={project.user.showProfileName ? project.user.name : null}
