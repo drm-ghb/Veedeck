@@ -455,7 +455,7 @@ const COLOR_THEMES: {
               <Palette size={16} className="text-gray-400" />
               <h3 className="font-semibold text-gray-800 dark:text-gray-200">{t.theme.label}</h3>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               {THEME_OPTIONS.map(({ value, label, icon: Icon }) => (
                 <button
                   key={value}
@@ -479,7 +479,7 @@ const COLOR_THEMES: {
               <Globe size={16} className="text-gray-400" />
               <h3 className="font-semibold text-gray-800 dark:text-gray-200">{t.lang.label}</h3>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               {(["pl", "en"] as const).map((value) => (
                 <button
                   key={value}

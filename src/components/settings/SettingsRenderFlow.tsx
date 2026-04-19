@@ -178,7 +178,7 @@ export function SettingsRenderFlow({
             onToggle={() => toggleBool("autoArchiveOnAccept")}
           />
           <div className="py-2">
-            <div className="flex items-start justify-between gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
               <div>
                 <p className="text-sm font-medium text-gray-700 dark:text-gray-300">{t.renderflow.pinLimit}</p>
                 <p className="text-xs text-gray-400 mt-0.5">{t.renderflow.pinLimitDesc}</p>
@@ -204,12 +204,12 @@ export function SettingsRenderFlow({
       <section className="space-y-4">
         <SectionHeader title={t.renderflow.newRenders} />
         <div className="bg-card border border-border rounded-2xl p-6 space-y-5">
-          <div className="flex items-start justify-between gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
             <div>
               <p className="text-sm font-medium text-gray-700 dark:text-gray-300">{t.renderflow.defaultStatus}</p>
               <p className="text-xs text-gray-400 mt-0.5">{t.renderflow.defaultStatusDesc}</p>
             </div>
-            <div className="flex gap-1.5 bg-muted rounded-lg p-1 flex-shrink-0">
+            <div className="flex gap-1.5 bg-muted rounded-lg p-1 flex-shrink-0 self-start">
               {(["REVIEW", "ACCEPTED"] as const).map((val) => (
                 <button
                   key={val}
@@ -227,12 +227,12 @@ export function SettingsRenderFlow({
             </div>
           </div>
 
-          <div className="flex items-start justify-between gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
             <div>
               <p className="text-sm font-medium text-gray-700 dark:text-gray-300">{t.renderflow.defaultOrder}</p>
               <p className="text-xs text-gray-400 mt-0.5">{t.renderflow.defaultOrderDesc}</p>
             </div>
-            <div className="flex gap-1.5 bg-muted rounded-lg p-1 flex-shrink-0">
+            <div className="flex gap-1.5 bg-muted rounded-lg p-1 flex-shrink-0 self-start">
               {([["order", t.renderflow.orderManual], ["name", t.renderflow.orderName], ["newest", t.renderflow.orderNewest]] as const).map(([val, label]) => (
                 <button
                   key={val}
