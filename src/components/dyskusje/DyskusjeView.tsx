@@ -409,7 +409,7 @@ export default function DyskusjeView({ currentUserId, initialDiscussions, projec
                 <button
                   key={d.id}
                   onClick={() => { setSelectedId(d.id); markAsRead(d.id); setEditingId(null); setHeaderEditing(false); }}
-                  className={`group w-full text-left px-4 py-3 border-b border-border/50 hover:bg-muted/50 transition-colors ${selectedId === d.id ? "bg-muted" : ""}`}
+                  className={`group w-full text-left px-4 py-3 border-b border-border/50 hover:bg-muted/50 transition-colors ${selectedId === d.id ? "bg-muted" : hasUnread(d) ? "bg-primary/5" : ""}`}
                 >
                   <div className="flex items-center justify-between gap-1">
                     <div className="flex items-center gap-1.5 min-w-0">
