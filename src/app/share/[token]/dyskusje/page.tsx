@@ -12,7 +12,7 @@ export default async function ShareDyskusjePage({ params }: { params: Promise<{ 
     where: { shareToken: token },
     include: {
       shoppingLists: { select: { id: true, name: true, shareToken: true } },
-      user: { select: { clientLogoUrl: true, name: true, navMode: true, showProfileName: true, showClientLogo: true } },
+      user: { select: { clientLogoUrl: true, name: true, navMode: true, showProfileName: true, showClientLogo: true, requireClientEmail: true } },
       discussion: {
         select: {
           id: true,
@@ -38,7 +38,7 @@ export default async function ShareDyskusjePage({ params }: { params: Promise<{ 
   return (
     <ClientNameGate
       token={token}
-      requireClientEmail={project.requireClientEmail}
+      requireClientEmail={project.user.requireClientEmail}
       clientLogoUrl={project.user.showClientLogo ? project.user.clientLogoUrl : null}
       designerName={project.user.showProfileName ? project.user.name : null}
     >

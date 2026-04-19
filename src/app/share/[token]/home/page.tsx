@@ -16,7 +16,7 @@ export default async function ProjectHomePage({ params }: { params: Promise<{ to
     include: {
       renders: { where: { archived: false }, select: { id: true }, take: 1 },
       shoppingLists: { select: { id: true, name: true, shareToken: true } },
-      user: { select: { clientLogoUrl: true, name: true, navMode: true, clientWelcomeMessage: true, showProfileName: true, showClientLogo: true } },
+      user: { select: { clientLogoUrl: true, name: true, navMode: true, clientWelcomeMessage: true, showProfileName: true, showClientLogo: true, requireClientEmail: true } },
       discussion: { select: { id: true } },
     },
   });
@@ -105,7 +105,7 @@ export default async function ProjectHomePage({ params }: { params: Promise<{ to
   return (
     <ClientNameGate
       token={token}
-      requireClientEmail={project.requireClientEmail}
+      requireClientEmail={project.user.requireClientEmail}
       clientLogoUrl={project.user.showClientLogo ? project.user.clientLogoUrl : null}
       designerName={project.user.showProfileName ? project.user.name : null}
     >
