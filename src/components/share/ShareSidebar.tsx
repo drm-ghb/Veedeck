@@ -84,12 +84,13 @@ export default function ShareSidebar({
   }, [token]);
 
   // Reset when navigating to dyskusje page
+  const dyskusjePathname = `/share/${token}/dyskusje`;
   useEffect(() => {
-    if (isDyskusjeActive) {
+    if (pathname === dyskusjePathname) {
       setDiscussionUnread(0);
       localStorage.setItem(`share-discussion-unread-${token}`, "0");
     }
-  }, [isDyskusjeActive, token]);
+  }, [pathname, dyskusjePathname, token]);
 
   // Listen for read event from ClientDiscussionView
   useEffect(() => {
