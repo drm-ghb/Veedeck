@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import Pusher from "pusher-js";
 import { LayoutDashboard, Briefcase, ShoppingCart, Package, PanelLeftClose, PanelLeftOpen, Settings, Sun, Moon, HelpCircle, X, CheckCircle, PictureInPicture, ShieldCheck, CalendarDays, NotebookText, MessageSquare } from "lucide-react";
 import { useTheme } from "@/lib/theme";
 import { useT } from "@/lib/i18n";
@@ -37,6 +38,12 @@ export default function NavSidebar({ hiddenModules, isAdmin }: NavSidebarProps) 
   const [helpSent, setHelpSent] = useState(false);
 
   const [discussionUnread, setDiscussionUnread] = useState(0);
+  const pusherRef = useRef<Pusher | null>(null);
+  const pathnameRef = useRef(pathname);
+
+  useEffect(() => {
+    pathnameRef.current = pathname;
+  }, [pathname]);
 
   useEffect(() => {
     function read() {
@@ -49,6 +56,40 @@ export default function NavSidebar({ hiddenModules, isAdmin }: NavSidebarProps) 
     return () => {
       window.removeEventListener("discussions-unread-updated", read);
       window.removeEventListener("storage", read);
+    };
+  }, []);
+
+  // Subscribe to all discussion Pusher channels to track incoming messages
+  useEffect(() => {
+    fetch("/api/discussions")
+      .then((r) => r.json())
+      .then((data: { id: string }[]) => {
+        if (!Array.isArray(data)) return;
+        if (!pusherRef.current) {
+          pusherRef.current = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY!, {
+            cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!,
+          });
+        }
+        data.forEach((d) => {
+          const channel = pusherRef.current!.subscribe(`discussion-${d.id}`);
+          channel.bind("new-message", (msg: { userId?: string | null }) => {
+            // Only count client messages (userId null), ignore own messages
+            if (msg.userId) return;
+            // When on /dyskusje the DyskusjeView manages the count itself
+            if (pathnameRef.current.startsWith("/dyskusje")) return;
+            setDiscussionUnread((prev) => {
+              const next = prev + 1;
+              localStorage.setItem("discussions-unread-count", String(next));
+              return next;
+            });
+          });
+        });
+      })
+      .catch(() => {});
+
+    return () => {
+      pusherRef.current?.disconnect();
+      pusherRef.current = null;
     };
   }, []);
 
