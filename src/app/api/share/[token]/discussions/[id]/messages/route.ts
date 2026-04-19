@@ -48,18 +48,21 @@ export async function POST(
     return NextResponse.json({ error: "Nie znaleziono dyskusji" }, { status: 404 });
   }
 
-  const { content, authorName, clientEmail } = await req.json();
-  if (!content?.trim() || !authorName?.trim()) {
+  const { content, authorName, clientEmail, attachmentUrl, attachmentName, attachmentType } = await req.json();
+  if ((!content?.trim() && !attachmentUrl) || !authorName?.trim()) {
     return NextResponse.json({ error: "Brakujące pola" }, { status: 400 });
   }
 
   const message = await prisma.discussionMessage.create({
     data: {
       discussionId: id,
-      content: content.trim(),
+      content: content?.trim() || "",
       authorName: authorName.trim(),
       clientEmail: clientEmail ?? null,
       sourceType: "chat",
+      attachmentUrl: attachmentUrl ?? null,
+      attachmentName: attachmentName ?? null,
+      attachmentType: attachmentType ?? null,
     },
   });
 

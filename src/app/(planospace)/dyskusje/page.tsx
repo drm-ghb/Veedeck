@@ -28,6 +28,7 @@ export default async function DyskusjePage() {
 
   return (
     <DyskusjeView
+      currentUserId={userId}
       initialDiscussions={discussions.map((d) => ({
         id: d.id,
         title: d.title,

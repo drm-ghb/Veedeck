@@ -41,6 +41,29 @@ export const ourFileRouter = {
     .onUploadComplete(async ({ file }) => {
       return { url: file.url, key: file.key, name: file.name };
     }),
+  discussionAttachmentUploader: f({ blob: { maxFileSize: "32MB", maxFileCount: 1 } })
+    .middleware(async () => {
+      const session = await auth();
+      if (!session?.user?.id) throw new Error("Unauthorized");
+      return { userId: session.user.id };
+    })
+    .onUploadComplete(async ({ file }) => {
+      return { url: file.url, key: file.key, name: file.name };
+    }),
+  discussionClientAttachmentUploader: f({ blob: { maxFileSize: "32MB", maxFileCount: 1 } })
+    .middleware(async ({ req }) => {
+      const token = req.headers.get("x-share-token");
+      if (!token) throw new Error("Unauthorized");
+      const project = await prisma.project.findUnique({
+        where: { shareToken: token },
+        select: { id: true, archived: true },
+      });
+      if (!project || project.archived) throw new Error("Unauthorized");
+      return { projectId: project.id };
+    })
+    .onUploadComplete(async ({ file }) => {
+      return { url: file.url, key: file.key, name: file.name };
+    }),
   clientRenderUploader: f({ image: { maxFileSize: "16MB", maxFileCount: 10 } })
     .middleware(async ({ req }) => {
       const token = req.headers.get("x-share-token");

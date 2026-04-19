@@ -453,10 +453,13 @@ model DiscussionMessage {
   userId       String?
   clientEmail  String?
   sourceType   String   @default("chat") // "chat" | "render_comment" | "render_pin" | "product_comment"
-  sourceId     String?
-  sourceUrl    String?
-  sourceName   String?
-  createdAt    DateTime @default(now())
+  sourceId       String?
+  sourceUrl      String?
+  sourceName     String?
+  attachmentUrl  String?
+  attachmentName String?
+  attachmentType String? // "image" | "document"
+  createdAt      DateTime @default(now())
 
   discussion Discussion @relation(fields: [discussionId], references: [id], onDelete: Cascade)
   user       User?      @relation("DiscussionMessageUser", fields: [userId], references: [id], onDelete: SetNull)

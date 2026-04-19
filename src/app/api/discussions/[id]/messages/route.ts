@@ -41,8 +41,8 @@ export async function POST(
   if (!discussion) return NextResponse.json({ error: "Nie znaleziono" }, { status: 404 });
   if (discussion.ownerId !== userId) return NextResponse.json({ error: "Brak dostępu" }, { status: 403 });
 
-  const { content } = await req.json();
-  if (!content?.trim()) return NextResponse.json({ error: "Treść jest wymagana" }, { status: 400 });
+  const { content, attachmentUrl, attachmentName, attachmentType } = await req.json();
+  if (!content?.trim() && !attachmentUrl) return NextResponse.json({ error: "Treść lub załącznik jest wymagany" }, { status: 400 });
 
   const user = await prisma.user.findUnique({
     where: { id: session.user.id! },
@@ -52,10 +52,13 @@ export async function POST(
   const message = await prisma.discussionMessage.create({
     data: {
       discussionId: id,
-      content: content.trim(),
+      content: content?.trim() || "",
       authorName: user?.name || user?.email || "Projektant",
       userId: session.user.id!,
       sourceType: "chat",
+      attachmentUrl: attachmentUrl ?? null,
+      attachmentName: attachmentName ?? null,
+      attachmentType: attachmentType ?? null,
     },
   });
 

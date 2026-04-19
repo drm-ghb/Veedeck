@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import ShareNavbar from "@/components/share/ShareNavbar";
 import ShareSidebar from "@/components/share/ShareSidebar";
 import ClientDiscussionView from "@/components/dyskusje/ClientDiscussionView";
+import ClientNameGate from "@/components/share/ClientNameGate";
 
 export default async function ShareDyskusjePage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
@@ -35,6 +36,12 @@ export default async function ShareDyskusjePage({ params }: { params: Promise<{ 
   );
 
   return (
+    <ClientNameGate
+      token={token}
+      requireClientEmail={project.requireClientEmail}
+      clientLogoUrl={project.user.showClientLogo ? project.user.clientLogoUrl : null}
+      designerName={project.user.showProfileName ? project.user.name : null}
+    >
     <div className={`${isSidebar ? "h-screen" : "min-h-screen"} flex flex-col bg-muted/60`}>
       <ShareNavbar
         clientLogoUrl={project.user.showClientLogo ? project.user.clientLogoUrl : null}
@@ -61,5 +68,6 @@ export default async function ShareDyskusjePage({ params }: { params: Promise<{ 
         </main>
       )}
     </div>
+    </ClientNameGate>
   );
 }
