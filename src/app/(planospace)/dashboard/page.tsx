@@ -88,9 +88,9 @@ export default async function DashboardPage() {
   todayEnd.setUTCHours(23, 59, 59, 999);
   todayEnd.setUTCDate(todayEnd.getUTCDate() + 1);
 
-  const [renderCount, listCount, notificationCount, todayEvents, pins, statusRequests, versionRequests, renderDiscussions, listMessages] =
+  const [renderflowProjectCount, listCount, notificationCount, todayEvents, pins, statusRequests, versionRequests, renderDiscussions, listMessages] =
     await Promise.all([
-      prisma.render.count({ where: { project: { userId }, archived: false } }),
+      prisma.project.count({ where: { userId, archived: false, modules: { has: "renderflow" } } }),
       prisma.shoppingList.count({ where: { userId, archived: false } }),
       prisma.notification.count({ where: { userId, read: false } }),
 
@@ -220,7 +220,7 @@ export default async function DashboardPage() {
       hiddenModules={hiddenModules}
       stats={{
         projects: activeProjectCount,
-        renders: renderCount,
+        renderflowProjects: renderflowProjectCount,
         lists: listCount,
         notificationCount,
       }}

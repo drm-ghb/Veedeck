@@ -212,7 +212,7 @@ export default function NewProjectDialog({ module }: NewProjectDialogProps = {})
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="clientPhone">Telefon klienta</Label>
+                <Label htmlFor="clientPhone">Telefon</Label>
                 <Input
                   id="clientPhone"
                   type="tel"

@@ -26,7 +26,7 @@ import { useT } from "@/lib/i18n";
 
 interface Stats {
   projects: number;
-  renders: number;
+  renderflowProjects: number;
   lists: number;
   notificationCount: number;
 }
@@ -352,7 +352,7 @@ export default function DashboardView({
               </div>
               <div className="min-w-0">
                 <p className="text-xl font-bold leading-none">{stats.projects}</p>
-                <p className="text-xs text-muted-foreground mt-0.5 truncate">Projektów</p>
+                <p className="text-xs text-muted-foreground mt-0.5 truncate">Klientów</p>
               </div>
             </Link>
 
@@ -365,8 +365,8 @@ export default function DashboardView({
                   <PictureInPicture size={16} className="text-primary" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-xl font-bold leading-none">{stats.renders}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5 truncate">Renderów</p>
+                  <p className="text-xl font-bold leading-none">{stats.renderflowProjects}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5 truncate">Projektów RenderFlow</p>
                 </div>
               </Link>
             )}
