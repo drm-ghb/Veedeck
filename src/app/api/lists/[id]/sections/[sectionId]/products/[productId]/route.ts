@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { pusherServer } from "@/lib/pusher";
+import { getWorkspaceUserId } from "@/lib/workspace";
 
 async function findProduct(productId: string, sectionId: string, listId: string, userId: string) {
   return prisma.listProduct.findFirst({
@@ -23,7 +24,7 @@ export async function PATCH(
   const { id, sectionId, productId } = await params;
   const body = await req.json();
 
-  const product = await findProduct(productId, sectionId, id, session.user.id);
+  const product = await findProduct(productId, sectionId, id, getWorkspaceUserId(session));
   if (!product) return NextResponse.json({ error: "Nie znaleziono produktu" }, { status: 404 });
 
   try {
@@ -118,7 +119,7 @@ export async function PUT(
 
   if (!name?.trim()) return NextResponse.json({ error: "Nazwa jest wymagana" }, { status: 400 });
 
-  const product = await findProduct(productId, sectionId, id, session.user.id);
+  const product = await findProduct(productId, sectionId, id, getWorkspaceUserId(session));
   if (!product) return NextResponse.json({ error: "Nie znaleziono produktu" }, { status: 404 });
 
   const sharedData = {
@@ -161,7 +162,7 @@ export async function DELETE(
 
   const { id, sectionId, productId } = await params;
 
-  const product = await findProduct(productId, sectionId, id, session.user.id);
+  const product = await findProduct(productId, sectionId, id, getWorkspaceUserId(session));
   if (!product) return NextResponse.json({ error: "Nie znaleziono produktu" }, { status: 404 });
 
   await prisma.listProduct.delete({ where: { id: productId } });
