@@ -53,9 +53,9 @@
 :root[data-theme="champagne"] {
   --background: #EEE9DF;
   --foreground: #2A2520;
-  --card: #F7F3EA;
+  --card: #FFFFFF;
   --card-foreground: #2A2520;
-  --popover: #F7F3EA;
+  --popover: #FFFFFF;
   --popover-foreground: #2A2520;
   --primary: #8B613C;
   --primary-foreground: #F7F3EA;
