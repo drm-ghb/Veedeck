@@ -132,9 +132,16 @@ function parsePrice(price: string | null): number | null {
   return isNaN(num) ? null : num;
 }
 
+function normalizeCurrency(cur: string): string {
+  const c = cur.trim().toUpperCase();
+  if (!c || c === "PLN" || c === "ZŁ" || c === "ZL") return "zł";
+  if (c === "USD" || c === "$") return "DOL";
+  return cur.trim();
+}
+
 function getCurrency(price: string | null): string {
   if (!price) return "";
-  return price.replace(/[\d.,\s]/g, "").trim();
+  return normalizeCurrency(price.replace(/[\d.,\s]/g, "").trim());
 }
 
 function SectionTotal({ products, budget }: { products: Product[]; budget?: number | null }) {

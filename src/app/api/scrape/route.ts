@@ -245,8 +245,15 @@ function extractSize(
   return null;
 }
 
+function normalizeCurrency(cur: string): string {
+  const c = (cur ?? "").trim().toUpperCase();
+  if (!c || c === "PLN" || c === "ZŁ" || c === "ZL") return "zł";
+  if (c === "USD" || c === "$") return "DOL";
+  return cur.trim();
+}
+
 /** Normalize raw price + currency into clean "NUMBER CURRENCY" format.
- *  Examples: "1 299,00" + "PLN" → "1299 PLN", "2699.00" + "EUR" → "2699 EUR" */
+ *  Examples: "1 299,00" + "PLN" → "1299 zł", "2699.00" + "EUR" → "2699 EUR" */
 function formatPrice(rawPrice: unknown, currency: string): string | null {
   if (rawPrice == null) return null;
   const raw = String(rawPrice).trim();
@@ -259,7 +266,7 @@ function formatPrice(rawPrice: unknown, currency: string): string | null {
   if (isNaN(num)) return null;
   // Format: integer if no cents, else keep up to 2 decimals
   const formatted = Number.isInteger(num) ? String(num) : num.toFixed(2).replace(".", ",");
-  const cur = currency?.trim() || "PLN";
+  const cur = normalizeCurrency(currency || "PLN");
   return `${formatted} ${cur}`;
 }
 
