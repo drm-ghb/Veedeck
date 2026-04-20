@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
-import { Settings, ShoppingCart, ChevronLeft, Users } from "lucide-react";
+import { Settings, ShoppingCart, ChevronLeft, Users, Puzzle } from "lucide-react";
 import { useT } from "@/lib/i18n";
 
 export default function SettingsSidebar() {
@@ -39,6 +39,12 @@ export default function SettingsSidebar() {
       href: "/settings/uzytkownicy",
       label: "Użytkownicy",
       icon: <Users size={16} />,
+      module: null,
+    },
+    {
+      href: "/settings/wtyczka",
+      label: "Wtyczka",
+      icon: <Puzzle size={16} />,
       module: null,
     },
   ];

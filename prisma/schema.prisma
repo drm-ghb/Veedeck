@@ -41,6 +41,7 @@ model User {
   listsCategoryOrder         String[]       @default([])
   navMode                    String         @default("dashboard")
   colorTheme                 String         @default("champagne")
+  extensionKey               String?        @unique
   ownerId                    String?
   owner                      User?          @relation("TeamMembers", fields: [ownerId], references: [id])
   teamMembers                User[]         @relation("TeamMembers")

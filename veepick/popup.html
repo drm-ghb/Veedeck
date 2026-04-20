@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>veepick</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      width: 380px;
+      min-height: 200px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 14px;
+      color: #1a1a1a;
+      background: #fff;
+    }
+
+    /* ── Header ───────────────────────────────── */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      border-bottom: 1px solid #efefef;
+    }
+    .logo { font-weight: 700; font-size: 16px; letter-spacing: -0.5px; color: #111; }
+    .logo span { color: #7c3aed; }
+    .header-actions { display: flex; gap: 8px; align-items: center; }
+    .btn-icon {
+      background: none; border: none; cursor: pointer; padding: 4px;
+      color: #888; border-radius: 6px; display: flex; align-items: center;
+    }
+    .btn-icon:hover { background: #f3f3f3; color: #333; }
+    .user-email { font-size: 11px; color: #888; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    /* ── Screens ──────────────────────────────── */
+    .screen { padding: 16px; display: none; }
+    .screen.active { display: block; }
+
+    /* ── Setup screen ─────────────────────────── */
+    .setup-title { font-weight: 600; font-size: 15px; margin-bottom: 4px; }
+    .setup-desc { font-size: 12px; color: #666; margin-bottom: 16px; line-height: 1.5; }
+
+    .field { margin-bottom: 12px; }
+    .field label { display: block; font-size: 12px; font-weight: 500; color: #555; margin-bottom: 4px; }
+    .field input, .field select, .field textarea {
+      width: 100%; padding: 8px 10px; border: 1px solid #ddd; border-radius: 8px;
+      font-size: 13px; color: #111; background: #fff; outline: none;
+      transition: border-color 0.15s;
+    }
+    .field input:focus, .field select:focus, .field textarea:focus { border-color: #7c3aed; }
+    .field textarea { resize: vertical; min-height: 56px; font-family: inherit; }
+
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+      padding: 8px 14px; border-radius: 8px; font-size: 13px; font-weight: 500;
+      cursor: pointer; border: none; transition: opacity 0.15s, background 0.15s;
+    }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-primary { background: #7c3aed; color: #fff; width: 100%; padding: 10px; font-size: 14px; }
+    .btn-primary:hover:not(:disabled) { background: #6d28d9; }
+    .btn-outline { background: #fff; color: #333; border: 1px solid #ddd; }
+    .btn-outline:hover:not(:disabled) { background: #f9f9f9; }
+    .btn-sm { padding: 6px 10px; font-size: 12px; }
+    .btn-link { background: none; border: none; color: #7c3aed; font-size: 12px; cursor: pointer; padding: 0; text-decoration: underline; }
+
+    .open-settings-hint {
+      font-size: 12px; color: #666; text-align: center; margin-bottom: 10px; line-height: 1.5;
+    }
+
+    /* ── Product card ─────────────────────────── */
+    .product-card {
+      display: flex; gap: 10px; padding: 10px; border: 1px solid #efefef;
+      border-radius: 10px; margin-bottom: 12px; background: #fafafa;
+    }
+    .product-img {
+      width: 64px; height: 64px; object-fit: cover; border-radius: 6px;
+      flex-shrink: 0; background: #eee;
+    }
+    .product-img-placeholder {
+      width: 64px; height: 64px; border-radius: 6px; background: #efefef;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+      color: #bbb; font-size: 22px;
+    }
+    .product-info { flex: 1; min-width: 0; }
+    .product-name { font-weight: 600; font-size: 13px; line-height: 1.35; margin-bottom: 3px; }
+    .product-meta { font-size: 12px; color: #666; }
+    .product-price { font-weight: 600; color: #111; font-size: 13px; }
+    .product-store { color: #888; font-size: 11px; }
+
+    .extract-status { font-size: 12px; color: #888; margin-bottom: 8px; }
+    .extract-status.success { color: #16a34a; }
+    .extract-status.warn { color: #d97706; }
+
+    /* ── Section divider ──────────────────────── */
+    .divider { border: none; border-top: 1px solid #efefef; margin: 12px 0; }
+
+    /* ── Recent products ──────────────────────── */
+    .recent-title { font-size: 11px; font-weight: 600; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+    .recent-list { list-style: none; space-y: 4px; }
+    .recent-item {
+      display: flex; align-items: center; gap-8px; padding: 5px 0;
+      border-bottom: 1px solid #f5f5f5;
+    }
+    .recent-item:last-child { border-bottom: none; }
+    .recent-item-name { font-size: 12px; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .recent-item-store { font-size: 11px; color: #aaa; flex-shrink: 0; }
+
+    /* ── Toast ────────────────────────────────── */
+    .toast {
+      position: fixed; bottom: 12px; left: 12px; right: 12px; padding: 10px 14px;
+      border-radius: 8px; font-size: 13px; font-weight: 500; z-index: 999;
+      animation: slideUp 0.2s ease;
+      display: none;
+    }
+    .toast.show { display: block; }
+    .toast.success { background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; }
+    .toast.error   { background: #fee2e2; color: #dc2626; border: 1px solid #fecaca; }
+    @keyframes slideUp { from { transform: translateY(8px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+    /* ── Loading ──────────────────────────────── */
+    .spinner {
+      display: inline-block; width: 14px; height: 14px; border: 2px solid #ddd;
+      border-top-color: #7c3aed; border-radius: 50%; animation: spin 0.6s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .loading-screen {
+      display: flex; align-items: center; justify-content: center;
+      padding: 40px 16px; gap: 10px; color: #888; font-size: 13px;
+    }
+
+    .not-found-hint { font-size: 12px; color: #888; margin-top: 6px; }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <div class="header">
+    <span class="logo">vee<span>pick</span></span>
+    <div class="header-actions">
+      <span class="user-email" id="user-email"></span>
+      <button class="btn-icon" id="btn-settings" title="Ustawienia połączenia">
+        <!-- gear icon (inline SVG) -->
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Loading screen -->
+  <div class="loading-screen" id="screen-loading">
+    <span class="spinner"></span> Ładowanie…
+  </div>
+
+  <!-- Setup screen -->
+  <div class="screen" id="screen-setup">
+    <p class="setup-title">Połącz veepick z aplikacją</p>
+    <p class="setup-desc">Wprowadź adres swojej aplikacji i klucz API z sekcji Ustawienia → Wtyczka.</p>
+
+    <div class="field">
+      <label for="input-app-url">Adres aplikacji</label>
+      <input type="url" id="input-app-url" placeholder="https://twoja-aplikacja.pl" autocomplete="off" />
+    </div>
+    <div class="field">
+      <label for="input-api-key">Klucz API</label>
+      <input type="text" id="input-api-key" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" autocomplete="off" />
+    </div>
+    <p class="not-found-hint">Nie masz klucza? <button class="btn-link" id="btn-open-app">Otwórz ustawienia aplikacji</button></p>
+    <br />
+    <button class="btn btn-primary" id="btn-connect">Połącz</button>
+  </div>
+
+  <!-- Main screen -->
+  <div class="screen" id="screen-main">
+
+    <!-- Product card -->
+    <div id="product-auto">
+      <div class="extract-status" id="extract-status"></div>
+      <div class="product-card" id="product-card">
+        <div class="product-img-placeholder" id="product-img-placeholder">📦</div>
+        <img class="product-img" id="product-img" src="" alt="" style="display:none" />
+        <div class="product-info">
+          <div class="product-name" id="product-name">—</div>
+          <div class="product-meta">
+            <span class="product-price" id="product-price"></span>
+            <span class="product-store" id="product-store"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Manual form (shown when auto-extract fails) -->
+    <div id="product-manual" style="display:none">
+      <div class="extract-status warn">Nie udało się automatycznie wykryć produktu. Uzupełnij dane ręcznie:</div>
+      <div class="field"><label>Nazwa produktu *</label><input type="text" id="manual-name" /></div>
+      <div class="field"><label>Cena</label><input type="text" id="manual-price" placeholder="np. 299 PLN" /></div>
+      <div class="field"><label>Link do produktu</label><input type="url" id="manual-url" /></div>
+      <div class="field"><label>URL zdjęcia</label><input type="url" id="manual-image" /></div>
+      <div class="field"><label>Dostawca / sklep</label><input type="text" id="manual-store" /></div>
+    </div>
+
+    <!-- List & section selectors -->
+    <div class="field">
+      <label for="select-list">Lista zakupowa</label>
+      <select id="select-list"><option value="">— wybierz listę —</option></select>
+    </div>
+    <div class="field">
+      <label for="select-section">Sekcja</label>
+      <select id="select-section"><option value="">— wybierz sekcję —</option></select>
+    </div>
+
+    <!-- Optional comment -->
+    <div class="field">
+      <label for="input-comment">Komentarz (opcjonalnie)</label>
+      <textarea id="input-comment" placeholder="Notatka do produktu…"></textarea>
+    </div>
+
+    <!-- Add button -->
+    <button class="btn btn-primary" id="btn-add">Dodaj produkt do listy</button>
+
+    <hr class="divider" />
+
+    <!-- Recently added -->
+    <div id="recent-section" style="display:none">
+      <p class="recent-title">Ostatnio dodane</p>
+      <ul class="recent-list" id="recent-list"></ul>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
