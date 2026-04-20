@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Briefcase, Image as ImageIcon, ShoppingCart, ChevronRight, SlidersHorizontal, Search, ArchiveRestore, Trash2, Pin } from "lucide-react";
+import { Users, Image as ImageIcon, ShoppingCart, ChevronRight, SlidersHorizontal, Search, ArchiveRestore, Trash2, Pin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import NewProjectDialog from "@/components/dashboard/NewProjectDialog";
@@ -87,7 +87,7 @@ export default function ProjektyView({ projects, archivedProjects }: ProjektyVie
               : `${projects.length} projekt${projects.length === 1 ? "" : projects.length < 5 ? "y" : "ów"}`}
           </p>
         </div>
-        <NewProjectDialog />
+        <NewProjectDialog label={t.projekty.newClient} />
       </div>
 
       {/* Tabs */}
@@ -159,7 +159,7 @@ export default function ProjektyView({ projects, archivedProjects }: ProjektyVie
           {projects.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-24 text-center">
               <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
-                <Briefcase size={28} className="text-primary" />
+                <Users size={28} className="text-primary" />
               </div>
               <h2 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-1">{t.projekty.noProjects}</h2>
               <p className="text-sm text-gray-400 max-w-xs">{t.projekty.noProjectsHint}</p>

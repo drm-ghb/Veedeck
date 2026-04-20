@@ -1,9 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
-import { Settings, ShoppingCart, ChevronLeft, Users, Puzzle } from "lucide-react";
+import { Settings, ShoppingCart, ChevronLeft, Users, Puzzle, PictureInPicture } from "lucide-react";
 import { useT } from "@/lib/i18n";
 
 export default function SettingsSidebar() {
@@ -21,12 +20,7 @@ export default function SettingsSidebar() {
     {
       href: "/settings/renderflow",
       label: t.settings.renderflow,
-      icon: (
-        <span className="flex items-center justify-center w-4 h-4">
-          <Image src="/logo-dark.svg" alt="RenderFlow" width={16} height={16} className="hidden dark:block" />
-          <Image src="/logo.svg" alt="RenderFlow" width={16} height={16} className="block dark:hidden" />
-        </span>
-      ),
+      icon: <PictureInPicture size={16} />,
       module: { href: "/projekty", label: "RenderFlow" },
     },
     {

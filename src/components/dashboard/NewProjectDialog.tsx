@@ -26,9 +26,10 @@ interface ExistingProject {
 
 interface NewProjectDialogProps {
   module?: string;
+  label?: string;
 }
 
-export default function NewProjectDialog({ module }: NewProjectDialogProps = {}) {
+export default function NewProjectDialog({ module, label }: NewProjectDialogProps = {}) {
   const t = useT();
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<"new" | "existing">("new");
@@ -145,10 +146,10 @@ export default function NewProjectDialog({ module }: NewProjectDialogProps = {})
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger render={<Button />}>{t.projekty.newProject}</DialogTrigger>
+      <DialogTrigger render={<Button />}>{label ?? t.projekty.newProject}</DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{t.projekty.newProject}</DialogTitle>
+          <DialogTitle>{label ?? t.projekty.newProject}</DialogTitle>
         </DialogHeader>
 
         {/* Tabs — only when adding to a specific module */}

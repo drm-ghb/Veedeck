@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
 import Pusher from "pusher-js";
-import { LayoutDashboard, Briefcase, ShoppingCart, Package, PanelLeftClose, PanelLeftOpen, Settings, Sun, Moon, HelpCircle, X, CheckCircle, PictureInPicture, ShieldCheck, CalendarDays, NotebookText, MessageSquare } from "lucide-react";
+import { LayoutDashboard, Users, ShoppingCart, Package, PanelLeftClose, PanelLeftOpen, Settings, Sun, Moon, HelpCircle, X, CheckCircle, PictureInPicture, ShieldCheck, CalendarDays, NotebookText, MessageSquare } from "lucide-react";
 import { useTheme } from "@/lib/theme";
 import { useT } from "@/lib/i18n";
 
@@ -95,7 +95,7 @@ export default function NavSidebar({ hiddenModules, isAdmin }: NavSidebarProps) 
 
   const items = [
     { label: t.nav.dashboard, href: "/dashboard", icon: <LayoutDashboard size={18} />, slug: null, badge: 0 },
-    { label: t.nav.projects, href: "/projekty", icon: <Briefcase size={18} />, slug: null, badge: 0 },
+    { label: t.nav.projects, href: "/projekty", icon: <Users size={18} />, slug: null, badge: 0 },
     { label: t.nav.renderflow, href: "/renderflow", icon: <PictureInPicture size={18} />, slug: "renderflow", badge: 0 },
     { label: t.nav.lists, href: "/listy", icon: <ShoppingCart size={18} />, slug: "listy", badge: 0 },
     { label: t.nav.products, href: "/produkty", icon: <Package size={18} />, slug: "produkty", badge: 0 },

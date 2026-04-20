@@ -43,7 +43,7 @@ export function LogoBrand({ navMode }: LogoBrandProps) {
           {/* Dark mode: white wordmark (md+ dark only) */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/vee_white.png"
+            src="/veedeckicon.png"
             alt=""
             className="hidden md:dark:block shrink-0"
             style={{ height: "17px", width: "auto" }}

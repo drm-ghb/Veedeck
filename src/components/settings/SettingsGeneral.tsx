@@ -6,8 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { User, Mail, Lock, Info, Sun, Moon, Monitor, Palette, Image as ImageIcon, Layers, ShoppingCart, Package, LayoutDashboard, PanelLeft, Globe } from "lucide-react";
-import Image from "next/image";
+import { User, Mail, Lock, Info, Sun, Moon, Monitor, Palette, Image as ImageIcon, Layers, ShoppingCart, Package, LayoutDashboard, PanelLeft, Globe, PictureInPicture } from "lucide-react";
 import { useTheme, type Theme, type ColorTheme } from "@/lib/theme";
 import { useT, useLang } from "@/lib/i18n";
 import { UploadButton } from "@uploadthing/react";
@@ -323,7 +322,7 @@ const COLOR_THEMES: {
               description: t.settings.renderflowModuleDesc,
               icon: (
                 <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center flex-shrink-0">
-                  <Image src="/logo-dark.svg" alt="RenderFlow" width={22} height={22} />
+                  <PictureInPicture size={18} className="text-white" />
                 </div>
               ),
             },

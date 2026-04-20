@@ -372,6 +372,7 @@ export const en: TranslationKeys = {
     pinError: "Operation error",
     deleteForever: "Delete forever",
     newProject: "+ New project",
+    newClient: "+ New client",
     editProject: "Edit project",
     projectNameLabel: "Project name *",
     projectNamePlaceholder: "e.g. Smith Apartment",

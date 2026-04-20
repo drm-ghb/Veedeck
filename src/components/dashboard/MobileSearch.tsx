@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Search, X, Briefcase, DoorOpen, Image as LucideImage, ShoppingCart, User, Package } from "lucide-react";
+import { Search, X, Users, DoorOpen, Image as LucideImage, ShoppingCart, User, Package } from "lucide-react";
 import { useT } from "@/lib/i18n";
 
 interface SearchResult {
@@ -34,7 +34,7 @@ export default function MobileSearch() {
   const t = useT();
 
   const CATEGORIES: { key: keyof SearchResults; label: string; icon: React.ReactNode }[] = [
-    { key: "projects", label: t.dashboard.searchProjects, icon: <Briefcase size={13} /> },
+    { key: "projects", label: t.dashboard.searchProjects, icon: <Users size={13} /> },
     { key: "rooms", label: t.dashboard.searchRooms, icon: <DoorOpen size={13} /> },
     { key: "renders", label: t.dashboard.searchRenders, icon: <LucideImage size={13} /> },
     { key: "lists", label: t.dashboard.searchLists, icon: <ShoppingCart size={13} /> },

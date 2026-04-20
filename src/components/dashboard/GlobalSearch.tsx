@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Search, Briefcase, DoorOpen, Image, ShoppingCart, User, Package } from "lucide-react";
+import { Search, Users, DoorOpen, Image, ShoppingCart, User, Package } from "lucide-react";
 import { useT } from "@/lib/i18n";
 
 interface SearchResult {
@@ -27,7 +27,7 @@ export default function GlobalSearch() {
   const router = useRouter();
 
   const CATEGORIES: { key: keyof SearchResults; label: string; icon: React.ReactNode }[] = [
-    { key: "projects", label: t.dashboard.searchProjects, icon: <Briefcase size={13} /> },
+    { key: "projects", label: t.dashboard.searchProjects, icon: <Users size={13} /> },
     { key: "rooms", label: t.dashboard.searchRooms, icon: <DoorOpen size={13} /> },
     { key: "renders", label: t.dashboard.searchRenders, icon: <Image size={13} /> },
     { key: "lists", label: t.dashboard.searchLists, icon: <ShoppingCart size={13} /> },

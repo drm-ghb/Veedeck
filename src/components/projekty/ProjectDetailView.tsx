@@ -3,10 +3,10 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import Image from "next/image";
 import {
   ArrowLeft,
   ShoppingCart,
+  PictureInPicture,
   Copy,
   Eye,
   EyeOff,
@@ -676,12 +676,9 @@ export default function ProjectDetailView({ project }: { project: ProjectData })
                       }`}
                     >
                       {mod.icon === "renderflow" ? (
-                        <Image
-                          src="/logo-dark.svg"
-                          alt="RenderFlow"
-                          width={22}
-                          height={22}
-                          className={active ? "" : "opacity-40"}
+                        <PictureInPicture
+                          size={18}
+                          className={active ? "text-white" : "text-muted-foreground opacity-40"}
                         />
                       ) : (
                         <ShoppingCart

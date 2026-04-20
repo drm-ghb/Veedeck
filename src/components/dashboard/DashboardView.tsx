@@ -1,10 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { useState } from "react";
 import {
-  Briefcase,
+  Users,
   PictureInPicture,
   ShoppingCart,
   Package,
@@ -275,7 +274,7 @@ export default function DashboardView({
               : t.home.welcomeDefault}
           </h1>
         </div>
-        <NewProjectDialog />
+        <NewProjectDialog label={t.projekty.newClient} />
       </div>
 
       {/* Module tiles — only in dashboard mode */}
@@ -290,7 +289,7 @@ export default function DashboardView({
               className="group flex flex-col items-center gap-2 p-3 rounded-xl bg-card border border-border hover:shadow-md hover:border-gray-300 dark:hover:border-gray-600 transition-all"
             >
               <div className="w-12 h-12 rounded-xl flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform bg-primary">
-                <Briefcase size={24} className="text-white" />
+                <Users size={24} className="text-white" />
               </div>
               <p className="text-xs font-medium text-foreground text-center leading-tight">{t.nav.projects}</p>
             </Link>
@@ -301,7 +300,7 @@ export default function DashboardView({
                 className="group flex flex-col items-center gap-2 p-3 rounded-xl bg-card border border-border hover:shadow-md hover:border-gray-300 dark:hover:border-gray-600 transition-all"
               >
                 <div className="w-12 h-12 rounded-xl flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform bg-primary">
-                  <Image src="/logo-dark.svg" alt="RenderFlow" width={36} height={36} />
+                  <PictureInPicture size={30} className="text-white" />
                 </div>
                 <p className="text-xs font-medium text-foreground text-center leading-tight">{t.nav.renderflow}</p>
               </Link>
@@ -348,7 +347,7 @@ export default function DashboardView({
               className="flex items-center gap-3 p-3 rounded-xl bg-card border border-border hover:border-primary/30 hover:bg-primary/5 transition-colors"
             >
               <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                <Briefcase size={16} className="text-primary" />
+                <Users size={16} className="text-primary" />
               </div>
               <div className="min-w-0">
                 <p className="text-xl font-bold leading-none">{stats.projects}</p>
