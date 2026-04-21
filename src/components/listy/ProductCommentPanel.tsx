@@ -120,19 +120,13 @@ export default function ProductCommentPanel({
     channel.bind("new-comment", (comment: Comment) => {
       setComments((prev) => {
         if (prev.find((c) => c.id === comment.id)) return prev;
-        const next = [...prev, comment];
-        onCountChange?.(productId, next.length);
-        return next;
+        return [...prev, comment];
       });
       setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
     });
 
     channel.bind("comment-deleted", ({ id }: { id: string }) => {
-      setComments((prev) => {
-        const next = prev.filter((c) => c.id !== id);
-        onCountChange?.(productId, next.length);
-        return next;
-      });
+      setComments((prev) => prev.filter((c) => c.id !== id));
     });
 
     channel.bind("comment-reply", ({ commentId, reply }: { commentId: string; reply: Reply }) => {
