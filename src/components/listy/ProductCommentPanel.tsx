@@ -256,7 +256,7 @@ export default function ProductCommentPanel({
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4">
+      <div className="flex-1 overflow-y-auto px-3 py-3 space-y-2">
         {loading && (
           <p className="text-xs text-muted-foreground text-center py-8">{t.common.loading}</p>
         )}
@@ -268,73 +268,76 @@ export default function ProductCommentPanel({
 
         {comments.map((comment) => {
           const unread = isUnread(comment);
+          const isMine = comment.author === authorName;
           return (
-          <div
-            key={comment.id}
-            className={`space-y-1.5 rounded-lg px-2 -mx-2 transition-colors duration-1000 ${
-              showHighlights && unread ? "bg-primary/5 dark:bg-primary/10" : "bg-transparent"
-            }`}
-          >
-            {/* Comment */}
-            <div className="group flex gap-2 pt-1.5">
-              <Avatar name={comment.author} logoUrl={comment.author === designerName ? designerLogoUrl : undefined} />
-              <div className="flex-1 min-w-0">
-                <div className="flex items-baseline gap-2 flex-wrap">
-                  <span className="text-xs font-semibold truncate">{comment.author}</span>
-                  <span className="text-[10px] text-muted-foreground shrink-0">{formatDate(comment.createdAt)}</span>
-                  {showHighlights && unread && (
-                    <span className="text-[9px] font-semibold text-primary bg-primary/10 dark:bg-primary/20 px-1 py-0.5 rounded leading-none transition-opacity duration-1000">
-                      {t.share.newBadge}
-                    </span>
-                  )}
-                </div>
-                <p className="text-sm text-foreground mt-0.5 break-words">{comment.content}</p>
-                <div className="flex items-center gap-2 mt-1">
-                  <button
-                    onClick={() => { setReplyingTo(replyingTo === comment.id ? null : comment.id); setReplyText(""); }}
-                    className="text-[10px] text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    {t.share.reply}
-                  </button>
-                  {canDelete(comment.author) && (
-                    <button
-                      onClick={() => handleDelete(comment.id)}
-                      className="text-[10px] text-muted-foreground hover:text-destructive transition-colors opacity-0 group-hover:opacity-100"
-                    >
-                      <Trash2 size={10} />
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Replies */}
-            {comment.replies.map((reply) => (
-              <div key={reply.id} className="group flex gap-2 pl-4 border-l-2 border-border ml-3">
-                <Avatar name={reply.author} logoUrl={reply.author === designerName ? designerLogoUrl : undefined} />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-xs font-semibold truncate">{reply.author}</span>
-                    <span className="text-[10px] text-muted-foreground shrink-0">{formatDate(reply.createdAt)}</span>
+            <div key={comment.id} className={`flex flex-col gap-0.5 ${isMine ? "items-end" : "items-start"}`}>
+              {/* Bubble */}
+              <div className={`flex gap-2 items-end max-w-[80%] ${isMine ? "flex-row-reverse" : "flex-row"}`}>
+                {!isMine && <Avatar name={comment.author} logoUrl={comment.author === designerName ? designerLogoUrl : undefined} />}
+                <div className="flex flex-col gap-0.5">
+                  {!isMine && <span className="text-[10px] font-semibold text-muted-foreground px-1">{comment.author}</span>}
+                  <div className={`group relative px-3 py-2 text-sm break-words leading-snug ${
+                    isMine
+                      ? "bg-primary text-primary-foreground rounded-2xl rounded-br-sm"
+                      : "bg-muted text-foreground rounded-2xl rounded-bl-sm"
+                  } ${showHighlights && unread ? "ring-2 ring-offset-1 ring-primary/40" : ""}`}>
+                    {comment.content}
+                    {showHighlights && unread && (
+                      <span className="ml-1.5 text-[9px] font-semibold opacity-70">{t.share.newBadge}</span>
+                    )}
+                    {/* Hover actions */}
+                    <div className={`absolute ${isMine ? "right-0" : "left-0"} -top-6 hidden group-hover:flex items-center gap-1.5 bg-popover border border-border rounded-md shadow-sm px-2 py-1 whitespace-nowrap`}>
+                      <button
+                        onClick={() => { setReplyingTo(replyingTo === comment.id ? null : comment.id); setReplyText(""); }}
+                        className="text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+                      >{t.share.reply}</button>
+                      {canDelete(comment.author) && (
+                        <button onClick={() => handleDelete(comment.id)} className="text-muted-foreground hover:text-destructive transition-colors">
+                          <Trash2 size={10} />
+                        </button>
+                      )}
+                    </div>
                   </div>
-                  <p className="text-sm text-foreground mt-0.5 break-words">{reply.content}</p>
-                  {canDelete(reply.author) && (
-                    <button
-                      onClick={() => handleDeleteReply(comment.id, reply.id)}
-                      className="text-[10px] text-muted-foreground hover:text-destructive transition-colors opacity-0 group-hover:opacity-100 mt-1"
-                    >
-                      <Trash2 size={10} />
-                    </button>
-                  )}
+                  <span className={`text-[9px] text-muted-foreground px-1 ${isMine ? "text-right" : "text-left"}`}>{formatDate(comment.createdAt)}</span>
                 </div>
               </div>
-            ))}
 
-            {/* Reply input */}
-            {replyingTo === comment.id && (
-              <div className="pl-4 ml-3 flex gap-1.5">
-                <CornerDownRight size={12} className="text-muted-foreground mt-2 shrink-0" />
-                <div className="flex-1 flex gap-1">
+              {/* Replies */}
+              {comment.replies.length > 0 && (
+                <div className={`flex flex-col gap-1 mt-0.5 w-full ${isMine ? "items-end pr-9" : "items-start pl-9"}`}>
+                  {comment.replies.map((reply) => {
+                    const isReplyMine = reply.author === authorName;
+                    return (
+                      <div key={reply.id} className={`flex gap-1.5 items-end max-w-[75%] ${isReplyMine ? "flex-row-reverse" : "flex-row"}`}>
+                        {!isReplyMine && <Avatar name={reply.author} logoUrl={reply.author === designerName ? designerLogoUrl : undefined} />}
+                        <div className="flex flex-col gap-0.5">
+                          {!isReplyMine && <span className="text-[10px] font-semibold text-muted-foreground px-1">{reply.author}</span>}
+                          <div className={`group relative px-2.5 py-1.5 text-xs break-words leading-snug ${
+                            isReplyMine
+                              ? "bg-primary/80 text-primary-foreground rounded-xl rounded-br-sm"
+                              : "bg-muted/80 text-foreground rounded-xl rounded-bl-sm"
+                          }`}>
+                            {reply.content}
+                            {canDelete(reply.author) && (
+                              <button
+                                onClick={() => handleDeleteReply(comment.id, reply.id)}
+                                className={`absolute ${isReplyMine ? "left-0 -translate-x-5" : "right-0 translate-x-5"} top-1 hidden group-hover:block text-muted-foreground hover:text-destructive transition-colors`}
+                              >
+                                <Trash2 size={10} />
+                              </button>
+                            )}
+                          </div>
+                          <span className={`text-[9px] text-muted-foreground px-1 ${isReplyMine ? "text-right" : "text-left"}`}>{formatDate(reply.createdAt)}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Reply input */}
+              {replyingTo === comment.id && (
+                <div className={`flex gap-1 mt-1 w-[85%] ${isMine ? "self-end flex-row-reverse" : "self-start pl-9"}`}>
                   <textarea
                     value={replyText}
                     onChange={(e) => setReplyText(e.target.value)}
@@ -350,14 +353,13 @@ export default function ProductCommentPanel({
                   <button
                     onClick={() => handleSendReply(comment.id)}
                     disabled={!replyText.trim() || sendingReply}
-                    className="w-7 h-7 rounded-lg bg-primary text-white flex items-center justify-center disabled:opacity-40 hover:bg-primary/80 transition-colors shrink-0 mt-0.5"
+                    className="w-7 h-7 rounded-lg bg-primary text-white flex items-center justify-center disabled:opacity-40 hover:bg-primary/80 transition-colors shrink-0 self-end"
                   >
                     <Send size={11} />
                   </button>
                 </div>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
           );
         })}
         <div ref={bottomRef} />

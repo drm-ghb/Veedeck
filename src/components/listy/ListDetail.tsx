@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChevronLeft, ChevronDown, ChevronUp, Plus, ExternalLink, Minus, MoreHorizontal, Pencil, Trash2, GripVertical, FileDown, Sheet, MessageSquare, ArrowUpDown, Eye, EyeOff, Check, X, RotateCcw, FolderInput, Wallet, AlertCircle, DollarSign } from "lucide-react";
@@ -261,6 +262,7 @@ function ProductRow({
   const [saving, setSaving] = useState(false);
   const [lightbox, setLightbox] = useState(false);
   const [categoryMenuOpen, setCategoryMenuOpen] = useState(false);
+  const [categoryMenuPos, setCategoryMenuPos] = useState({ top: 0, left: 0 });
   const [editingField, setEditingField] = useState<string | null>(null);
   const [editingValue, setEditingValue] = useState("");
 
@@ -354,7 +356,7 @@ function ProductRow({
 
   const image = (
     <div
-      className={`w-full h-full shrink-0 rounded-xl bg-muted flex items-center justify-center overflow-hidden ${product.imageUrl ? "cursor-zoom-in" : ""}`}
+      className={`w-full h-full shrink-0 rounded-xl bg-white flex items-center justify-center overflow-hidden ${product.imageUrl ? "cursor-zoom-in" : ""}`}
       onClick={() => product.imageUrl && setLightbox(true)}
     >
       {product.imageUrl ? (
@@ -388,9 +390,36 @@ function ProductRow({
     </div>
   );
 
+  const categoryPortal = categoryMenuOpen ? createPortal(
+    <>
+      <div className="fixed inset-0 z-[200]" onClick={() => setCategoryMenuOpen(false)} />
+      <div className="fixed z-[201] bg-popover border border-border rounded-lg shadow-lg py-1 min-w-[160px]" style={{ top: categoryMenuPos.top, left: categoryMenuPos.left }}>
+        <button
+          onClick={() => { onFieldUpdate(product.id, "category", null); setCategoryMenuOpen(false); }}
+          className={`w-full text-left px-3 py-1.5 text-xs hover:bg-muted transition-colors ${!product.category ? "text-primary font-medium" : "text-muted-foreground"}`}
+        >
+          Brak kategorii
+        </button>
+        {allCategories.map((cat) => (
+          <button
+            key={cat.value}
+            onClick={() => { onFieldUpdate(product.id, "category", cat.value); setCategoryMenuOpen(false); }}
+            className={`w-full text-left px-3 py-1.5 text-xs hover:bg-muted transition-colors flex items-center gap-2 ${product.category === cat.value ? "text-primary font-medium" : "text-foreground"}`}
+          >
+            {product.category === cat.value && <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />}
+            {product.category !== cat.value && <span className="w-1.5 h-1.5 shrink-0" />}
+            {cat.label}
+          </button>
+        ))}
+      </div>
+    </>,
+    document.body
+  ) : null;
+
   return (
     <div className={`hover:bg-muted/30 transition-colors ${!last ? "border-b border-border" : ""} ${product.hidden ? "opacity-40" : ""}`}>
       {lightboxEl}
+      {categoryPortal}
 
       {/* ── DESKTOP layout (md+) — original ── */}
       <div className="hidden md:flex items-center gap-2 px-4 py-4">
@@ -414,39 +443,13 @@ function ProductRow({
               <p className="font-medium text-sm text-foreground truncate">{product.name}</p>
             )}
             {/* Inline category badge */}
-            <div className="relative">
-              <button
-                onClick={() => setCategoryMenuOpen((v) => !v)}
-                className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium transition-colors shrink-0 ${product.category ? "bg-primary/8 text-primary dark:bg-primary/20 hover:bg-primary/15" : "border border-dashed border-border text-muted-foreground hover:border-primary/40 hover:text-primary"}`}
-                title="Zmień kategorię"
-              >
-                {product.category ? getCategoryLabel(product.category, allCategories) : "+ kategoria"}
-              </button>
-              {categoryMenuOpen && (
-                <>
-                  <div className="fixed inset-0 z-20" onClick={() => setCategoryMenuOpen(false)} />
-                  <div className="absolute left-0 top-full mt-1 z-30 bg-popover border border-border rounded-lg shadow-lg py-1 min-w-[160px]">
-                    <button
-                      onClick={() => { onFieldUpdate(product.id, "category", null); setCategoryMenuOpen(false); }}
-                      className={`w-full text-left px-3 py-1.5 text-xs hover:bg-muted transition-colors ${!product.category ? "text-primary font-medium" : "text-muted-foreground"}`}
-                    >
-                      Brak kategorii
-                    </button>
-                    {allCategories.map((cat) => (
-                      <button
-                        key={cat.value}
-                        onClick={() => { onFieldUpdate(product.id, "category", cat.value); setCategoryMenuOpen(false); }}
-                        className={`w-full text-left px-3 py-1.5 text-xs hover:bg-muted transition-colors flex items-center gap-2 ${product.category === cat.value ? "text-primary font-medium" : "text-foreground"}`}
-                      >
-                        {product.category === cat.value && <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />}
-                        {product.category !== cat.value && <span className="w-1.5 h-1.5 shrink-0" />}
-                        {cat.label}
-                      </button>
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
+            <button
+              onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); setCategoryMenuPos({ top: r.bottom + 4, left: r.left }); setCategoryMenuOpen((v) => !v); }}
+              className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium transition-colors shrink-0 ${product.category ? "bg-primary/8 text-primary dark:bg-primary/20 hover:bg-primary/15" : "border border-dashed border-border text-muted-foreground hover:border-primary/40 hover:text-primary"}`}
+              title="Zmień kategorię"
+            >
+              {product.category ? getCategoryLabel(product.category, allCategories) : "+ kategoria"}
+            </button>
           </div>
           {/* Inline-editable fields */}
           {(["manufacturer", "supplier", "color", "dimensions", "deliveryTime", "catalogNumber"] as const).map((field) => {
@@ -506,22 +509,47 @@ function ProductRow({
             <span className="w-6 text-center text-sm font-medium tabular-nums">{qty}</span>
             <button onClick={() => updateQty(qty + 1)} disabled={saving} className="w-6 h-6 rounded flex items-center justify-center border border-border text-muted-foreground hover:text-foreground hover:border-foreground/30 disabled:opacity-30 transition-colors"><Plus size={11} /></button>
           </div>
-          {totalPrice !== null && (
-            <div className="text-right min-w-[72px]">
-              <div className="flex items-center justify-end gap-1">
-                <p className="text-sm font-semibold text-foreground tabular-nums">{formatPriceNum(totalPrice)} {currency}</p>
-                {product.productId && (
-                  <div className="relative group">
-                    <AlertCircle size={15} className="text-red-500 cursor-default shrink-0" />
-                    <div className="absolute bottom-full right-0 mb-1.5 px-2 py-1 bg-popover text-popover-foreground text-xs rounded shadow-md whitespace-nowrap border border-border opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
-                      Sprawdź aktualną cenę produktu!
+          <div className="text-right min-w-[72px]">
+            {editingField === "price" ? (
+              <input
+                autoFocus
+                value={editingValue}
+                onChange={(e) => setEditingValue(e.target.value)}
+                onBlur={saveFieldEdit}
+                onKeyDown={(e) => { if (e.key === "Enter") saveFieldEdit(); if (e.key === "Escape") setEditingField(null); }}
+                className="text-sm text-right bg-transparent border-b border-primary/40 focus:outline-none focus:border-primary px-0 w-full"
+              />
+            ) : totalPrice !== null ? (
+              <>
+                <div className="flex items-center justify-end gap-1">
+                  <button
+                    onClick={() => startFieldEdit("price", product.price)}
+                    className="text-sm font-semibold text-foreground tabular-nums hover:text-primary transition-colors"
+                    title="Edytuj cenę"
+                  >
+                    {formatPriceNum(totalPrice)} {currency}
+                  </button>
+                  {product.productId && (
+                    <div className="relative group">
+                      <AlertCircle size={15} className="text-red-500 cursor-default shrink-0" />
+                      <div className="absolute bottom-full right-0 mb-1.5 px-2 py-1 bg-popover text-popover-foreground text-xs rounded shadow-md whitespace-nowrap border border-border opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                        Sprawdź aktualną cenę produktu!
+                      </div>
                     </div>
-                  </div>
-                )}
-              </div>
-              {qty > 1 && unitPrice !== null && <p className="text-xs text-muted-foreground tabular-nums">{formatPriceNum(unitPrice)} / szt.</p>}
-            </div>
-          )}
+                  )}
+                </div>
+                {qty > 1 && unitPrice !== null && <p className="text-xs text-muted-foreground tabular-nums">{formatPriceNum(unitPrice)} / szt.</p>}
+              </>
+            ) : (
+              <button
+                onClick={() => startFieldEdit("price", null)}
+                className="text-xs text-muted-foreground/40 hover:text-muted-foreground transition-colors"
+                title="Dodaj cenę"
+              >
+                + Cena
+              </button>
+            )}
+          </div>
           {product.url ? (
             <a href={product.url} target="_blank" rel="noopener noreferrer" className="w-7 h-7 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors" title="Otwórz produkt"><ExternalLink size={14} /></a>
           ) : <span className="w-7" />}
@@ -535,7 +563,7 @@ function ProductRow({
 
       {/* ── MOBILE layout (< md) — compact ── */}
       <div className="md:hidden flex items-start gap-2 px-3 py-2.5">
-        <div className="w-20 h-20 shrink-0 rounded-lg overflow-hidden bg-muted flex items-center justify-center">
+        <div className="w-20 h-20 shrink-0 rounded-lg overflow-hidden bg-white flex items-center justify-center">
           {product.imageUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={product.imageUrl} alt={product.name} className="w-full h-full object-contain cursor-pointer" onClick={() => product.imageUrl && setLightbox(true)} />
@@ -562,11 +590,24 @@ function ProductRow({
           </div>
           {/* Row 2: price + category + approval */}
           <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-            {totalPrice !== null && (
+            {editingField === "price" ? (
+              <input
+                autoFocus
+                value={editingValue}
+                onChange={(e) => setEditingValue(e.target.value)}
+                onBlur={saveFieldEdit}
+                onKeyDown={(e) => { if (e.key === "Enter") saveFieldEdit(); if (e.key === "Escape") setEditingField(null); }}
+                className="text-sm bg-transparent border-b border-primary/40 focus:outline-none focus:border-primary px-0 w-24"
+              />
+            ) : totalPrice !== null ? (
               <span className="inline-flex items-center gap-1">
-                <span className="text-sm font-semibold text-foreground tabular-nums">
+                <button
+                  onClick={() => startFieldEdit("price", product.price)}
+                  className="text-sm font-semibold text-foreground tabular-nums hover:text-primary transition-colors"
+                  title="Edytuj cenę"
+                >
                   {formatPriceNum(totalPrice)} {currency}
-                </span>
+                </button>
                 {product.productId && (
                   <div className="relative group">
                     <AlertCircle size={14} className="text-red-500 cursor-default shrink-0" />
@@ -576,9 +617,17 @@ function ProductRow({
                   </div>
                 )}
               </span>
+            ) : (
+              <button
+                onClick={() => startFieldEdit("price", null)}
+                className="text-xs text-muted-foreground/40 hover:text-muted-foreground transition-colors"
+                title="Dodaj cenę"
+              >
+                + Cena
+              </button>
             )}
             <button
-              onClick={() => setCategoryMenuOpen((v) => !v)}
+              onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); setCategoryMenuPos({ top: r.bottom + 4, left: r.left }); setCategoryMenuOpen((v) => !v); }}
               className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium transition-colors shrink-0 ${product.category ? "bg-primary/8 text-primary dark:bg-primary/20" : "border border-dashed border-border text-muted-foreground"}`}
             >
               {product.category ? getCategoryLabel(product.category, allCategories) : "+ kat."}
@@ -798,6 +847,7 @@ export default function ListDetail({ list, designerName, designerEmail, designer
   }
 
   async function handleProductFieldUpdate(sectionId: string, productId: string, field: string, value: string | null) {
+    const scrollY = window.scrollY;
     setSections((prev) =>
       prev.map((s) =>
         s.id === sectionId
@@ -805,6 +855,7 @@ export default function ListDetail({ list, designerName, designerEmail, designer
           : s
       )
     );
+    requestAnimationFrame(() => window.scrollTo({ top: scrollY, behavior: "instant" }));
     try {
       const res = await fetch(`/api/lists/${list.id}/sections/${sectionId}/products/${productId}`, {
         method: "PATCH",
@@ -1985,7 +2036,9 @@ export default function ListDetail({ list, designerName, designerEmail, designer
                             title="Sortuj sekcję"
                           >
                             <ArrowUpDown size={11} />
-                            {SORT_OPTIONS.find((o) => o.value === getSortBy(section.sortBy))?.label ?? "Ręcznie"}
+                            <span className="hidden sm:inline">
+                              {SORT_OPTIONS.find((o) => o.value === getSortBy(section.sortBy))?.label ?? "Ręcznie"}
+                            </span>
                           </button>
                           {sortDropdownOpen === section.id && (
                             <>
