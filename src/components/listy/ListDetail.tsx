@@ -1837,7 +1837,8 @@ export default function ListDetail({ list, designerName, designerEmail, designer
   }
 
   return (
-    <div className="md:max-w-[75%] md:mx-auto">
+    <div>
+      <div className="md:max-w-[75%] md:mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between gap-2 mb-5 min-w-0">
         <div className="flex items-center gap-2 min-w-0">
@@ -1861,9 +1862,12 @@ export default function ListDetail({ list, designerName, designerEmail, designer
           hiddenModules={list.project?.hiddenModules ?? []}
         />
       </div>
+      </div>
 
       {/* Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-2 mb-6 p-2 bg-muted/40 border border-border rounded-xl">
+      <div className="mb-6 md:mb-0 md:sticky md:top-0 md:z-20 md:-mx-6 md:px-6 md:bg-background md:pb-3 md:pt-2">
+        <div className="md:max-w-[75%] md:mx-auto">
+          <div className="flex flex-wrap items-center justify-between gap-2 p-2 bg-muted/40 border border-border rounded-xl shadow-sm">
         <div className="flex items-center gap-1.5 flex-wrap">
           <Button onClick={openAddSection} className="flex items-center gap-1.5 h-8 px-3 text-xs">
             <Plus size={13} />
@@ -1934,8 +1938,11 @@ export default function ListDetail({ list, designerName, designerEmail, designer
             </div>
           </div>
         )}
+          </div>
+        </div>
       </div>
 
+      <div className="md:max-w-[75%] md:mx-auto">
       {/* Add section inline form */}
       {addingSection && (
         <form onSubmit={handleAddSection} className="flex gap-2 mb-6">
@@ -2378,6 +2385,7 @@ export default function ListDetail({ list, designerName, designerEmail, designer
           </button>
         </div>
       )}
+      </div>
     </div>
   );
 }
