@@ -595,7 +595,7 @@ export default function SharePage() {
               discussionId={project.discussionId}
               showRenderFlow={!project.hiddenModules.includes("renderflow")}
               showListy={!project.hiddenModules.includes("listy")}
-              showDyskusje={project.hasDiscussion}
+              showDyskusje={!project.hiddenModules.includes("dyskusje")}
               shoppingLists={project.shoppingLists}
               onRenderFlowClick={() => setView("rooms")}
             />
@@ -866,7 +866,7 @@ export default function SharePage() {
             discussionId={project.discussionId}
             showRenderFlow={!project.hiddenModules.includes("renderflow")}
             showListy={!project.hiddenModules.includes("listy")}
-            showDyskusje={project.hasDiscussion}
+            showDyskusje={!project.hiddenModules.includes("dyskusje")}
             shoppingLists={project.shoppingLists}
             onRenderFlowClick={() => setView("rooms")}
           />

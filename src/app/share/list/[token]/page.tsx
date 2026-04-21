@@ -187,6 +187,7 @@ export default async function PublicListPage({ params }: { params: Promise<{ tok
             discussionId={list.project?.discussion?.id ?? null}
             showRenderFlow={showRenderFlow && hasRenders}
             showListy={showListy}
+            showDyskusje={!list.project?.hiddenModules.includes("dyskusje")}
             shoppingLists={list.project?.shoppingLists ?? []}
           />
           {mainContent}

@@ -107,10 +107,12 @@ function populateSectionSelector(listId, defaultSectionId = null) {
 selectList.addEventListener("change", () => {
   populateSectionSelector(selectList.value);
   chrome.storage.local.set({ lastListId: selectList.value, lastSectionId: "" });
+  checkDuplicate();
 });
 
 selectSection.addEventListener("change", () => {
   chrome.storage.local.set({ lastSectionId: selectSection.value });
+  checkDuplicate();
 });
 
 // ── Recent products ───────────────────────────────────────────────────────────
@@ -161,6 +163,8 @@ function displayProduct(p) {
   extractStatus.textContent = "✓ Wykryto produkt automatycznie";
   extractStatus.className = "extract-status success";
 
+  checkDuplicate();
+
   if (p.image) {
     $("product-img").src = p.image;
     $("product-img").style.display = "block";
@@ -204,6 +208,29 @@ function getManualProduct() {
     store: $("manual-store").value.trim(),
     catalogNumber: null,
   };
+}
+
+// ── Duplicate check ───────────────────────────────────────────────────────────
+function checkDuplicate() {
+  const sectionId = selectSection.value;
+  const listId    = selectList.value;
+  if (!sectionId || !listId) return;
+
+  const list    = lists.find((l) => l.id === listId);
+  const section = list?.sections.find((s) => s.id === sectionId);
+  if (!section) return;
+
+  const isManual = productManual.style.display !== "none";
+  const p = isManual ? getManualProduct() : product;
+  if (!p?.name) return;
+
+  const pUrl = p.url?.trim();
+  const isDuplicate = pUrl
+    ? section.products.some((sp) => sp.url === pUrl)
+    : section.products.some((sp) => sp.name.toLowerCase() === p.name.trim().toLowerCase());
+
+  btnAdd.disabled  = isDuplicate;
+  btnAdd.textContent = isDuplicate ? "Ten produkt jest w tej sekcji" : "Dodaj produkt do listy";
 }
 
 // ── Add product ───────────────────────────────────────────────────────────────
@@ -252,20 +279,30 @@ btnAdd.addEventListener("click", async () => {
     renderRecent();
     $("input-comment").value = "";
 
+    // Update local section data so duplicate check reflects the addition
+    const addedList    = lists.find((l) => l.id === listId);
+    const addedSection = addedList?.sections.find((s) => s.id === sectionId);
+    if (addedSection) {
+      addedSection.products.push({ url: p.url?.trim() || null, name: p.name });
+    }
+
     // Notify background to flush pending products too
     chrome.runtime.sendMessage({ type: "FLUSH_PENDING", appUrl, apiKey });
 
   } catch (err) {
     log("Add product error:", err);
 
-    // Save as pending for when back online
-    chrome.runtime.sendMessage({ type: "SAVE_PENDING", product: {
-      ...p, listId, sectionId, comment, added_at: Date.now()
-    }});
-    showToast("Nie udało się dodać. Zapisano lokalnie — spróbuj ponownie.", "error");
+    // Save as pending for when back online (skip for known duplicates)
+    if (!err.message?.includes("już istnieje")) {
+      chrome.runtime.sendMessage({ type: "SAVE_PENDING", product: {
+        ...p, listId, sectionId, comment, added_at: Date.now()
+      }});
+      showToast("Nie udało się dodać. Zapisano lokalnie — spróbuj ponownie.", "error");
+    } else {
+      showToast("Ten produkt jest już w tej sekcji", "error");
+    }
   } finally {
-    btnAdd.disabled = false;
-    btnAdd.textContent = "Dodaj produkt do listy";
+    checkDuplicate();
   }
 });
 
@@ -312,6 +349,17 @@ btnOpenApp.addEventListener("click", () => {
   chrome.tabs.create({ url: target });
 });
 
+// ── Close button ─────────────────────────────────────────────────────────────
+$("btn-close").addEventListener("click", () => {
+  chrome.tabs.getCurrent((tab) => {
+    if (tab) {
+      chrome.tabs.remove(tab.id);
+    } else {
+      window.close(); // fallback: normalny popup (nie karta)
+    }
+  });
+});
+
 // ── Settings button — go back to setup ───────────────────────────────────────
 $("btn-settings").addEventListener("click", () => {
   inputAppUrl.value = appUrl;
@@ -340,6 +388,10 @@ async function loadMainScreen(user) {
     showScreen("setup");
   }
 }
+
+// ── Manual form duplicate check on input ──────────────────────────────────────
+$("manual-name").addEventListener("input", checkDuplicate);
+$("manual-url").addEventListener("input", checkDuplicate);
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 (async function init() {

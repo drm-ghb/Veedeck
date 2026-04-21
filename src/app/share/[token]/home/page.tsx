@@ -27,7 +27,7 @@ export default async function ProjectHomePage({ params }: { params: Promise<{ to
   const hasRenders = project.renders.length > 0;
   const showRenderFlow = !project.hiddenModules.includes("renderflow");
   const showListy = !project.hiddenModules.includes("listy");
-  const hasDyskusje = !!project.discussion;
+  const hasDyskusje = !project.hiddenModules.includes("dyskusje");
   const isSidebar = project.user.navMode === "sidebar";
   const welcomeMessage = project.user.clientWelcomeMessage?.trim() || null;
   const greeting = project.clientName ? `Witamy, ${project.clientName}!` : "Witaj w projekcie!";

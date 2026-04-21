@@ -121,7 +121,9 @@ export default function ShareSidebar({
       });
     }
     const channel = pusherRef.current.subscribe(`discussion-${discussionId}`);
-    channel.bind("new-message", () => {
+    channel.bind("new-message", (msg: { userId?: string | null }) => {
+      // Only count designer messages (userId set), ignore client's own messages
+      if (!msg.userId) return;
       if (!isDyskusjeActiveRef.current) {
         setDiscussionUnread((prev) => {
           const next = prev + 1;
