@@ -46,6 +46,7 @@ interface Product {
   order: number;
   commentCount: number;
   approval: string | null;
+  note: string | null;
 }
 
 interface Section {
@@ -295,6 +296,7 @@ export default function ShareListClient({
                           {product.dimensions && <span className="text-xs text-muted-foreground">Wymiar: {product.dimensions}</span>}
                           {product.deliveryTime && <span className="text-xs text-muted-foreground">Dostawa: {product.deliveryTime}</span>}
                         </div>
+                        {product.note && <p className="text-xs text-muted-foreground italic mt-1">📝 {product.note}</p>}
                       </div>
                       <div className="flex items-center gap-3 shrink-0">
                         <div className="flex items-center gap-1.5">
@@ -329,6 +331,7 @@ export default function ShareListClient({
                           <div className="min-w-0 flex-1">
                             <p className="font-medium text-sm text-foreground leading-tight truncate">{product.name}</p>
                             {product.manufacturer && <p className="text-xs text-muted-foreground truncate">{product.manufacturer}</p>}
+                            {product.note && <p className="text-xs text-muted-foreground italic truncate">📝 {product.note}</p>}
                           </div>
                           <div className="flex items-center gap-0.5 shrink-0 -mt-0.5">
                             {approvalButtons}

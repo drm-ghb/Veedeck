@@ -86,6 +86,7 @@ interface Product {
   productId: string | null;
   supplier: string | null;
   catalogNumber: string | null;
+  note: string | null;
   commentCount?: number;
 }
 
@@ -472,11 +473,11 @@ function ProductRow({
             }
             if (!val && editingField !== field) return null;
             return (
-              <div key={field} className="group flex items-center gap-1 mt-0.5">
+              <div key={field} className="group/field flex items-center gap-1 mt-0.5">
                 <p className="text-xs text-muted-foreground">{labels[field]}: {val}</p>
                 <button
                   onClick={() => startFieldEdit(field, val)}
-                  className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground"
+                  className="opacity-0 group-hover/field:opacity-100 transition-opacity text-muted-foreground hover:text-foreground"
                   title={`Edytuj ${labels[field].toLowerCase()}`}
                 >
                   <Pencil size={10} />
@@ -484,6 +485,40 @@ function ProductRow({
               </div>
             );
           })}
+          {/* Note field */}
+          {editingField === "note" ? (
+            <div className="flex items-start gap-1 mt-1">
+              <span className="text-xs text-muted-foreground shrink-0 mt-0.5">Notatka:</span>
+              <textarea
+                autoFocus
+                value={editingValue}
+                onChange={(e) => setEditingValue(e.target.value)}
+                onBlur={saveFieldEdit}
+                onKeyDown={(e) => { if (e.key === "Enter" && e.ctrlKey) saveFieldEdit(); if (e.key === "Escape") setEditingField(null); }}
+                rows={2}
+                className="text-xs bg-transparent border border-primary/40 rounded px-1 focus:outline-none focus:border-primary min-w-0 flex-1 resize-none"
+              />
+            </div>
+          ) : product.note ? (
+            <div className="group/note flex items-start gap-1 mt-1">
+              <p className="text-xs text-muted-foreground italic flex-1">📝 {product.note}</p>
+              <button
+                onClick={() => startFieldEdit("note", product.note)}
+                className="opacity-0 group-hover/note:opacity-100 transition-opacity text-muted-foreground hover:text-foreground shrink-0"
+                title="Edytuj notatkę"
+              >
+                <Pencil size={10} />
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => startFieldEdit("note", null)}
+              className="opacity-0 group-hover:opacity-100 text-xs text-muted-foreground/50 hover:text-muted-foreground transition-opacity block mt-0.5"
+              title="Dodaj notatkę"
+            >
+              + Notatka
+            </button>
+          )}
           {/* Add empty fields on hover */}
           {(["manufacturer", "supplier", "color", "dimensions", "deliveryTime", "catalogNumber"] as const).map((field) => {
             const val = product[field] as string | null;
@@ -585,6 +620,7 @@ function ProductRow({
               {product.manufacturer && <p className="text-xs text-muted-foreground truncate">Producent: {product.manufacturer}</p>}
               {product.supplier && <p className="text-xs text-muted-foreground truncate">Dostawca: {product.supplier}</p>}
               {product.color && <p className="text-xs text-muted-foreground truncate">Kolor: {product.color}</p>}
+              {product.note && <p className="text-xs text-muted-foreground italic truncate">📝 {product.note}</p>}
             </div>
             <div className="shrink-0 -mt-0.5">{dropdown}</div>
           </div>

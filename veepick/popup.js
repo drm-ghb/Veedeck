@@ -269,7 +269,7 @@ btnAdd.addEventListener("click", async () => {
         price: p.price ?? "",
         supplier: p.store ?? "",
         quantity: 1,
-        description: comment || null,
+        note: comment || null,
         catalogNumber: p.catalogNumber ?? null,
       }),
     });

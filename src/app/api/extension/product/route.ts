@@ -28,6 +28,7 @@ export async function POST(req: NextRequest) {
     quantity,
     description,
     catalogNumber,
+    note,
   } = body;
 
   if (!name?.trim()) return NextResponse.json({ error: "Nazwa jest wymagana" }, { status: 400 });
@@ -100,6 +101,7 @@ export async function POST(req: NextRequest) {
       quantity: typeof quantity === "number" && quantity >= 1 ? quantity : 1,
       description: description || null,
       catalogNumber: catalogNumber || null,
+      note: note || null,
       sectionId,
       order: count,
     },

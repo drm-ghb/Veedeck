@@ -89,7 +89,7 @@ export async function PATCH(
   }
 
   // Inline field updates (single field patches from product tile)
-  const patchableFields = ["category", "color", "dimensions", "manufacturer", "supplier", "deliveryTime", "catalogNumber", "price", "name"] as const;
+  const patchableFields = ["category", "color", "dimensions", "manufacturer", "supplier", "deliveryTime", "catalogNumber", "price", "name", "note"] as const;
   const patchField = patchableFields.find((f) => body[f] !== undefined);
   if (patchField) {
     try {
@@ -115,7 +115,7 @@ export async function PUT(
 
   const { id, sectionId, productId } = await params;
   const body = await req.json();
-  const { name, url, imageUrl, price, manufacturer, color, dimensions, description, deliveryTime, category, supplier, catalogNumber } = body;
+  const { name, url, imageUrl, price, manufacturer, color, dimensions, description, deliveryTime, category, supplier, catalogNumber, note } = body;
 
   if (!name?.trim()) return NextResponse.json({ error: "Nazwa jest wymagana" }, { status: 400 });
 
@@ -135,6 +135,7 @@ export async function PUT(
     category: category || null,
     supplier: supplier || null,
     catalogNumber: catalogNumber || null,
+    note: note || null,
   };
 
   const updated = await prisma.listProduct.update({

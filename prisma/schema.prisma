@@ -244,6 +244,7 @@ model ListProduct {
   productId     String?
   supplier      String?
   catalogNumber String?
+  note          String?
   section      ListSection          @relation(fields: [sectionId], references: [id], onDelete: Cascade)
   product      Product?             @relation(fields: [productId], references: [id], onDelete: SetNull)
   comments     ListProductComment[]

@@ -88,6 +88,7 @@ export default async function PublicListPage({ params }: { params: Promise<{ tok
     order: p.order,
     commentCount: p._count.comments,
     approval: p.approval,
+    note: p.note,
   });
 
   // Separate unsorted products — they will be shown as "Pozostałe" at the bottom
