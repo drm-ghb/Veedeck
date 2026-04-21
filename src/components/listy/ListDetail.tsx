@@ -1837,7 +1837,7 @@ export default function ListDetail({ list, designerName, designerEmail, designer
   }
 
   return (
-    <div>
+    <div className="md:max-w-[75%] md:mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between gap-2 mb-5 min-w-0">
         <div className="flex items-center gap-2 min-w-0">

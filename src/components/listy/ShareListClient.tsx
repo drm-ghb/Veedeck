@@ -214,7 +214,7 @@ export default function ShareListClient({
   const homeHref = projectShareToken ? `/share/${projectShareToken}/home` : undefined;
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-10 md:max-w-[75%] md:mx-auto">
       {sections.length === 0 && (
         <p className="text-center text-muted-foreground py-16">Lista jest pusta.</p>
       )}
