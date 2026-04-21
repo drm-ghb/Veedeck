@@ -735,6 +735,12 @@ function sortProducts(products: Product[], sortBy: string, categoryOrder: string
 
 export default function ListDetail({ list, designerName, designerEmail, designerLogoUrl, initialOpenProductId, categoryOrder, customCategories }: ListDetailProps & { designerName?: string; designerEmail?: string; designerLogoUrl?: string; initialOpenProductId?: string }) {
   const [sections, setSections] = useState<Section[]>(list.sections);
+
+  // Sync sections from server props after router.refresh() (e.g. product added via extension)
+  useEffect(() => {
+    setSections(list.sections);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [list.sections]);
   const [budget, setBudget] = useState<number | null>(list.budget);
   const [hidePrices, setHidePrices] = useState(list.hidePrices);
   const allCategories = [...BUILT_IN_CATEGORIES, ...customCategories.map((c) => ({ value: c, label: c }))];
