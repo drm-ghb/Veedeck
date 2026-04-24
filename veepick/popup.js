@@ -1,293 +1,347 @@
-// ── Debug helper ──────────────────────────────────────────────────────────────
-const DEBUG = true;
-const log = (...args) => DEBUG && console.log("[veepick]", ...args);
-
-// ── State ─────────────────────────────────────────────────────────────────────
-let appUrl = "";
+// === State ===
 let apiKey = "";
-let lists = [];     // { id, name, sections: [{id, name}] }
-let product = null; // extracted or manual product data
+let baseUrl = "";
+let lists = [];
+let productData = {};
 
-// ── DOM refs ──────────────────────────────────────────────────────────────────
+// === DOM helpers ===
 const $ = (id) => document.getElementById(id);
 
-// Screens
-const screenLoading = $("screen-loading");
-const screenSetup   = $("screen-setup");
-const screenMain    = $("screen-main");
-
-// Setup
-const inputAppUrl  = $("input-app-url");
-const inputApiKey  = $("input-api-key");
-const btnConnect   = $("btn-connect");
-const btnOpenApp   = $("btn-open-app");
-
-// Main
-const selectList    = $("select-list");
-const selectSection = $("select-section");
-const btnAdd        = $("btn-add");
-const userEmail     = $("user-email");
-const toast         = $("toast");
-
-// Product display (auto)
-const productAuto   = $("product-auto");
-const productManual = $("product-manual");
-const extractStatus = $("extract-status");
-
-// ── Toast ─────────────────────────────────────────────────────────────────────
-let toastTimer;
-function showToast(msg, type = "success") {
-  toast.textContent = msg;
-  toast.className = `toast show ${type}`;
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => { toast.className = "toast"; }, 3500);
+function showPickedHint() {
+  const hint = $("imagePickerHint");
+  if (!hint) return;
+  hint.textContent = "✓ Zdjęcie wybrane";
+  hint.style.color = "#4f46e5";
+  setTimeout(() => {
+    hint.textContent = "Najedź na zdjęcie na stronie aby wybrać inne";
+    hint.style.color = "";
+  }, 2500);
 }
 
-// ── Show screen ───────────────────────────────────────────────────────────────
 function showScreen(name) {
-  screenLoading.style.display = name === "loading" ? "flex" : "none";
-  screenSetup.className   = "screen" + (name === "setup" ? " active" : "");
-  screenMain.className    = "screen" + (name === "main"  ? " active" : "");
+  ["screenSetup", "screenSettings", "screenMain"].forEach((id) => {
+    $(id).classList.toggle("hidden", id !== name);
+  });
+  $("settingsBtn").classList.toggle("hidden", name !== "screenMain");
 }
 
-// ── API fetch helper ──────────────────────────────────────────────────────────
+function setStatus(id, msg, type) {
+  const el = $(id);
+  el.textContent = msg;
+  el.className = `status ${type}`;
+  if (!msg) el.className = "";
+}
+
+// === API ===
 async function apiFetch(path, options = {}) {
-  const res = await fetch(`${appUrl}${path}`, {
+  const res = await fetch(`${baseUrl}${path}`, {
     ...options,
     headers: {
       "Content-Type": "application/json",
-      "Authorization": `Bearer ${apiKey}`,
-      ...(options.headers ?? {}),
+      Authorization: `Bearer ${apiKey}`,
+      ...(options.headers || {}),
     },
   });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.error ?? `HTTP ${res.status}`);
+  return res;
+}
+
+// === Init ===
+document.addEventListener("DOMContentLoaded", async () => {
+  const stored = await chrome.storage.local.get(["apiKey", "baseUrl"]);
+  apiKey = stored.apiKey || "";
+  baseUrl = stored.baseUrl || "http://localhost:3000";
+
+  if (apiKey) {
+    await initMain();
+  } else {
+    $("inputBaseUrl").value = baseUrl;
+    showScreen("screenSetup");
   }
-  return res.json();
-}
 
-// ── Load lists into selectors ─────────────────────────────────────────────────
-function populateListSelector() {
-  selectList.innerHTML = '<option value="">— wybierz listę —</option>';
-  lists.forEach((l) => {
-    const opt = document.createElement("option");
-    opt.value = l.id;
-    opt.textContent = l.name;
-    selectList.appendChild(opt);
+  // Settings button
+  $("settingsBtn").addEventListener("click", () => {
+    $("settingsBaseUrl").value = baseUrl;
+    $("settingsApiKey").value = apiKey;
+    showScreen("screenSettings");
   });
+  $("btnBackFromSettings").addEventListener("click", () => showScreen("screenMain"));
+  $("btnSaveSettings").addEventListener("click", saveSettings);
+  $("btnDisconnect").addEventListener("click", disconnect);
+  $("btnConnect").addEventListener("click", connect);
+  $("btnAdd").addEventListener("click", addProduct);
 
-  // Restore last selection
-  chrome.storage.local.get(["lastListId", "lastSectionId"], ({ lastListId, lastSectionId }) => {
-    if (lastListId) {
-      selectList.value = lastListId;
-      populateSectionSelector(lastListId, lastSectionId);
-    }
-  });
-}
-
-function populateSectionSelector(listId, defaultSectionId = null) {
-  selectSection.innerHTML = '<option value="">— wybierz sekcję —</option>';
-  const list = lists.find((l) => l.id === listId);
-  if (!list) return;
-  list.sections.forEach((s) => {
-    const opt = document.createElement("option");
-    opt.value = s.id;
-    opt.textContent = s.name;
-    selectSection.appendChild(opt);
-  });
-  // Auto-select first section or last used
-  if (defaultSectionId) {
-    selectSection.value = defaultSectionId;
-  } else if (list.sections.length > 0) {
-    selectSection.value = list.sections[0].id;
-  }
-}
-
-selectList.addEventListener("change", () => {
-  populateSectionSelector(selectList.value);
-  chrome.storage.local.set({ lastListId: selectList.value, lastSectionId: "" });
-  checkDuplicate();
-});
-
-selectSection.addEventListener("change", () => {
-  chrome.storage.local.set({ lastSectionId: selectSection.value });
-  checkDuplicate();
-});
-
-// ── Recent products ───────────────────────────────────────────────────────────
-function renderRecent() {
-  chrome.storage.local.get(["recentProducts"], ({ recentProducts }) => {
-    const items = recentProducts ?? [];
-    const section = $("recent-section");
-    const list = $("recent-list");
-    if (items.length === 0) { section.style.display = "none"; return; }
-    section.style.display = "block";
-    list.innerHTML = "";
-    items.slice(0, 5).forEach((p) => {
-      const li = document.createElement("li");
-      li.className = "recent-item";
-      li.innerHTML = `
-        <span class="recent-item-name" title="${p.name}">${p.name}</span>
-        <span class="recent-item-store">${p.store ?? ""}</span>
-      `;
-      list.appendChild(li);
+  // Close button
+  $("btnClose").addEventListener("click", () => {
+    chrome.tabs.getCurrent((tab) => {
+      if (tab) chrome.tabs.remove(tab.id);
+      else window.close();
     });
   });
-}
 
-function addToRecent(p) {
-  chrome.storage.local.get(["recentProducts"], ({ recentProducts }) => {
-    const items = recentProducts ?? [];
-    const updated = [{ name: p.name, store: p.store, added_at: Date.now() }, ...items].slice(0, 10);
-    chrome.storage.local.set({ recentProducts: updated });
+  // List change → populate sections
+  $("selectList").addEventListener("change", () => {
+    const listId = $("selectList").value;
+    populateSections(listId);
+    updateAddButton();
   });
-}
 
-// ── Display product data from content.js ──────────────────────────────────────
-function displayProduct(p) {
-  product = p;
-  if (!p) {
-    // Auto-extract failed — show manual form
-    productAuto.style.display = "none";
-    productManual.style.display = "block";
+  // Section change → duplicate check + enable add button
+  $("selectSection").addEventListener("change", updateAddButton);
+  $("fieldName").addEventListener("input", updateAddButton);
+});
+
+// === Setup / connect ===
+async function connect() {
+  const key = $("inputApiKey").value.trim();
+  const url = $("inputBaseUrl").value.trim().replace(/\/$/, "");
+  if (!key || !url) {
+    setStatus("setupStatus", "Uzupełnij wszystkie pola.", "error");
     return;
   }
-
-  productAuto.style.display = "block";
-  productManual.style.display = "none";
-
-  $("product-name").textContent = p.name || "—";
-  $("product-price").textContent = p.price ? p.price + " " : "";
-  $("product-store").textContent = p.store ? `· ${p.store}` : "";
-  extractStatus.textContent = "✓ Wykryto produkt automatycznie";
-  extractStatus.className = "extract-status success";
-
-  checkDuplicate();
-
-  if (p.image) {
-    $("product-img").src = p.image;
-    $("product-img").style.display = "block";
-    $("product-img-placeholder").style.display = "none";
+  setStatus("setupStatus", "Sprawdzanie...", "info");
+  try {
+    const res = await fetch(`${url}/api/extension/me`, {
+      headers: { Authorization: `Bearer ${key}` },
+    });
+    if (!res.ok) throw new Error("Nieprawidłowy klucz lub adres.");
+    const user = await res.json();
+    await chrome.storage.local.set({ apiKey: key, baseUrl: url });
+    apiKey = key;
+    baseUrl = url;
+    setStatus("setupStatus", `Połączono jako ${user.name || user.email}`, "success");
+    setTimeout(() => initMain(), 800);
+  } catch (e) {
+    setStatus("setupStatus", e.message || "Błąd połączenia.", "error");
   }
 }
 
-// ── Get product from current tab via content.js ───────────────────────────────
-async function extractProductFromPage() {
+// === Settings ===
+async function saveSettings() {
+  const key = $("settingsApiKey").value.trim();
+  const url = $("settingsBaseUrl").value.trim().replace(/\/$/, "");
+  if (!key || !url) {
+    setStatus("settingsStatus", "Uzupełnij wszystkie pola.", "error");
+    return;
+  }
+  try {
+    const res = await fetch(`${url}/api/extension/me`, {
+      headers: { Authorization: `Bearer ${key}` },
+    });
+    if (!res.ok) throw new Error("Nieprawidłowy klucz lub adres.");
+    await chrome.storage.local.set({ apiKey: key, baseUrl: url });
+    apiKey = key;
+    baseUrl = url;
+    setStatus("settingsStatus", "Zapisano.", "success");
+    setTimeout(() => { setStatus("settingsStatus", "", ""); showScreen("screenMain"); initMain(); }, 800);
+  } catch (e) {
+    setStatus("settingsStatus", e.message || "Błąd.", "error");
+  }
+}
+
+async function disconnect() {
+  await chrome.storage.local.set({ apiKey: "", baseUrl: "" });
+  apiKey = "";
+  showScreen("screenSetup");
+  $("inputBaseUrl").value = baseUrl;
+}
+
+// === Main screen init ===
+async function initMain() {
+  showScreen("screenMain");
+  $("previewName").textContent = "Pobieranie danych...";
+
+  // Fetch user info
+  try {
+    const meRes = await apiFetch("/api/extension/me");
+    if (!meRes.ok) throw new Error("Sesja wygasła.");
+    const me = await meRes.json();
+    $("userInfo").textContent = `Zalogowany: ${me.name || me.email}`;
+  } catch {
+    $("userInfo").textContent = "";
+  }
+
+  // Extract product data from page and inject image picker
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (!tab?.id || tab.url?.startsWith("chrome://")) {
-      displayProduct(null);
-      return;
+    if (tab?.id) {
+      const results = await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        files: ["content.js"],
+      });
+      productData = results?.[0]?.result || {};
+
+      // If user picked an image before (popup closed on page click), apply it now
+      const stored = await chrome.storage.local.get("veepick_picked_image");
+      if (stored.veepick_picked_image) {
+        productData.imageUrl = stored.veepick_picked_image;
+        chrome.storage.local.remove("veepick_picked_image");
+        showPickedHint();
+      }
+
+      renderProductPreview(productData);
+
+      // Inject image picker (non-blocking)
+      chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        files: ["image-picker.js"],
+      }).catch(() => {});
     }
+  } catch {
+    productData = { url: "", name: "" };
+    $("previewName").textContent = "Brak danych strony";
+  }
 
-    // Send message to content.js
-    const response = await chrome.tabs.sendMessage(tab.id, { type: "EXTRACT_PRODUCT" })
-      .catch(() => null);
-
-    log("Content script response:", response);
-
-    if (response?.product) {
-      displayProduct(response.product);
-    } else {
-      displayProduct(null);
-    }
-  } catch (e) {
-    log("Extract error:", e);
-    displayProduct(null);
+  // Fetch lists
+  try {
+    const dataRes = await apiFetch("/api/extension/data");
+    if (!dataRes.ok) throw new Error();
+    const data = await dataRes.json();
+    lists = data.lists || [];
+    populateLists();
+    updateAddButton();
+  } catch {
+    setStatus("mainStatus", "Błąd pobierania list. Sprawdź połączenie.", "error");
   }
 }
 
-// ── Read manual form values ───────────────────────────────────────────────────
-function getManualProduct() {
-  return {
-    name: $("manual-name").value.trim(),
-    price: $("manual-price").value.trim(),
-    url: $("manual-url").value.trim() || window.__veepickTabUrl || "",
-    image: $("manual-image").value.trim(),
-    store: $("manual-store").value.trim(),
-    catalogNumber: null,
-  };
+function renderProductPreview(p) {
+  $("previewName").textContent = p.name || "Bez nazwy";
+  $("previewSupplier").textContent = p.supplier || p.url || "";
+  $("previewPrice").textContent = p.price || "";
+
+  if (p.imageUrl) {
+    const img = $("previewImg");
+    img.src = p.imageUrl;
+    img.classList.remove("hidden");
+    $("previewImgPlaceholder").classList.add("hidden");
+  }
+
+  // Fill form fields
+  $("fieldName").value = p.name || "";
+  $("fieldPrice").value = p.price || "";
+  $("fieldManufacturer").value = p.manufacturer || "";
+  $("fieldColor").value = p.color || "";
+
+  updateAddButton();
 }
 
-// ── Duplicate check ───────────────────────────────────────────────────────────
-function checkDuplicate() {
-  const sectionId = selectSection.value;
-  const listId    = selectList.value;
-  if (!sectionId || !listId) return;
+function populateLists() {
+  const sel = $("selectList");
+  sel.innerHTML = '<option value="">Wybierz listę...</option>';
+  for (const list of lists) {
+    const opt = document.createElement("option");
+    opt.value = list.id;
+    const proj = list.project?.title ? ` (${list.project.title})` : "";
+    opt.textContent = list.name + proj;
+    sel.appendChild(opt);
+  }
+}
 
-  const list    = lists.find((l) => l.id === listId);
+function updateAddButton() {
+  const sectionId = $("selectSection").value;
+  const name = $("fieldName").value.trim();
+
+  if (!sectionId || !name) {
+    $("btnAdd").disabled = true;
+    $("btnAdd").textContent = "Dodaj do listy";
+    return;
+  }
+
+  const listId = $("selectList").value;
+  const list = lists.find((l) => l.id === listId);
   const section = list?.sections.find((s) => s.id === sectionId);
-  if (!section) return;
 
-  const isManual = productManual.style.display !== "none";
-  const p = isManual ? getManualProduct() : product;
-  if (!p?.name) return;
+  const warning = $("duplicateWarning");
+  if (section?.products) {
+    const url = productData.url?.trim();
+    const isDuplicate = url
+      ? section.products.some((p) => p.url === url)
+      : section.products.some((p) => p.name.toLowerCase() === name.toLowerCase());
 
-  const pUrl = p.url?.trim();
-  const isDuplicate = pUrl
-    ? section.products.some((sp) => sp.url === pUrl)
-    : section.products.some((sp) => sp.name.toLowerCase() === p.name.trim().toLowerCase());
+    if (isDuplicate && warning) {
+      warning.textContent = `Ten produkt jest już na tej liście w sekcji „${section.name}"`;
+      warning.classList.remove("hidden");
+    } else if (warning) {
+      warning.classList.add("hidden");
+    }
+  } else if (warning) {
+    warning.classList.add("hidden");
+  }
 
-  btnAdd.disabled  = isDuplicate;
-  btnAdd.textContent = isDuplicate ? "Ten produkt jest w tej sekcji" : "Dodaj produkt do listy";
+  $("btnAdd").disabled = false;
+  $("btnAdd").textContent = "Dodaj do listy";
 }
 
-// ── Add product ───────────────────────────────────────────────────────────────
-btnAdd.addEventListener("click", async () => {
-  const listId = selectList.value;
-  const sectionId = selectSection.value;
+function populateSections(listId) {
+  const sel = $("selectSection");
+  sel.innerHTML = '<option value="">Wybierz sekcję...</option>';
+  sel.disabled = !listId;
+  if (!listId) return;
 
-  if (!listId || !sectionId) {
-    showToast("Wybierz listę i sekcję", "error");
-    return;
+  const list = lists.find((l) => l.id === listId);
+  if (!list) return;
+
+  for (const section of list.sections) {
+    const opt = document.createElement("option");
+    opt.value = section.id;
+    opt.textContent = section.unsorted ? "Poza sekcją" : section.name;
+    sel.appendChild(opt);
   }
+  sel.disabled = false;
+}
 
-  // Determine product data
-  const isManual = productManual.style.display !== "none";
-  const p = isManual ? getManualProduct() : product;
+// === Add product ===
+async function addProduct() {
+  const listId = $("selectList").value;
+  const sectionId = $("selectSection").value;
+  const name = $("fieldName").value.trim();
+  const price = $("fieldPrice").value.trim();
+  const quantity = parseInt($("fieldQty").value) || 1;
+  const manufacturer = $("fieldManufacturer").value.trim();
+  const color = $("fieldColor").value.trim();
+  const dimensions = $("fieldDimensions").value.trim();
+  const note = $("fieldNote").value.trim();
 
-  if (!p?.name) {
-    showToast("Uzupełnij nazwę produktu", "error");
-    return;
-  }
+  if (!name || !sectionId) return;
 
-  btnAdd.disabled = true;
-  btnAdd.textContent = "Dodawanie…";
-
-  const comment = $("input-comment").value.trim();
+  $("btnAdd").disabled = true;
+  $("btnAdd").innerHTML = '<span class="spinner"></span> Dodawanie...';
+  setStatus("mainStatus", "", "");
 
   try {
-    await apiFetch("/api/extension/product", {
+    const res = await apiFetch("/api/extension/product", {
       method: "POST",
       body: JSON.stringify({
         listId,
         sectionId,
-        name: p.name,
-        url: p.url ?? "",
-        imageUrl: p.image ?? "",
-        price: p.price ?? "",
-        supplier: p.store ?? "",
-        quantity: 1,
-        note: comment || null,
-        catalogNumber: p.catalogNumber ?? null,
+        name,
+        url: productData.url || null,
+        imageUrl: productData.imageUrl || null,
+        price: price || null,
+        manufacturer: manufacturer || null,
+        color: color || null,
+        dimensions: dimensions || null,
+        note: note || null,
+        supplier: productData.supplier || null,
+        description: productData.description || null,
+        quantity,
       }),
     });
 
-    addToRecent(p);
-    showToast("Dodano produkt do listy ✓");
-    renderRecent();
-    $("input-comment").value = "";
-
-    // Update local section data so duplicate check reflects the addition
-    const addedList    = lists.find((l) => l.id === listId);
-    const addedSection = addedList?.sections.find((s) => s.id === sectionId);
-    if (addedSection) {
-      addedSection.products.push({ url: p.url?.trim() || null, name: p.name });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || "Błąd serwera");
     }
 
-    // Notify background to flush pending products too
-    chrome.runtime.sendMessage({ type: "FLUSH_PENDING", appUrl, apiKey });
+    // Update local section products so duplicate check works immediately
+    const addedList = lists.find((l) => l.id === listId);
+    const addedSection = addedList?.sections.find((s) => s.id === sectionId);
+    if (addedSection?.products) {
+      addedSection.products.push({ url: productData.url?.trim() || null, name });
+    }
+
+    setStatus("mainStatus", "✓ Produkt dodany do listy!", "success");
+    updateAddButton();
 
     // Remove image picker from page and close popup after brief delay
     try {
@@ -303,136 +357,8 @@ btnAdd.addEventListener("click", async () => {
       }
     } catch {}
     setTimeout(() => window.close(), 1200);
-
-  } catch (err) {
-    log("Add product error:", err);
-
-    // Save as pending for when back online (skip for known duplicates)
-    if (!err.message?.includes("już istnieje")) {
-      chrome.runtime.sendMessage({ type: "SAVE_PENDING", product: {
-        ...p, listId, sectionId, comment, added_at: Date.now()
-      }});
-      showToast("Nie udało się dodać. Zapisano lokalnie — spróbuj ponownie.", "error");
-    } else {
-      showToast("Ten produkt jest już w tej sekcji", "error");
-    }
-  } finally {
-    checkDuplicate();
-  }
-});
-
-// ── Connect ───────────────────────────────────────────────────────────────────
-btnConnect.addEventListener("click", async () => {
-  const url = inputAppUrl.value.trim().replace(/\/$/, "");
-  const key = inputApiKey.value.trim();
-
-  if (!url || !key) {
-    showToast("Wypełnij oba pola", "error");
-    return;
-  }
-
-  btnConnect.disabled = true;
-  btnConnect.textContent = "Łączenie…";
-
-  try {
-    const res = await fetch(`${url}/api/extension/me`, {
-      headers: { Authorization: `Bearer ${key}` },
-    });
-    if (!res.ok) throw new Error("Nieprawidłowy klucz lub adres aplikacji");
-    const user = await res.json();
-
-    // Save credentials
-    await chrome.storage.local.set({ appUrl: url, apiKey: key });
-    appUrl = url;
-    apiKey = key;
-
-    log("Connected as:", user.email);
-    await loadMainScreen(user);
-
-  } catch (err) {
-    log("Connect error:", err);
-    showToast(err.message || "Błąd połączenia", "error");
-  } finally {
-    btnConnect.disabled = false;
-    btnConnect.textContent = "Połącz";
-  }
-});
-
-btnOpenApp.addEventListener("click", () => {
-  const url = inputAppUrl.value.trim().replace(/\/$/, "") || "";
-  const target = url ? `${url}/settings/wtyczka` : "https://twoja-aplikacja.pl/settings/wtyczka";
-  chrome.tabs.create({ url: target });
-});
-
-// ── Close button ─────────────────────────────────────────────────────────────
-$("btn-close").addEventListener("click", () => {
-  chrome.tabs.getCurrent((tab) => {
-    if (tab) {
-      chrome.tabs.remove(tab.id);
-    } else {
-      window.close(); // fallback: normalny popup (nie karta)
-    }
-  });
-});
-
-// ── Settings button — go back to setup ───────────────────────────────────────
-$("btn-settings").addEventListener("click", () => {
-  inputAppUrl.value = appUrl;
-  inputApiKey.value = apiKey;
-  showScreen("setup");
-});
-
-// ── Load main screen ──────────────────────────────────────────────────────────
-async function loadMainScreen(user) {
-  showScreen("loading");
-
-  try {
-    const data = await apiFetch("/api/extension/data");
-    lists = data.lists ?? [];
-    log("Lists loaded:", lists.length);
-
-    userEmail.textContent = user.email ?? "";
-    populateListSelector();
-    showScreen("main");
-    renderRecent();
-    await extractProductFromPage();
-
-  } catch (err) {
-    log("Load data error:", err);
-    showToast("Błąd ładowania list. Sprawdź połączenie.", "error");
-    showScreen("setup");
+  } catch (e) {
+    setStatus("mainStatus", e.message || "Błąd dodawania.", "error");
+    updateAddButton();
   }
 }
-
-// ── Manual form duplicate check on input ──────────────────────────────────────
-$("manual-name").addEventListener("input", checkDuplicate);
-$("manual-url").addEventListener("input", checkDuplicate);
-
-// ── Init ──────────────────────────────────────────────────────────────────────
-(async function init() {
-  showScreen("loading");
-
-  const stored = await chrome.storage.local.get(["appUrl", "apiKey"]);
-  appUrl = stored.appUrl ?? "";
-  apiKey = stored.apiKey ?? "";
-
-  inputAppUrl.value = appUrl;
-  inputApiKey.value = apiKey;
-
-  if (!appUrl || !apiKey) {
-    showScreen("setup");
-    return;
-  }
-
-  // Verify saved key
-  try {
-    const res = await fetch(`${appUrl}/api/extension/me`, {
-      headers: { Authorization: `Bearer ${apiKey}` },
-    });
-    if (!res.ok) throw new Error("invalid key");
-    const user = await res.json();
-    await loadMainScreen(user);
-  } catch {
-    showScreen("setup");
-  }
-})();

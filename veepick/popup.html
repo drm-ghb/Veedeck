@@ -3,240 +3,189 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>veepick</title>
+  <title>Veepick</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
+    html { background: transparent; }
     body {
-      width: 380px;
-      min-height: 200px;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      font-size: 14px;
-      color: #1a1a1a;
-      background: #fff;
+      font-size: 13px; width: 340px; background: #fff; color: #111;
+      border-radius: 12px; overflow: hidden;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.18);
     }
 
-    /* ── Header ───────────────────────────────── */
-    .header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 12px 16px;
-      border-bottom: 1px solid #efefef;
+    .header { display: flex; align-items: center; gap: 8px; padding: 12px 14px; border-bottom: 1px solid #f0f0f0; }
+    .header img { width: 24px; height: 24px; border-radius: 4px; object-fit: contain; }
+    .header h1 { font-size: 15px; font-weight: 700; letter-spacing: -0.3px; flex: 1; }
+    .header .settings-btn { background: none; border: none; cursor: pointer; color: #999; padding: 4px; border-radius: 4px; }
+    .header .settings-btn:hover { color: #333; background: #f4f4f4; }
+
+    .screen { padding: 14px; }
+    .hidden { display: none !important; }
+
+    /* Setup screen */
+    .setup-title { font-weight: 600; font-size: 14px; margin-bottom: 4px; }
+    .setup-desc { color: #666; font-size: 12px; line-height: 1.5; margin-bottom: 12px; }
+    label { display: block; font-size: 12px; font-weight: 500; color: #555; margin-bottom: 4px; }
+    input, select, textarea {
+      width: 100%; border: 1px solid #e0e0e0; border-radius: 6px; padding: 7px 10px;
+      font-size: 13px; font-family: inherit; outline: none; transition: border-color .15s;
+      background: #fafafa; color: #111;
     }
-    .logo { font-weight: 700; font-size: 16px; letter-spacing: -0.5px; color: #111; }
-    .logo span { color: #7c3aed; }
-    .header-actions { display: flex; gap: 8px; align-items: center; }
-    .btn-icon {
-      background: none; border: none; cursor: pointer; padding: 4px;
-      color: #888; border-radius: 6px; display: flex; align-items: center;
-    }
-    .btn-icon:hover { background: #f3f3f3; color: #333; }
-    .user-email { font-size: 11px; color: #888; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    input:focus, select:focus, textarea:focus { border-color: #6366f1; background: #fff; }
+    .field { margin-bottom: 10px; }
+    textarea { resize: vertical; min-height: 52px; }
 
-    /* ── Screens ──────────────────────────────── */
-    .screen { padding: 16px; display: none; }
-    .screen.active { display: block; }
-
-    /* ── Setup screen ─────────────────────────── */
-    .setup-title { font-weight: 600; font-size: 15px; margin-bottom: 4px; }
-    .setup-desc { font-size: 12px; color: #666; margin-bottom: 16px; line-height: 1.5; }
-
-    .field { margin-bottom: 12px; }
-    .field label { display: block; font-size: 12px; font-weight: 500; color: #555; margin-bottom: 4px; }
-    .field input, .field select, .field textarea {
-      width: 100%; padding: 8px 10px; border: 1px solid #ddd; border-radius: 8px;
-      font-size: 13px; color: #111; background: #fff; outline: none;
-      transition: border-color 0.15s;
-    }
-    .field input:focus, .field select:focus, .field textarea:focus { border-color: #7c3aed; }
-    .field textarea { resize: vertical; min-height: 56px; font-family: inherit; }
-
+    /* Button */
     .btn {
-      display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-      padding: 8px 14px; border-radius: 8px; font-size: 13px; font-weight: 500;
-      cursor: pointer; border: none; transition: opacity 0.15s, background 0.15s;
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+      width: 100%; padding: 9px 14px; border-radius: 7px; border: none;
+      font-size: 13px; font-weight: 600; cursor: pointer; transition: opacity .15s;
     }
-    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-    .btn-primary { background: #7c3aed; color: #fff; width: 100%; padding: 10px; font-size: 14px; }
-    .btn-primary:hover:not(:disabled) { background: #6d28d9; }
-    .btn-outline { background: #fff; color: #333; border: 1px solid #ddd; }
-    .btn-outline:hover:not(:disabled) { background: #f9f9f9; }
-    .btn-sm { padding: 6px 10px; font-size: 12px; }
-    .btn-link { background: none; border: none; color: #7c3aed; font-size: 12px; cursor: pointer; padding: 0; text-decoration: underline; }
+    .btn:disabled { opacity: 0.5; cursor: default; }
+    .btn-primary { background: #6366f1; color: #fff; }
+    .btn-primary:hover:not(:disabled) { background: #4f46e5; }
+    .btn-outline { background: #fff; color: #333; border: 1px solid #e0e0e0; }
+    .btn-outline:hover:not(:disabled) { background: #f5f5f5; }
+    .btn-sm { font-size: 12px; padding: 6px 10px; width: auto; }
 
-    .open-settings-hint {
-      font-size: 12px; color: #666; text-align: center; margin-bottom: 10px; line-height: 1.5;
-    }
+    /* Product preview */
+    .product-preview { display: flex; gap: 10px; align-items: flex-start; padding: 10px; background: #f9f9f9; border-radius: 8px; border: 1px solid #eee; margin-bottom: 6px; }
+    .product-preview img { width: 56px; height: 56px; object-fit: contain; border-radius: 6px; border: 1px solid #eee; background: #fff; flex-shrink: 0; }
+    .product-preview .img-placeholder { width: 56px; height: 56px; border-radius: 6px; border: 1px solid #eee; background: #f0f0f0; flex-shrink: 0; display: flex; align-items: center; justify-content: center; color: #bbb; font-size: 20px; }
+    .product-preview .info { flex: 1; min-width: 0; }
+    .product-preview .pname { font-weight: 600; font-size: 13px; line-height: 1.3; word-break: break-word; margin-bottom: 2px; }
+    .product-preview .pdetail { font-size: 11px; color: #888; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .product-preview .pprice { font-size: 13px; font-weight: 700; color: #333; margin-top: 2px; }
 
-    /* ── Product card ─────────────────────────── */
-    .product-card {
-      display: flex; gap: 10px; padding: 10px; border: 1px solid #efefef;
-      border-radius: 10px; margin-bottom: 12px; background: #fafafa;
-    }
-    .product-img {
-      width: 64px; height: 64px; object-fit: cover; border-radius: 6px;
-      flex-shrink: 0; background: #eee;
-    }
-    .product-img-placeholder {
-      width: 64px; height: 64px; border-radius: 6px; background: #efefef;
-      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-      color: #bbb; font-size: 22px;
-    }
-    .product-info { flex: 1; min-width: 0; }
-    .product-name { font-weight: 600; font-size: 13px; line-height: 1.35; margin-bottom: 3px; }
-    .product-meta { font-size: 12px; color: #666; }
-    .product-price { font-weight: 600; color: #111; font-size: 13px; }
-    .product-store { color: #888; font-size: 11px; }
+    .divider { height: 1px; background: #f0f0f0; margin: 10px 0; }
+    .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 
-    .extract-status { font-size: 12px; color: #888; margin-bottom: 8px; }
-    .extract-status.success { color: #16a34a; }
-    .extract-status.warn { color: #d97706; }
+    /* Status */
+    .status { margin-top: 10px; padding: 8px 10px; border-radius: 6px; font-size: 12px; text-align: center; }
+    .status.success { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
+    .status.error { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+    .status.info { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; }
 
-    /* ── Section divider ──────────────────────── */
-    .divider { border: none; border-top: 1px solid #efefef; margin: 12px 0; }
-
-    /* ── Recent products ──────────────────────── */
-    .recent-title { font-size: 11px; font-weight: 600; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
-    .recent-list { list-style: none; space-y: 4px; }
-    .recent-item {
-      display: flex; align-items: center; gap-8px; padding: 5px 0;
-      border-bottom: 1px solid #f5f5f5;
-    }
-    .recent-item:last-child { border-bottom: none; }
-    .recent-item-name { font-size: 12px; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .recent-item-store { font-size: 11px; color: #aaa; flex-shrink: 0; }
-
-    /* ── Toast ────────────────────────────────── */
-    .toast {
-      position: fixed; bottom: 12px; left: 12px; right: 12px; padding: 10px 14px;
-      border-radius: 8px; font-size: 13px; font-weight: 500; z-index: 999;
-      animation: slideUp 0.2s ease;
-      display: none;
-    }
-    .toast.show { display: block; }
-    .toast.success { background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; }
-    .toast.error   { background: #fee2e2; color: #dc2626; border: 1px solid #fecaca; }
-    @keyframes slideUp { from { transform: translateY(8px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-
-    /* ── Loading ──────────────────────────────── */
-    .spinner {
-      display: inline-block; width: 14px; height: 14px; border: 2px solid #ddd;
-      border-top-color: #7c3aed; border-radius: 50%; animation: spin 0.6s linear infinite;
-    }
+    .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,.4); border-top-color: #fff; border-radius: 50%; animation: spin .6s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    .loading-screen {
-      display: flex; align-items: center; justify-content: center;
-      padding: 40px 16px; gap: 10px; color: #888; font-size: 13px;
-    }
-
-    .not-found-hint { font-size: 12px; color: #888; margin-top: 6px; }
+    .link { color: #6366f1; text-decoration: none; font-size: 12px; }
+    .link:hover { text-decoration: underline; }
+    .back-btn { background: none; border: none; color: #6366f1; cursor: pointer; font-size: 12px; margin-bottom: 10px; padding: 0; }
+    .back-btn:hover { text-decoration: underline; }
+    .user-info { font-size: 11px; color: #888; margin-top: 6px; }
+    .img-picker-hint { font-size: 10px; color: #aaa; margin-bottom: 10px; }
   </style>
 </head>
 <body>
-
-  <!-- Header -->
   <div class="header">
-    <span class="logo">vee<span>pick</span></span>
-    <div class="header-actions">
-      <span class="user-email" id="user-email"></span>
-      <button class="btn-icon" id="btn-close" title="Zamknij">
-        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-        </svg>
-      </button>
-      <button class="btn-icon" id="btn-settings" title="Ustawienia połączenia">
-        <!-- gear icon (inline SVG) -->
-        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-          <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-        </svg>
-      </button>
-    </div>
-  </div>
-
-  <!-- Loading screen -->
-  <div class="loading-screen" id="screen-loading">
-    <span class="spinner"></span> Ładowanie…
+    <img src="icons/icon48.png" alt="Veepick" />
+    <h1>Veepick</h1>
+    <button class="settings-btn hidden" id="settingsBtn" title="Ustawienia">⚙</button>
+    <button class="settings-btn" id="btnClose" title="Zamknij">✕</button>
   </div>
 
   <!-- Setup screen -->
-  <div class="screen" id="screen-setup">
-    <p class="setup-title">Połącz veepick z aplikacją</p>
-    <p class="setup-desc">Wprowadź adres swojej aplikacji i klucz API z sekcji Ustawienia → Wtyczka.</p>
+  <div id="screenSetup" class="screen">
+    <p class="setup-title">Połącz z veedeck</p>
+    <p class="setup-desc">Wklej swój klucz API z ustawień konta w veedeck (Ustawienia → Wtyczka).</p>
+    <div class="field">
+      <label for="inputBaseUrl">Adres aplikacji</label>
+      <input id="inputBaseUrl" type="url" placeholder="np. http://localhost:3000" />
+    </div>
+    <div class="field">
+      <label for="inputApiKey">Klucz API</label>
+      <input id="inputApiKey" type="text" placeholder="vp_..." />
+    </div>
+    <button class="btn btn-primary" id="btnConnect">Połącz</button>
+    <div id="setupStatus"></div>
+  </div>
 
+  <!-- Settings screen -->
+  <div id="screenSettings" class="screen hidden">
+    <button class="back-btn" id="btnBackFromSettings">← Wróć</button>
     <div class="field">
-      <label for="input-app-url">Adres aplikacji</label>
-      <input type="url" id="input-app-url" placeholder="https://twoja-aplikacja.pl" autocomplete="off" />
+      <label for="settingsBaseUrl">Adres aplikacji</label>
+      <input id="settingsBaseUrl" type="url" />
     </div>
     <div class="field">
-      <label for="input-api-key">Klucz API</label>
-      <input type="text" id="input-api-key" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" autocomplete="off" />
+      <label for="settingsApiKey">Klucz API</label>
+      <input id="settingsApiKey" type="text" />
     </div>
-    <p class="not-found-hint">Nie masz klucza? <button class="btn-link" id="btn-open-app">Otwórz ustawienia aplikacji</button></p>
-    <br />
-    <button class="btn btn-primary" id="btn-connect">Połącz</button>
+    <button class="btn btn-primary" id="btnSaveSettings" style="margin-bottom:8px;">Zapisz</button>
+    <button class="btn btn-outline" id="btnDisconnect">Rozłącz konto</button>
+    <div id="settingsStatus"></div>
   </div>
 
   <!-- Main screen -->
-  <div class="screen" id="screen-main">
-
-    <!-- Product card -->
-    <div id="product-auto">
-      <div class="extract-status" id="extract-status"></div>
-      <div class="product-card" id="product-card">
-        <div class="product-img-placeholder" id="product-img-placeholder">📦</div>
-        <img class="product-img" id="product-img" src="" alt="" style="display:none" />
-        <div class="product-info">
-          <div class="product-name" id="product-name">—</div>
-          <div class="product-meta">
-            <span class="product-price" id="product-price"></span>
-            <span class="product-store" id="product-store"></span>
-          </div>
-        </div>
+  <div id="screenMain" class="screen hidden">
+    <!-- Product preview -->
+    <div class="product-preview" id="productPreview">
+      <div class="img-placeholder" id="previewImgPlaceholder">🛍</div>
+      <img id="previewImg" class="hidden" alt="" />
+      <div class="info">
+        <div class="pname" id="previewName">Ładowanie...</div>
+        <div class="pdetail" id="previewSupplier"></div>
+        <div class="pprice" id="previewPrice"></div>
       </div>
     </div>
 
-    <!-- Manual form (shown when auto-extract fails) -->
-    <div id="product-manual" style="display:none">
-      <div class="extract-status warn">Nie udało się automatycznie wykryć produktu. Uzupełnij dane ręcznie:</div>
-      <div class="field"><label>Nazwa produktu *</label><input type="text" id="manual-name" /></div>
-      <div class="field"><label>Cena</label><input type="text" id="manual-price" placeholder="np. 299 PLN" /></div>
-      <div class="field"><label>Link do produktu</label><input type="url" id="manual-url" /></div>
-      <div class="field"><label>URL zdjęcia</label><input type="url" id="manual-image" /></div>
-      <div class="field"><label>Dostawca / sklep</label><input type="text" id="manual-store" /></div>
-    </div>
+    <p class="img-picker-hint" id="imagePickerHint">Najedź na zdjęcie na stronie aby wybrać inne</p>
 
-    <!-- List & section selectors -->
+    <!-- List + section -->
     <div class="field">
-      <label for="select-list">Lista zakupowa</label>
-      <select id="select-list"><option value="">— wybierz listę —</option></select>
+      <label for="selectList">Lista zakupowa</label>
+      <select id="selectList"><option value="">Wybierz listę...</option></select>
     </div>
     <div class="field">
-      <label for="select-section">Sekcja</label>
-      <select id="select-section"><option value="">— wybierz sekcję —</option></select>
+      <label for="selectSection">Sekcja</label>
+      <select id="selectSection" disabled><option value="">Wybierz sekcję...</option></select>
     </div>
 
-    <!-- Note -->
+    <div class="divider"></div>
+
+    <!-- Editable fields -->
     <div class="field">
-      <label for="input-comment">Notatka (opcjonalnie)</label>
-      <textarea id="input-comment" placeholder="Notatka dla klienta…"></textarea>
+      <label for="fieldName">Nazwa *</label>
+      <input id="fieldName" type="text" placeholder="Nazwa produktu" />
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label for="fieldPrice">Cena</label>
+        <input id="fieldPrice" type="text" placeholder="np. 299 PLN" />
+      </div>
+      <div class="field">
+        <label for="fieldQty">Ilość</label>
+        <input id="fieldQty" type="number" min="1" value="1" />
+      </div>
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label for="fieldManufacturer">Producent</label>
+        <input id="fieldManufacturer" type="text" placeholder="np. Sklum" />
+      </div>
+      <div class="field">
+        <label for="fieldColor">Kolor</label>
+        <input id="fieldColor" type="text" placeholder="np. Biały" />
+      </div>
+    </div>
+    <div class="field">
+      <label for="fieldDimensions">Wymiar</label>
+      <input id="fieldDimensions" type="text" placeholder="np. 60x80 cm" />
+    </div>
+    <div class="field">
+      <label for="fieldNote">Notatka</label>
+      <textarea id="fieldNote" placeholder="Dodatkowe uwagi dla klienta..."></textarea>
     </div>
 
-    <!-- Add button -->
-    <button class="btn btn-primary" id="btn-add">Dodaj produkt do listy</button>
-
-    <hr class="divider" />
-
-    <!-- Recently added -->
-    <div id="recent-section" style="display:none">
-      <p class="recent-title">Ostatnio dodane</p>
-      <ul class="recent-list" id="recent-list"></ul>
-    </div>
+    <div id="duplicateWarning" class="status error hidden"></div>
+    <button class="btn btn-primary" id="btnAdd" disabled>
+      Dodaj do listy
+    </button>
+    <div id="mainStatus"></div>
+    <div class="user-info" id="userInfo"></div>
   </div>
-
-  <!-- Toast -->
-  <div class="toast" id="toast"></div>
 
   <script src="popup.js"></script>
 </body>
