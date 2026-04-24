@@ -300,6 +300,7 @@ async function addProduct() {
   const manufacturer = $("fieldManufacturer").value.trim();
   const color = $("fieldColor").value.trim();
   const dimensions = $("fieldDimensions").value.trim();
+  const category = $("fieldCategory").value.trim();
   const note = $("fieldNote").value.trim();
 
   if (!name || !sectionId) return;
@@ -321,6 +322,7 @@ async function addProduct() {
         manufacturer: manufacturer || null,
         color: color || null,
         dimensions: dimensions || null,
+        category: category || null,
         note: note || null,
         supplier: productData.supplier || null,
         description: productData.description || null,
