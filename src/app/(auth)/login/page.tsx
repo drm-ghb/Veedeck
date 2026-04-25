@@ -8,7 +8,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { toast } from "sonner";
 import { useT } from "@/lib/i18n";
 
@@ -82,12 +82,12 @@ export default function LoginPage() {
     <main className="flex min-h-screen">
       {/* Left – branding */}
       <div className="hidden lg:flex flex-col justify-center px-16 w-1/2 bg-[#0f0f0f]">
-        <h1
-          className="text-[5rem] leading-none text-white mb-4"
-          style={{ fontFamily: "var(--font-story-script)" }}
-        >
-          veedeck
-        </h1>
+        <div className="flex items-center gap-3 mb-6">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/veedeck_ikona.png" alt="veedeck" className="h-10 w-10 shrink-0 object-contain rounded-xl" />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/veedeckicon.png" alt="veedeck" className="shrink-0" style={{ height: "22px", width: "auto" }} />
+        </div>
         <p
           className="text-2xl font-bold text-white mb-6 tracking-wide"
           style={{ fontFamily: "var(--font-lato)" }}
@@ -104,12 +104,14 @@ export default function LoginPage() {
       <div className="flex flex-col items-center justify-center flex-1 px-4 bg-background">
         {/* Mobile branding */}
         <div className="lg:hidden text-center mb-8">
-          <h1
-            className="text-[3.5rem] leading-none mb-2"
-            style={{ fontFamily: "var(--font-story-script)" }}
-          >
-            veedeck
-          </h1>
+          <div className="flex items-center justify-center gap-2 mb-2">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/veedeck_ikona.png" alt="veedeck" className="h-7 w-7 shrink-0 object-contain rounded-lg" />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/vee_black.png" alt="veedeck" className="dark:hidden shrink-0" style={{ height: "17px", width: "auto" }} />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/veedeckicon.png" alt="" className="hidden dark:block shrink-0" style={{ height: "17px", width: "auto" }} />
+          </div>
           <p
             className="text-lg font-bold tracking-wide text-muted-foreground"
             style={{ fontFamily: "var(--font-lato)" }}
@@ -123,12 +125,14 @@ export default function LoginPage() {
 
         <Card className="w-full max-w-sm">
           <CardHeader className="pb-4">
-            <CardTitle
-              className="text-2xl text-center"
-              style={{ fontFamily: "var(--font-story-script)" }}
-            >
-              veedeck
-            </CardTitle>
+            <div className="flex items-center justify-center gap-2 mb-1">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/veedeck_ikona.png" alt="veedeck" className="h-7 w-7 shrink-0 object-contain rounded-lg" />
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/vee_black.png" alt="veedeck" className="dark:hidden shrink-0" style={{ height: "17px", width: "auto" }} />
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/veedeckicon.png" alt="" className="hidden dark:block shrink-0" style={{ height: "17px", width: "auto" }} />
+            </div>
             <p className="text-center text-sm text-muted-foreground">
               {mode === "login" ? t.auth.loginTitle : t.auth.registerTitle}
             </p>

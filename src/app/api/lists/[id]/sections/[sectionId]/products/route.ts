@@ -39,7 +39,7 @@ export async function POST(
 
   const { id, sectionId } = await params;
   const body = await req.json();
-  const { name, url, imageUrl, price, manufacturer, color, dimensions, description, deliveryTime, quantity, category, supplier, catalogNumber, productId: bodyProductId } = body;
+  const { name, url, imageUrl, price, manufacturer, color, dimensions, description, deliveryTime, quantity, category, supplier, catalogNumber, productId: bodyProductId, note } = body;
 
   if (!name?.trim()) {
     return NextResponse.json({ error: "Nazwa jest wymagana" }, { status: 400 });
@@ -114,6 +114,7 @@ export async function POST(
       sectionId,
       order: count,
       productId: finalProductId,
+      note: note || null,
     },
   });
 

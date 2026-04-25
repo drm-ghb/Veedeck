@@ -4,7 +4,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronDown, ChevronUp, Plus, ExternalLink, Minus, MoreHorizontal, Pencil, Trash2, GripVertical, FileDown, Sheet, MessageSquare, ArrowUpDown, Eye, EyeOff, Check, X, RotateCcw, FolderInput, Wallet, AlertCircle, DollarSign } from "lucide-react";
+import { ChevronLeft, ChevronDown, ChevronUp, Plus, ExternalLink, Minus, MoreHorizontal, Pencil, Trash2, GripVertical, FileDown, Sheet, MessageSquare, ArrowDownUp, Eye, EyeOff, Check, X, RotateCcw, FolderInput, Wallet, AlertCircle, DollarSign, Copy } from "lucide-react";
 import ProductCommentPanel from "./ProductCommentPanel";
 import { pusherClient } from "@/lib/pusher";
 import { Button } from "@/components/ui/button";
@@ -176,20 +176,10 @@ function SectionTotal({ products, budget }: { products: Product[]; budget?: numb
   );
 }
 
-function MoveSectionDialog({
-  open,
-  onOpenChange,
-  sections,
-  currentSectionId,
-  productName,
-  onMove,
-}: {
-  open: boolean;
-  onOpenChange: (v: boolean) => void;
-  sections: Section[];
-  currentSectionId: string;
-  productName: string;
-  onMove: (targetSectionId: string) => void;
+
+function MoveSectionDialog({ open, onOpenChange, sections, currentSectionId, productName, onMove }: {
+  open: boolean; onOpenChange: (v: boolean) => void; sections: Section[];
+  currentSectionId: string; productName: string; onMove: (targetSectionId: string) => void;
 }) {
   const targets = sections.filter((s) => s.id !== currentSectionId);
   return (
@@ -201,17 +191,38 @@ function MoveSectionDialog({
         </DialogHeader>
         <div className="flex flex-col gap-1 mt-2">
           {targets.map((s) => (
-            <button
-              key={s.id}
-              onClick={() => { onMove(s.id); onOpenChange(false); }}
-              className="w-full text-left px-4 py-3 rounded-lg hover:bg-muted transition-colors text-sm font-medium"
-            >
+            <button key={s.id} onClick={() => { onMove(s.id); onOpenChange(false); }}
+              className="w-full text-left px-4 py-3 rounded-lg hover:bg-muted transition-colors text-sm font-medium">
               {s.name}
             </button>
           ))}
-          {targets.length === 0 && (
-            <p className="text-sm text-muted-foreground px-4 py-3">Brak innych sekcji.</p>
-          )}
+          {targets.length === 0 && <p className="text-sm text-muted-foreground px-4 py-3">Brak innych sekcji.</p>}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function CopySectionDialog({ open, onOpenChange, sections, currentSectionId, productName, onCopy }: {
+  open: boolean; onOpenChange: (v: boolean) => void; sections: Section[];
+  currentSectionId: string; productName: string; onCopy: (targetSectionId: string) => void;
+}) {
+  const targets = sections.filter((s) => s.id !== currentSectionId);
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Skopiuj do sekcji</DialogTitle>
+          <DialogDescription className="truncate">„{productName}"</DialogDescription>
+        </DialogHeader>
+        <div className="flex flex-col gap-1 mt-2">
+          {targets.map((s) => (
+            <button key={s.id} onClick={() => { onCopy(s.id); onOpenChange(false); }}
+              className="w-full text-left px-4 py-3 rounded-lg hover:bg-muted transition-colors text-sm font-medium">
+              {s.name}
+            </button>
+          ))}
+          {targets.length === 0 && <p className="text-sm text-muted-foreground px-4 py-3">Brak innych sekcji.</p>}
         </div>
       </DialogContent>
     </Dialog>
@@ -230,6 +241,9 @@ function ProductRow({
   onOpenComments,
   onToggleHidden,
   onMove,
+  onCopy,
+  onOpenMoveDialog,
+  onOpenCopyDialog,
   onApprovalChange,
   onFieldUpdate,
   approval,
@@ -238,6 +252,7 @@ function ProductRow({
   deleting,
   dragHandle,
   allCategories,
+  sections,
 }: {
   product: Product;
   index: number;
@@ -249,9 +264,13 @@ function ProductRow({
   onDelete: () => void;
   onOpenComments: () => void;
   onToggleHidden: () => void;
-  onMove: () => void;
+  onMove: (targetSectionId: string) => void;
+  onCopy: (targetSectionId: string) => void;
+  onOpenMoveDialog: () => void;
+  onOpenCopyDialog: () => void;
   onApprovalChange: (value: string | null) => void;
   onFieldUpdate: (productId: string, field: string, value: string | null) => void;
+  sections: Section[];
   approval: string | null;
   commentCount: number;
   unread: boolean;
@@ -264,6 +283,10 @@ function ProductRow({
   const [lightbox, setLightbox] = useState(false);
   const [categoryMenuOpen, setCategoryMenuOpen] = useState(false);
   const [categoryMenuPos, setCategoryMenuPos] = useState({ top: 0, left: 0 });
+  const [copyMenuOpen, setCopyMenuOpen] = useState(false);
+  const [copyMenuPos, setCopyMenuPos] = useState({ top: 0, left: 0 });
+  const [moveMenuOpen, setMoveMenuOpen] = useState(false);
+  const [moveMenuPos, setMoveMenuPos] = useState({ top: 0, left: 0 });
   const [editingField, setEditingField] = useState<string | null>(null);
   const [editingValue, setEditingValue] = useState("");
 
@@ -342,9 +365,13 @@ function ProductRow({
           {product.hidden ? <Eye size={13} className="mr-2" /> : <EyeOff size={13} className="mr-2" />}
           {product.hidden ? "Pokaż klientowi" : "Ukryj przed klientem"}
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={onMove}>
+        <DropdownMenuItem onClick={onOpenMoveDialog}>
           <FolderInput size={13} className="mr-2" />
           Przenieś do sekcji
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={onOpenCopyDialog}>
+          <Copy size={13} className="mr-2" />
+          Skopiuj do sekcji
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={onDelete} className="text-destructive focus:text-destructive">
@@ -391,6 +418,53 @@ function ProductRow({
     </div>
   );
 
+  const sectionTargets = sections.filter((s) => s.id !== sectionId && !s.unsorted);
+
+  const movePortal = moveMenuOpen ? createPortal(
+    <>
+      <div className="fixed inset-0 z-[200]" onClick={() => setMoveMenuOpen(false)} />
+      <div className="fixed z-[201] bg-popover border border-border rounded-lg shadow-lg py-1 min-w-[180px]" style={{ top: moveMenuPos.top, left: moveMenuPos.left }}>
+        <p className="px-3 py-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Przenieś do sekcji</p>
+        {sectionTargets.map((s) => (
+          <button
+            key={s.id}
+            onClick={() => { onMove(s.id); setMoveMenuOpen(false); }}
+            className="w-full text-left px-3 py-1.5 text-xs hover:bg-muted transition-colors text-foreground"
+          >
+            {s.name}
+          </button>
+        ))}
+        {sectionTargets.length === 0 && (
+          <p className="px-3 py-1.5 text-xs text-muted-foreground">Brak innych sekcji.</p>
+        )}
+      </div>
+    </>,
+    document.body
+  ) : null;
+
+  const copyTargets = sectionTargets;
+  const copyPortal = copyMenuOpen ? createPortal(
+    <>
+      <div className="fixed inset-0 z-[200]" onClick={() => setCopyMenuOpen(false)} />
+      <div className="fixed z-[201] bg-popover border border-border rounded-lg shadow-lg py-1 min-w-[180px]" style={{ top: copyMenuPos.top, left: copyMenuPos.left }}>
+        <p className="px-3 py-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Skopiuj do sekcji</p>
+        {copyTargets.map((s) => (
+          <button
+            key={s.id}
+            onClick={() => { onCopy(s.id); setCopyMenuOpen(false); }}
+            className="w-full text-left px-3 py-1.5 text-xs hover:bg-muted transition-colors text-foreground"
+          >
+            {s.name}
+          </button>
+        ))}
+        {copyTargets.length === 0 && (
+          <p className="px-3 py-1.5 text-xs text-muted-foreground">Brak innych sekcji.</p>
+        )}
+      </div>
+    </>,
+    document.body
+  ) : null;
+
   const categoryPortal = categoryMenuOpen ? createPortal(
     <>
       <div className="fixed inset-0 z-[200]" onClick={() => setCategoryMenuOpen(false)} />
@@ -420,6 +494,8 @@ function ProductRow({
   return (
     <div className={`hover:bg-muted/30 transition-colors ${!last ? "border-b border-border" : ""} ${product.hidden ? "opacity-40" : ""}`}>
       {lightboxEl}
+      {movePortal}
+      {copyPortal}
       {categoryPortal}
 
       {/* ── DESKTOP layout (md+) — original ── */}
@@ -429,7 +505,10 @@ function ProductRow({
           <button onClick={onToggleHidden} className="w-5 h-5 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors" title={product.hidden ? "Pokaż klientowi" : "Ukryj przed klientem"}>
             {product.hidden ? <EyeOff size={14} /> : <Eye size={14} />}
           </button>
-          <button onClick={onMove} className="w-5 h-5 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors" title="Przenieś do innej sekcji">
+          <button onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); setCopyMenuPos({ top: r.top, left: r.right + 6 }); setCopyMenuOpen(true); }} className="w-5 h-5 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors" title="Skopiuj do sekcji">
+            <Copy size={14} />
+          </button>
+          <button onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); setMoveMenuPos({ top: r.top, left: r.right + 6 }); setMoveMenuOpen(true); }} className="w-5 h-5 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors" title="Przenieś do innej sekcji">
             <FolderInput size={14} />
           </button>
         </div>
@@ -800,6 +879,7 @@ export default function ListDetail({ list, designerName, designerEmail, designer
   const [fabMenuOpen, setFabMenuOpen] = useState(false);
   const [editState, setEditState] = useState<{ product: Product; sectionId: string } | null>(null);
   const [moveState, setMoveState] = useState<{ product: Product; sectionId: string } | null>(null);
+  const [copyState, setCopyState] = useState<{ product: Product; sectionId: string } | null>(null);
   const [activeDragProduct, setActiveDragProduct] = useState<Product | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [editingSectionId, setEditingSectionId] = useState<string | null>(null);
@@ -1283,6 +1363,42 @@ export default function ListDetail({ list, designerName, designerEmail, designer
         })
       );
       toast.error("Błąd przenoszenia produktu");
+    }
+  }
+
+  async function handleCopyProduct(sourceSectionId: string, product: Product, targetSectionId: string) {
+    try {
+      const res = await fetch(`/api/lists/${list.id}/sections/${targetSectionId}/products`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: product.name,
+          url: product.url,
+          imageUrl: product.imageUrl,
+          price: product.price,
+          manufacturer: product.manufacturer,
+          color: product.color,
+          dimensions: product.dimensions,
+          description: product.description,
+          deliveryTime: product.deliveryTime,
+          quantity: product.quantity,
+          category: product.category,
+          supplier: product.supplier,
+          catalogNumber: product.catalogNumber,
+          productId: product.productId,
+          note: product.note,
+        }),
+      });
+      if (!res.ok) throw new Error();
+      const newProduct: Product = await res.json();
+      setSections((prev) =>
+        prev.map((s) =>
+          s.id === targetSectionId ? { ...s, products: [...s.products, newProduct] } : s
+        )
+      );
+      toast.success("Produkt skopiowany");
+    } catch {
+      toast.error("Błąd kopiowania produktu");
     }
   }
 
@@ -1837,7 +1953,7 @@ export default function ListDetail({ list, designerName, designerEmail, designer
   }
 
   return (
-    <div>
+    <div className="pb-24">
       <div className="md:max-w-[75%] md:mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between gap-2 mb-5 min-w-0">
@@ -2002,7 +2118,10 @@ export default function ListDetail({ list, designerName, designerEmail, designer
                           onDelete={() => handleDeleteProduct(unsortedSection.id, product.id)}
                           onOpenComments={() => openCommentsPanel(product.id)}
                           onToggleHidden={() => handleToggleHidden(unsortedSection.id, product.id)}
-                          onMove={() => setMoveState({ product, sectionId: unsortedSection.id })}
+                          onMove={(targetSectionId) => handleMoveProduct(unsortedSection.id, product.id, targetSectionId)}
+                          onCopy={(targetSectionId) => handleCopyProduct(unsortedSection.id, product, targetSectionId)}
+                          onOpenMoveDialog={() => setMoveState({ product, sectionId: unsortedSection.id })}
+                          onOpenCopyDialog={() => setCopyState({ product, sectionId: unsortedSection.id })}
                           onApprovalChange={(value) => handleApprovalChange(unsortedSection.id, product.id, value)}
                           onFieldUpdate={(pid, field, value) => handleProductFieldUpdate(unsortedSection.id, pid, field, value)}
                           approval={approvals[product.id] ?? null}
@@ -2011,6 +2130,7 @@ export default function ListDetail({ list, designerName, designerEmail, designer
                           deleting={deletingId === product.id}
                           dragHandle={dragHandle}
                           allCategories={allCategories}
+                          sections={sections}
                         />
                       )}
                     </SortableProduct>
@@ -2084,7 +2204,7 @@ export default function ListDetail({ list, designerName, designerEmail, designer
                             }`}
                             title="Sortuj sekcję"
                           >
-                            <ArrowUpDown size={11} />
+                            <ArrowDownUp size={11} />
                             <span className="hidden sm:inline">
                               {SORT_OPTIONS.find((o) => o.value === getSortBy(section.sortBy))?.label ?? "Ręcznie"}
                             </span>
@@ -2149,7 +2269,10 @@ export default function ListDetail({ list, designerName, designerEmail, designer
                                     onDelete={() => handleDeleteProduct(section.id, product.id)}
                                     onOpenComments={() => openCommentsPanel(product.id)}
                                     onToggleHidden={() => handleToggleHidden(section.id, product.id)}
-                                    onMove={() => setMoveState({ product, sectionId: section.id })}
+                                    onMove={(targetSectionId) => handleMoveProduct(section.id, product.id, targetSectionId)}
+                                    onCopy={(targetSectionId) => handleCopyProduct(section.id, product, targetSectionId)}
+                                    onOpenMoveDialog={() => setMoveState({ product, sectionId: section.id })}
+                                    onOpenCopyDialog={() => setCopyState({ product, sectionId: section.id })}
                                     onApprovalChange={(value) => handleApprovalChange(section.id, product.id, value)}
                                     onFieldUpdate={(pid, field, value) => handleProductFieldUpdate(section.id, pid, field, value)}
                                     approval={approvals[product.id] ?? null}
@@ -2158,6 +2281,7 @@ export default function ListDetail({ list, designerName, designerEmail, designer
                                     deleting={deletingId === product.id}
                                     dragHandle={dragHandle}
                                     allCategories={allCategories}
+                                    sections={sections}
                                   />
                                 )}
                               </SortableProduct>
@@ -2250,6 +2374,17 @@ export default function ListDetail({ list, designerName, designerEmail, designer
           currentSectionId={moveState.sectionId}
           productName={moveState.product.name}
           onMove={(targetSectionId) => handleMoveProduct(moveState.sectionId, moveState.product.id, targetSectionId)}
+        />
+      )}
+
+      {copyState && (
+        <CopySectionDialog
+          open={!!copyState}
+          onOpenChange={(v) => { if (!v) setCopyState(null); }}
+          sections={sections.filter((s) => !s.unsorted)}
+          currentSectionId={copyState.sectionId}
+          productName={copyState.product.name}
+          onCopy={(targetSectionId) => handleCopyProduct(copyState.sectionId, copyState.product, targetSectionId)}
         />
       )}
 

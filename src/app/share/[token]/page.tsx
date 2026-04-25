@@ -464,25 +464,29 @@ export default function SharePage() {
   );
 
   if (!nameSet) return (
-    <div className="flex items-center justify-center min-h-screen px-4 bg-background">
-      <div className="w-full max-w-sm text-center">
-        <div className="flex items-center justify-center gap-2 mb-2">
-          {project?.clientLogoUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={project.clientLogoUrl} alt="Logo" className="h-10 object-contain" />
-          ) : (
-            <>
-              <Image src="/logo.svg" alt="RenderFlow" width={32} height={32} className="block dark:hidden" />
-              <Image src="/logo-dark.svg" alt="RenderFlow" width={32} height={32} className="hidden dark:block" />
-            </>
-          )}
-          {project?.designerName && (
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{project.designerName}</h1>
-          )}
-        </div>
-        <p className="text-gray-500 dark:text-gray-400 mb-6">Podaj swoje imię aby przeglądać projekt</p>
-        <div className="space-y-2">
-          <div className="flex gap-2">
+    <div className="flex items-center justify-center min-h-screen px-4 py-10 bg-muted/40">
+      <div className="w-full max-w-sm">
+        <div className="bg-card border border-border rounded-2xl p-8 shadow-sm">
+          <p className="text-sm text-muted-foreground text-center mb-5">
+            Witaj w panelu klienta projektanta:
+          </p>
+
+          {/* Designer info */}
+          <div className="flex items-center justify-center gap-3 mb-6">
+            {project?.clientLogoUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={project.clientLogoUrl} alt="Logo" className="h-10 w-10 rounded-full object-contain" />
+            )}
+            {project?.designerName && (
+              <span className="text-lg font-semibold">{project.designerName}</span>
+            )}
+          </div>
+
+          <p className="text-sm text-muted-foreground text-center mb-5">
+            Podaj swoje imię, aby móc przeglądać swój projekt
+          </p>
+
+          <div className="space-y-2">
             <Input
               value={nameInput}
               onChange={(e) => setNameInput(e.target.value)}
@@ -490,23 +494,34 @@ export default function SharePage() {
               onKeyDown={(e) => e.key === "Enter" && !project?.requireClientEmail && handleSetName()}
               autoFocus
             />
+            {project?.requireClientEmail && (
+              <Input
+                type="email"
+                value={emailInput}
+                onChange={(e) => setEmailInput(e.target.value)}
+                placeholder="Twój email"
+                onKeyDown={(e) => e.key === "Enter" && handleSetName()}
+              />
+            )}
+            <Button
+              onClick={handleSetName}
+              disabled={!nameInput.trim() || (!!project?.requireClientEmail && !emailInput.trim())}
+              className="w-full mt-1"
+            >
+              Przejdź do panelu
+            </Button>
           </div>
-          {project?.requireClientEmail && (
-            <Input
-              type="email"
-              value={emailInput}
-              onChange={(e) => setEmailInput(e.target.value)}
-              placeholder="Twój email"
-              onKeyDown={(e) => e.key === "Enter" && handleSetName()}
-            />
-          )}
-          <Button
-            onClick={handleSetName}
-            disabled={!nameInput.trim() || (!!project?.requireClientEmail && !emailInput.trim())}
-            className="w-full"
-          >
-            Dalej
-          </Button>
+        </div>
+
+        {/* Powered by veedeck */}
+        <div className="flex items-center justify-center gap-1.5 mt-5 opacity-60">
+          <span className="text-xs text-muted-foreground">Powered by</span>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/veedeck_ikona.png" alt="veedeck" className="h-4 w-4 shrink-0 object-contain" />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/vee_black.png" alt="veedeck" className="dark:hidden shrink-0" style={{ height: "11px", width: "auto" }} />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/veedeckicon.png" alt="" className="hidden dark:block shrink-0" style={{ height: "11px", width: "auto" }} />
         </div>
       </div>
     </div>

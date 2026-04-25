@@ -343,15 +343,15 @@ export default function CalendarView() {
       : cells.slice(0, 35);
 
     return (
-      <div className="flex flex-col flex-1 min-h-0">
-        <div className="grid grid-cols-7 border-b border-border flex-shrink-0">
+      <div className="flex flex-col flex-1 min-h-0 overflow-x-auto">
+        <div className="grid grid-cols-7 border-b border-border flex-shrink-0 min-w-[320px]">
           {DAY_NAMES_SHORT.map((d) => (
             <div key={d} className="py-2 text-center text-xs font-medium text-muted-foreground">
               {d}
             </div>
           ))}
         </div>
-        <div className="grid grid-cols-7 flex-1 min-h-0 overflow-y-auto divide-x divide-y divide-border">
+        <div className="grid grid-cols-7 flex-1 min-h-0 overflow-y-auto divide-x divide-y divide-border min-w-[320px]">
           {displayCells.map((day, i) => {
             const inMonth = day.getMonth() === month;
             const key = toDateKey(day);

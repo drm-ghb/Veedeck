@@ -61,7 +61,7 @@ export default async function RootLayout({
       data-theme={colorThemeCookie}
       suppressHydrationWarning
     >
-      <body className="min-h-full flex flex-col bg-background" suppressHydrationWarning>
+      <body className="min-h-full flex flex-col bg-background overflow-x-hidden" suppressHydrationWarning>
         <Providers>
           <LanguageProvider initialLang={initialLang}>
             <ThemeProvider>
