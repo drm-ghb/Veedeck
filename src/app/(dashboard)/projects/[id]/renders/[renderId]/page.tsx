@@ -46,6 +46,14 @@ export default async function RenderPage({ params }: Props) {
       })
     : [];
 
+  const productPins = await prisma.renderProductPin.findMany({
+    where: { renderId: render.id },
+    include: {
+      product: { select: { id: true, name: true, imageUrl: true, url: true, price: true } },
+    },
+    orderBy: { createdAt: "asc" },
+  });
+
   return (
     <div className={`fixed inset-0 top-[57px] z-20 bg-background ${sidebarVisible ? "md:left-14" : ""}`}>
       <RenderViewer
@@ -74,6 +82,7 @@ export default async function RenderPage({ params }: Props) {
           versionNumber: v.versionNumber,
           archivedAt: v.archivedAt.toISOString(),
         }))}
+        initialProductPins={productPins}
       />
     </div>
   );

@@ -8,8 +8,9 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { ChevronLeft, ChevronRight, ChevronDown, Eye, EyeOff, Pin, X, Send, ZoomIn, ZoomOut, History, Upload, Maximize2, RotateCcw, Lock, LockOpen, SplitSquareHorizontal, ChevronsLeftRight, MessageSquare, Sparkles } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronDown, Eye, EyeOff, Pin, X, Send, ZoomIn, ZoomOut, History, Upload, Maximize2, RotateCcw, Lock, LockOpen, SplitSquareHorizontal, ChevronsLeftRight, MessageSquare, Sparkles, Package, Trash2, ExternalLink } from "lucide-react";
 import RenderUploader from "./RenderUploader";
+import SearchProductDialog from "./SearchProductDialog";
 import { useUploadThing } from "@/lib/uploadthing-client";
 
 type CommentStatus = "NEW" | "IN_PROGRESS" | "DONE";
@@ -55,6 +56,19 @@ interface RenderVersion {
 
 type RenderStatus = "REVIEW" | "ACCEPTED";
 
+interface ProductPin {
+  id: string;
+  posX: number;
+  posY: number;
+  product: {
+    id: string;
+    name: string;
+    imageUrl: string | null;
+    url: string | null;
+    price: string | null;
+  };
+}
+
 interface RenderViewerProps {
   renderId: string;
   renderName?: string;
@@ -84,6 +98,7 @@ interface RenderViewerProps {
   onBack?: () => void;
   onRenderSelect?: (render: RoomRender) => void;
   shareToken?: string;
+  initialProductPins?: ProductPin[];
 }
 
 const STATUS_PIN_COLOR: Record<CommentStatus, string> = {
@@ -174,6 +189,7 @@ export default function RenderViewer({
   onBack,
   onRenderSelect,
   shareToken,
+  initialProductPins,
 }: RenderViewerProps) {
   const [comments, setComments] = useState<Comment[]>(initialComments);
   const [pending, setPending] = useState<{ x: number; y: number } | null>(null);
@@ -224,6 +240,14 @@ export default function RenderViewer({
     const lastRead = new Date(lastReadAt);
     return chatMessages.filter(c => new Date(c.createdAt) > lastRead).length;
   });
+  const [productPins, setProductPins] = useState<ProductPin[]>(initialProductPins ?? []);
+  const [productPinMode, setProductPinMode] = useState(false);
+  const [pendingProductPos, setPendingProductPos] = useState<{ x: number; y: number; renderId: string } | null>(null);
+  const [hoveredProductPinId, setHoveredProductPinId] = useState<string | null>(null);
+  const [productPinsPulsing, setProductPinsPulsing] = useState(true);
+  const [lightboxProductPins, setLightboxProductPins] = useState<ProductPin[]>([]);
+  const productPinHoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const [visualVP, setVisualVP] = useState({ height: 0, offsetTop: 0 });
   useEffect(() => {
     const vv = window.visualViewport;
@@ -237,6 +261,30 @@ export default function RenderViewer({
       vv.removeEventListener("scroll", update);
     };
   }, []);
+
+  // Fetch product pins on mount (if not pre-loaded)
+  useEffect(() => {
+    if (initialProductPins) return; // already provided
+    const url = isDesigner
+      ? `/api/renders/${renderId}/product-pins`
+      : shareToken
+      ? `/api/share/${shareToken}/renders/${renderId}/product-pins`
+      : null;
+    if (!url) return;
+    fetch(url)
+      .then((r) => r.json())
+      .then((data) => { if (Array.isArray(data)) setProductPins(data); })
+      .catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [renderId]);
+
+  // Remove pulse after 2.5s whenever pins load
+  useEffect(() => {
+    if (productPins.length === 0) return;
+    setProductPinsPulsing(true);
+    const t = setTimeout(() => setProductPinsPulsing(false), 2500);
+    return () => clearTimeout(t);
+  }, [productPins.length]);
 
   const [highlightedChatId, setHighlightedChatId] = useState<string | null>(null);
 
@@ -379,6 +427,14 @@ export default function RenderViewer({
   }
 
   function handleImageClick(e: React.MouseEvent<HTMLDivElement>) {
+    if (productPinMode) {
+      if (pending || pendingProductPos) return;
+      const rect = imgRef.current!.getBoundingClientRect();
+      const x = ((e.clientX - rect.left) / rect.width) * 100;
+      const y = ((e.clientY - rect.top) / rect.height) * 100;
+      setPendingProductPos({ x, y, renderId });
+      return;
+    }
     if (mode !== "pin") {
       openLightbox();
       return;
@@ -606,6 +662,48 @@ export default function RenderViewer({
     }
   }
 
+  function handleProductPinMouseEnter(id: string) {
+    if (productPinHoverTimer.current) clearTimeout(productPinHoverTimer.current);
+    setHoveredProductPinId(id);
+  }
+  function handleProductPinMouseLeave() {
+    productPinHoverTimer.current = setTimeout(() => setHoveredProductPinId(null), 150);
+  }
+
+  async function addProductPin(
+    product: { id: string; name: string; imageUrl: string | null; url: string | null; price: string | null },
+    pos: { x: number; y: number },
+    targetRenderId: string
+  ) {
+    const res = await fetch(`/api/renders/${targetRenderId}/product-pins`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ productId: product.id, posX: pos.x, posY: pos.y }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      toast.error(data.error || "Błąd dodawania produktu");
+      return;
+    }
+    const pin: ProductPin = await res.json();
+    if (targetRenderId === renderId) {
+      setProductPins((prev) => [...prev, pin]);
+    } else {
+      setLightboxProductPins((prev) => [...prev, pin]);
+    }
+  }
+
+  async function deleteProductPin(pinId: string, targetRenderId: string) {
+    const res = await fetch(`/api/renders/${targetRenderId}/product-pins/${pinId}`, { method: "DELETE" });
+    if (!res.ok) { toast.error("Błąd usuwania produktu"); return; }
+    setHoveredProductPinId(null);
+    if (targetRenderId === renderId) {
+      setProductPins((prev) => prev.filter((p) => p.id !== pinId));
+    } else {
+      setLightboxProductPins((prev) => prev.filter((p) => p.id !== pinId));
+    }
+  }
+
   async function fetchAllComments() {
     setLoadingAllComments(true);
     try {
@@ -725,6 +823,24 @@ export default function RenderViewer({
       channel.unbind_all();
       pusherClient.unsubscribe(`render-${id}`);
     };
+  }, [lightboxRender.id, renderId]);
+
+  // Fetch product pins for lightbox render when it changes
+  useEffect(() => {
+    const id = lightboxRender.id;
+    if (id === renderId) { setLightboxProductPins([]); return; }
+    const url = isDesigner
+      ? `/api/renders/${id}/product-pins`
+      : shareToken
+      ? `/api/share/${shareToken}/renders/${id}/product-pins`
+      : null;
+    if (!url) return;
+    setLightboxProductPins([]);
+    fetch(url)
+      .then((r) => r.json())
+      .then((data) => { if (Array.isArray(data)) setLightboxProductPins(data); })
+      .catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lightboxRender.id, renderId]);
 
   useEffect(() => {
@@ -908,8 +1024,13 @@ export default function RenderViewer({
               <Maximize2 size={14} /> Podgląd
             </button>
             {(isDesigner || allowClientComments) && (
-              <button onClick={() => setMode(mode === "pin" ? "view" : "pin")} className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md border transition-colors ${mode === "pin" ? "bg-gray-900 text-white border-gray-900" : "border-transparent text-gray-500 dark:text-gray-400 hover:bg-muted"}`}>
+              <button onClick={() => { setMode(mode === "pin" ? "view" : "pin"); setProductPinMode(false); setPendingProductPos(null); }} className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md border transition-colors ${mode === "pin" ? "bg-gray-900 text-white border-gray-900" : "border-transparent text-gray-500 dark:text-gray-400 hover:bg-muted"}`}>
                 <Pin size={14} /> Dodaj pin
+              </button>
+            )}
+            {isDesigner && (
+              <button onClick={() => { setProductPinMode((v) => !v); setMode("view"); setPending(null); setPendingProductPos(null); }} className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md border transition-colors ${productPinMode ? "bg-gray-900 text-white border-gray-900" : "border-transparent text-gray-500 dark:text-gray-400 hover:bg-muted"}`}>
+                <Package size={14} /> Dodaj produkt
               </button>
             )}
             <button onClick={() => setHidePins((v) => !v)} className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md border transition-colors ${hidePins ? "bg-gray-900 text-white border-gray-900" : "border-transparent text-gray-500 dark:text-gray-400 hover:bg-muted"}`}>
@@ -963,8 +1084,14 @@ export default function RenderViewer({
             <div className="w-px h-5 bg-gray-200 dark:bg-gray-700 mx-0.5 flex-shrink-0" />
             {/* Dodaj pin */}
             {(isDesigner || allowClientComments) && (
-              <button onClick={() => setMode(mode === "pin" ? "view" : "pin")} className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md border transition-colors flex-shrink-0 ${mode === "pin" ? "bg-gray-900 text-white border-gray-900" : "border-transparent text-gray-500 dark:text-gray-400 hover:bg-muted"}`}>
+              <button onClick={() => { setMode(mode === "pin" ? "view" : "pin"); setProductPinMode(false); setPendingProductPos(null); }} className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md border transition-colors flex-shrink-0 ${mode === "pin" ? "bg-gray-900 text-white border-gray-900" : "border-transparent text-gray-500 dark:text-gray-400 hover:bg-muted"}`}>
                 <Pin size={14} /> Dodaj pin
+              </button>
+            )}
+            {/* Dodaj produkt */}
+            {isDesigner && (
+              <button onClick={() => { setProductPinMode((v) => !v); setMode("view"); setPending(null); setPendingProductPos(null); }} className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md border transition-colors flex-shrink-0 ${productPinMode ? "bg-gray-900 text-white border-gray-900" : "border-transparent text-gray-500 dark:text-gray-400 hover:bg-muted"}`}>
+                <Package size={14} /> Dodaj produkt
               </button>
             )}
             {/* Dyskusja */}
@@ -1080,7 +1207,7 @@ export default function RenderViewer({
           <div className="absolute inset-0 overflow-auto flex items-start justify-start sm:justify-center p-2 sm:p-6">
           <div
             ref={imgRef}
-            className={`relative select-none ${mode === "pin" ? "cursor-crosshair" : "cursor-default"}`}
+            className={`relative select-none ${(mode === "pin" || productPinMode) ? "cursor-crosshair" : "cursor-default"}`}
             onClick={handleImageClick}
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -1116,6 +1243,57 @@ export default function RenderViewer({
                   <Lock size={8} className="absolute -top-1 -right-1 bg-slate-700 rounded-full p-[1px] text-white" />
                 )}
               </button>
+            ))}
+
+            {/* Product pins */}
+            {!hidePins && productPins.map((pin) => (
+              <div
+                key={pin.id}
+                className="absolute z-10"
+                style={{ left: `calc(${pin.posX}% - 8px)`, top: `calc(${pin.posY}% - 8px)` }}
+                onMouseEnter={() => handleProductPinMouseEnter(pin.id)}
+                onMouseLeave={handleProductPinMouseLeave}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className={`w-4 h-4 rounded-full bg-gray-500 border-2 border-white shadow-lg cursor-pointer ${productPinsPulsing ? "animate-pulse" : ""}`} />
+                {hoveredProductPinId === pin.id && (
+                  <div
+                    className="fixed z-50 bg-card rounded-xl shadow-xl border border-border p-3 w-56"
+                    style={getPopupStyle(pin.posX, pin.posY, imgRef.current, 224, visualVP.height || undefined, visualVP.offsetTop)}
+                    onMouseEnter={() => handleProductPinMouseEnter(pin.id)}
+                    onMouseLeave={handleProductPinMouseLeave}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {pin.product.imageUrl && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={pin.product.imageUrl} alt={pin.product.name} className="w-full h-28 object-cover rounded-lg mb-2 border border-border" />
+                    )}
+                    {!pin.product.imageUrl && (
+                      <div className="w-full h-16 rounded-lg bg-muted flex items-center justify-center mb-2">
+                        <Package size={20} className="text-muted-foreground" />
+                      </div>
+                    )}
+                    <p className="text-sm font-medium text-foreground truncate">{pin.product.name}</p>
+                    {pin.product.price && <p className="text-xs text-muted-foreground mt-0.5">{pin.product.price}</p>}
+                    <div className="flex items-center gap-2 mt-2">
+                      {pin.product.url && (
+                        <a href={pin.product.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs text-blue-500 hover:text-blue-600 transition-colors">
+                          <ExternalLink size={12} /> Sklep
+                        </a>
+                      )}
+                      {isDesigner && (
+                        <button
+                          onClick={() => deleteProductPin(pin.id, renderId)}
+                          className="ml-auto text-muted-foreground hover:text-red-500 transition-colors"
+                          title="Usuń produkt"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
             ))}
 
             {/* Pending pin */}
@@ -1695,11 +1873,26 @@ export default function RenderViewer({
                 <button
                   onClick={() => {
                     setMode(mode === "pin" ? "view" : "pin");
+                    setProductPinMode(false);
                     cancelPending();
+                    setPendingProductPos(null);
                   }}
-                  className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md font-medium transition-colors bg-white text-black hover:bg-white/90"
+                  className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md font-medium transition-colors ${mode === "pin" ? "bg-white/20 text-white" : "bg-white text-black hover:bg-white/90"}`}
                 >
                   <Pin size={14} /> {mode === "pin" ? "Anuluj" : "Dodaj pin"}
+                </button>
+              )}
+              {isDesigner && (
+                <button
+                  onClick={() => {
+                    setProductPinMode((v) => !v);
+                    setMode("view");
+                    cancelPending();
+                    setPendingProductPos(null);
+                  }}
+                  className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md font-medium transition-colors ${productPinMode ? "bg-white/20 text-white" : "bg-white text-black hover:bg-white/90"}`}
+                >
+                  <Package size={14} /> {productPinMode ? "Anuluj" : "Dodaj produkt"}
                 </button>
               )}
               <button
@@ -1750,9 +1943,17 @@ export default function RenderViewer({
           >
             <div
               ref={lightboxImgRef}
-              className={`relative flex-shrink-0 select-none ${mode === "pin" ? "cursor-crosshair" : "cursor-default"}`}
+              className={`relative flex-shrink-0 select-none ${(mode === "pin" || productPinMode) ? "cursor-crosshair" : "cursor-default"}`}
               style={{ width: `${Math.max(60, 75 * zoom)}vw` }}
               onClick={(e) => {
+                if (productPinMode) {
+                  if (pending || pendingProductPos) return;
+                  const rect = lightboxImgRef.current!.getBoundingClientRect();
+                  const x = ((e.clientX - rect.left) / rect.width) * 100;
+                  const y = ((e.clientY - rect.top) / rect.height) * 100;
+                  setPendingProductPos({ x, y, renderId: lightboxRender.id });
+                  return;
+                }
                 if (mode !== "pin") return;
                 if (pending) return;
                 const rect = lightboxImgRef.current!.getBoundingClientRect();
@@ -1771,6 +1972,57 @@ export default function RenderViewer({
                 className="w-full h-auto block rounded-lg"
                 draggable={false}
               />
+
+              {/* Product pins in lightbox */}
+              {!hidePins && (lightboxRender.id === renderId ? productPins : lightboxProductPins).map((pin) => (
+                <div
+                  key={pin.id}
+                  className="absolute z-10"
+                  style={{ left: `calc(${pin.posX}% - 8px)`, top: `calc(${pin.posY}% - 8px)` }}
+                  onMouseEnter={() => handleProductPinMouseEnter(pin.id)}
+                  onMouseLeave={handleProductPinMouseLeave}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className={`w-4 h-4 rounded-full bg-gray-400 border-2 border-white shadow-lg cursor-pointer ${productPinsPulsing ? "animate-pulse" : ""}`} />
+                  {hoveredProductPinId === pin.id && (
+                    <div
+                      className="fixed z-50 bg-card rounded-xl shadow-xl border border-border p-3 w-56"
+                      style={getPopupStyle(pin.posX, pin.posY, lightboxImgRef.current, 224)}
+                      onMouseEnter={() => handleProductPinMouseEnter(pin.id)}
+                      onMouseLeave={handleProductPinMouseLeave}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {pin.product.imageUrl && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={pin.product.imageUrl} alt={pin.product.name} className="w-full h-28 object-cover rounded-lg mb-2 border border-border" />
+                      )}
+                      {!pin.product.imageUrl && (
+                        <div className="w-full h-16 rounded-lg bg-muted flex items-center justify-center mb-2">
+                          <Package size={20} className="text-muted-foreground" />
+                        </div>
+                      )}
+                      <p className="text-sm font-medium text-foreground truncate">{pin.product.name}</p>
+                      {pin.product.price && <p className="text-xs text-muted-foreground mt-0.5">{pin.product.price}</p>}
+                      <div className="flex items-center gap-2 mt-2">
+                        {pin.product.url && (
+                          <a href={pin.product.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs text-blue-500 hover:text-blue-600 transition-colors">
+                            <ExternalLink size={12} /> Sklep
+                          </a>
+                        )}
+                        {isDesigner && (
+                          <button
+                            onClick={() => deleteProductPin(pin.id, lightboxRender.id)}
+                            className="ml-auto text-muted-foreground hover:text-red-500 transition-colors"
+                            title="Usuń produkt"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
 
               {/* Pins overlay — interactive */}
               {!hidePins && (lightboxRender.id === renderId ? pinComments : lightboxComments.filter(c => c.posX !== null)).map((c, i) => (
@@ -1985,6 +2237,18 @@ export default function RenderViewer({
           </div>
         </div>
       )}
+
+      {/* SearchProductDialog */}
+      <SearchProductDialog
+        open={pendingProductPos !== null}
+        onClose={() => setPendingProductPos(null)}
+        onSelect={(product) => {
+          if (!pendingProductPos) return;
+          addProductPin(product, { x: pendingProductPos.x, y: pendingProductPos.y }, pendingProductPos.renderId);
+          setPendingProductPos(null);
+          setProductPinMode(false);
+        }}
+      />
 
       {/* Version History Modal */}
       {/* Compare overlay */}

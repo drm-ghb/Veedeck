@@ -316,11 +316,24 @@ model Render {
   folderId               String?
   pinned                 Boolean                 @default(false)
   comments               Comment[]
+  productPins            RenderProductPin[]
   folder                 Folder?                 @relation(fields: [folderId], references: [id])
   project                Project                 @relation(fields: [projectId], references: [id], onDelete: Cascade)
   room                   Room?                   @relation(fields: [roomId], references: [id])
   versions               RenderVersion[]
   versionRestoreRequests VersionRestoreRequest[]
+}
+
+model RenderProductPin {
+  id        String   @id @default(cuid())
+  renderId  String
+  productId String
+  posX      Float
+  posY      Float
+  createdAt DateTime @default(now())
+
+  render  Render  @relation(fields: [renderId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 }
 
 model RenderVersion {
@@ -437,6 +450,7 @@ model Product {
   userId        String
   user         User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
   listProducts ListProduct[]
+  renderPins   RenderProductPin[]
 }
 
 model Discussion {
