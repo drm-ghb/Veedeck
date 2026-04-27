@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { MoreHorizontal, Archive, Trash2, Pencil, Pin, PinOff } from "lucide-react";
+import { MoreHorizontal, Archive, Trash2, Pencil, Pin, PinOff, FolderInput } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -21,16 +21,21 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import MoveRenderDialog from "./MoveRenderDialog";
 
 interface RenderMenuProps {
   render: { id: string; name: string; pinned?: boolean };
+  projectId: string;
+  currentRoomId: string;
+  currentFolderId?: string | null;
 }
 
-export default function RenderMenu({ render }: RenderMenuProps) {
+export default function RenderMenu({ render, projectId, currentRoomId, currentFolderId = null }: RenderMenuProps) {
   const router = useRouter();
   const [editOpen, setEditOpen] = useState(false);
   const [editName, setEditName] = useState("");
   const [saving, setSaving] = useState(false);
+  const [moveOpen, setMoveOpen] = useState(false);
 
   async function handlePin() {
     const res = await fetch(`/api/renders/${render.id}`, {
@@ -99,9 +104,7 @@ export default function RenderMenu({ render }: RenderMenuProps) {
           <MoreHorizontal size={16} />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem
-            onClick={(e) => { e.preventDefault(); handlePin(); }}
-          >
+          <DropdownMenuItem onClick={(e) => { e.preventDefault(); handlePin(); }}>
             {render.pinned ? <PinOff size={14} /> : <Pin size={14} />}
             {render.pinned ? "Odepnij" : "Przypnij"}
           </DropdownMenuItem>
@@ -115,6 +118,10 @@ export default function RenderMenu({ render }: RenderMenuProps) {
           >
             <Pencil size={14} />
             Edytuj tytuł
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={(e) => { e.preventDefault(); setMoveOpen(true); }}>
+            <FolderInput size={14} />
+            Przenieś
           </DropdownMenuItem>
           <DropdownMenuItem onClick={handleArchive}>
             <Archive size={14} />
@@ -154,6 +161,15 @@ export default function RenderMenu({ render }: RenderMenuProps) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <MoveRenderDialog
+        open={moveOpen}
+        onOpenChange={setMoveOpen}
+        render={{ id: render.id, name: render.name }}
+        projectId={projectId}
+        currentRoomId={currentRoomId}
+        currentFolderId={currentFolderId}
+      />
     </>
   );
 }

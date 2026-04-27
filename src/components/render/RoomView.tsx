@@ -230,7 +230,7 @@ export default function RoomView({ projectId, roomId, renders, archivedRenders, 
                                 </span>
                               </div>
                               <div className="flex-shrink-0" onClick={(e) => e.preventDefault()}>
-                                <RenderMenu render={{ id: render.id, name: render.name, pinned: render.pinned }} />
+                                <RenderMenu render={{ id: render.id, name: render.name, pinned: render.pinned }} projectId={projectId} currentRoomId={roomId} currentFolderId={render.folderId} />
                               </div>
                             </div>
                           </div>
@@ -279,7 +279,7 @@ export default function RoomView({ projectId, roomId, renders, archivedRenders, 
                           {render.status === "ACCEPTED" ? "Zaakceptowany" : "Do weryfikacji"}
                         </span>
                         <div className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" onClick={(e) => e.preventDefault()}>
-                          <RenderMenu render={{ id: render.id, name: render.name, pinned: render.pinned }} />
+                          <RenderMenu render={{ id: render.id, name: render.name, pinned: render.pinned }} projectId={projectId} currentRoomId={roomId} currentFolderId={render.folderId} />
                         </div>
                       </div>
                     ))}

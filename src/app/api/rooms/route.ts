@@ -3,6 +3,34 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getWorkspaceUserId } from "@/lib/workspace";
 
+export async function GET(req: NextRequest) {
+  const session = await auth();
+  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const userId = getWorkspaceUserId(session);
+
+  const projectId = req.nextUrl.searchParams.get("projectId");
+  if (!projectId) return NextResponse.json({ error: "Brak projectId" }, { status: 400 });
+
+  const project = await prisma.project.findFirst({ where: { id: projectId, userId } });
+  if (!project) return NextResponse.json({ error: "Brak dostępu" }, { status: 403 });
+
+  const rooms = await prisma.room.findMany({
+    where: { projectId, archived: false },
+    orderBy: [{ pinned: "desc" }, { order: "asc" }],
+    select: {
+      id: true,
+      name: true,
+      folders: {
+        where: { archived: false },
+        orderBy: [{ pinned: "desc" }, { order: "asc" }],
+        select: { id: true, name: true },
+      },
+    },
+  });
+
+  return NextResponse.json(rooms);
+}
+
 export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) {

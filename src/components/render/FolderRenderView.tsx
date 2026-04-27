@@ -20,10 +20,12 @@ interface Render {
 
 interface FolderRenderViewProps {
   projectId: string;
+  roomId: string;
+  folderId: string;
   renders: Render[];
 }
 
-export default function FolderRenderView({ projectId, renders }: FolderRenderViewProps) {
+export default function FolderRenderView({ projectId, roomId, folderId, renders }: FolderRenderViewProps) {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 
   const sorted = [...renders].sort((a, b) => {
@@ -100,7 +102,7 @@ export default function FolderRenderView({ projectId, renders }: FolderRenderVie
                       </span>
                     </div>
                     <div className="flex-shrink-0" onClick={(e) => e.preventDefault()}>
-                      <RenderMenu render={{ id: render.id, name: render.name, pinned: render.pinned }} />
+                      <RenderMenu render={{ id: render.id, name: render.name, pinned: render.pinned }} projectId={projectId} currentRoomId={roomId} currentFolderId={folderId} />
                     </div>
                   </div>
                 </div>
@@ -149,7 +151,7 @@ export default function FolderRenderView({ projectId, renders }: FolderRenderVie
                 {render.status === "ACCEPTED" ? "Zaakceptowany" : "Do weryfikacji"}
               </span>
               <div className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" onClick={(e) => e.preventDefault()}>
-                <RenderMenu render={{ id: render.id, name: render.name, pinned: render.pinned }} />
+                <RenderMenu render={{ id: render.id, name: render.name, pinned: render.pinned }} projectId={projectId} currentRoomId={roomId} currentFolderId={folderId} />
               </div>
             </div>
           ))}

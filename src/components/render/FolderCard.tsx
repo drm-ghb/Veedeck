@@ -32,7 +32,7 @@ export default function FolderCard({ folder, projectId, roomId }: FolderCardProp
         className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity"
         onClick={(e) => e.preventDefault()}
       >
-        <FolderMenu folder={{ id: folder.id, name: folder.name, pinned: folder.pinned }} />
+        <FolderMenu folder={{ id: folder.id, name: folder.name, pinned: folder.pinned }} projectId={projectId} currentRoomId={roomId} />
       </div>
     </Link>
   );

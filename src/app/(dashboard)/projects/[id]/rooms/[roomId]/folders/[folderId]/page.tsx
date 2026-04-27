@@ -47,6 +47,8 @@ export default async function FolderPage({ params }: Props) {
 
       <FolderRenderView
         projectId={id}
+        roomId={roomId}
+        folderId={folderId}
         renders={renders.map((r) => ({
           id: r.id,
           name: r.name,

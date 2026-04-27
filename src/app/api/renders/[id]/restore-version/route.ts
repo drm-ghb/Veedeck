@@ -41,6 +41,8 @@ export async function POST(
         archivedAt: new Date(),
       },
     }),
+    prisma.comment.deleteMany({ where: { renderId: id } }),
+    prisma.renderProductPin.deleteMany({ where: { renderId: id } }),
     prisma.render.update({
       where: { id },
       data: { fileUrl: version.fileUrl, fileKey: version.fileKey ?? render.fileKey },

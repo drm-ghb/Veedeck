@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { ChevronLeft, ChevronRight, ChevronDown, Eye, EyeOff, Pin, X, Send, ZoomIn, ZoomOut, History, Upload, Maximize2, RotateCcw, Lock, LockOpen, SplitSquareHorizontal, ChevronsLeftRight, MessageSquare, Sparkles, Package, Trash2, ExternalLink, Mic, StopCircle, CheckCircle2, Armchair } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronDown, Eye, EyeOff, Pin, X, Send, ZoomIn, ZoomOut, History, Upload, Maximize2, RotateCcw, Lock, LockOpen, SplitSquareHorizontal, ChevronsLeftRight, MessageSquare, Sparkles, Package, Trash2, ExternalLink, Mic, StopCircle, CheckCircle2, Armchair, Loader2 } from "lucide-react";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import RenderUploader from "./RenderUploader";
 import SearchProductDialog from "./SearchProductDialog";
 import { useUploadThing } from "@/lib/uploadthing-client";
@@ -19,6 +20,7 @@ interface Reply {
   id: string;
   content: string;
   author: string;
+  voiceUrl?: string | null;
   createdAt: string;
 }
 
@@ -227,7 +229,7 @@ export default function RenderViewer({
   });
   const [allComments, setAllComments] = useState<CommentWithMeta[]>([]);
   const [loadingAllComments, setLoadingAllComments] = useState(false);
-  const [sidebarTab, setSidebarTab] = useState<"pins" | "chat">("pins");
+  const [sidebarTab, setSidebarTab] = useState<"pins" | "chat">("chat");
   const [chatMessage, setChatMessage] = useState("");
   const [sendingChatMessage, setSendingChatMessage] = useState(false);
   const [localAiSummaries, setLocalAiSummaries] = useState<Comment[]>([]);
@@ -264,6 +266,14 @@ export default function RenderViewer({
   const chatMediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chatAudioChunksRef = useRef<Blob[]>([]);
   const chatRecordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const [isReplyRecording, setIsReplyRecording] = useState(false);
+  const [replyRecordingSeconds, setReplyRecordingSeconds] = useState(0);
+  const [replyPendingVoiceUrl, setReplyPendingVoiceUrl] = useState<string | null>(null);
+  const [replyUploadingVoice, setReplyUploadingVoice] = useState(false);
+  const replyMediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const replyAudioChunksRef = useRef<Blob[]>([]);
+  const replyRecordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const [visualVP, setVisualVP] = useState({ height: 0, offsetTop: 0 });
   useEffect(() => {
@@ -372,6 +382,22 @@ export default function RenderViewer({
       onUploadError: () => {
         toast.error("Błąd przesyłania nagrania głosowego");
         setChatUploadingVoice(false);
+      },
+    }
+  );
+
+  const { startUpload: startReplyVoiceUpload } = useUploadThing(
+    isDesigner ? "pinVoiceUploader" : "clientPinVoiceUploader",
+    {
+      headers: !isDesigner && shareToken ? { "x-share-token": shareToken } : undefined,
+      onClientUploadComplete: (res) => {
+        const url = res[0]?.url;
+        if (url) setReplyPendingVoiceUrl(url);
+        setReplyUploadingVoice(false);
+      },
+      onUploadError: () => {
+        toast.error("Błąd przesyłania nagrania głosowego");
+        setReplyUploadingVoice(false);
       },
     }
   );
@@ -622,6 +648,44 @@ export default function RenderViewer({
     setIsChatRecording(false);
   }
 
+  async function startReplyRecording() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      replyMediaRecorderRef.current = mediaRecorder;
+      replyAudioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) replyAudioChunksRef.current.push(e.data);
+      };
+
+      mediaRecorder.onstop = () => {
+        stream.getTracks().forEach((t) => t.stop());
+        const blob = new Blob(replyAudioChunksRef.current, { type: "audio/webm" });
+        const file = new File([blob], `voice-reply-${Date.now()}.webm`, { type: "audio/webm" });
+        setReplyUploadingVoice(true);
+        startReplyVoiceUpload([file]);
+      };
+
+      mediaRecorder.start();
+      setIsReplyRecording(true);
+      setReplyRecordingSeconds(0);
+      setReplyPendingVoiceUrl(null);
+      replyRecordingTimerRef.current = setInterval(
+        () => setReplyRecordingSeconds((s) => s + 1),
+        1000
+      );
+    } catch {
+      toast.error("Brak dostępu do mikrofonu");
+    }
+  }
+
+  function stopReplyRecording() {
+    if (replyRecordingTimerRef.current) clearInterval(replyRecordingTimerRef.current);
+    replyMediaRecorderRef.current?.stop();
+    setIsReplyRecording(false);
+  }
+
   async function submitChatMessage() {
     if (!chatMessage.trim() && !chatPendingVoiceUrl) return;
     setSendingChatMessage(true);
@@ -696,16 +760,17 @@ export default function RenderViewer({
   }
 
   async function submitReply() {
-    if (!selectedId || !replyContent.trim()) return;
+    if (!selectedId || (!replyContent.trim() && !replyPendingVoiceUrl)) return;
     setReplying(true);
     try {
       const res = await fetch(`/api/comments/${selectedId}/replies`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: replyContent.trim(), author: authorName }),
+        body: JSON.stringify({ content: replyContent.trim(), author: authorName, voiceUrl: replyPendingVoiceUrl ?? null }),
       });
       if (!res.ok) throw new Error();
       setReplyContent("");
+      setReplyPendingVoiceUrl(null);
     } catch {
       toast.error("Błąd dodawania odpowiedzi");
     } finally {
@@ -1022,7 +1087,7 @@ export default function RenderViewer({
   }, [highlightedChatId, sidebarTab, showComments, comments]);
 
   return (
-    <div className="flex flex-col h-full bg-card">
+    <div className="flex flex-col h-full bg-card rounded-tl-2xl overflow-hidden">
       {/* Header bar */}
       <div className="border-b bg-card flex-shrink-0">
 
@@ -1097,42 +1162,57 @@ export default function RenderViewer({
           </nav>
 
           {/* Desktop toolbar (hidden on mobile) */}
-          <div className="hidden sm:flex ml-auto items-center gap-2 flex-shrink-0">
-            {!hideCommentCount && todoCount > 0 && (
-              <span className="hidden xl:inline-flex items-center gap-1 bg-red-100 text-red-700 text-xs font-medium px-2 py-1 rounded-md">{todoCount} to do</span>
-            )}
-            {!hideCommentCount && inProgressCount > 0 && (
-              <span className="hidden xl:inline-flex items-center gap-1 bg-yellow-100 text-yellow-700 text-xs font-medium px-2 py-1 rounded-md">{inProgressCount} in progress</span>
-            )}
-            {!hideCommentCount && doneCount > 0 && (
-              <span className="hidden xl:inline-flex items-center gap-1 bg-green-100 text-green-700 text-xs font-medium px-2 py-1 rounded-md">{doneCount} done</span>
+          <div className="hidden sm:flex ml-auto items-center gap-1 flex-shrink-0">
+            {/* Zone 1: Primary actions */}
+            {(isDesigner || allowClientComments) && (
+              <button onClick={() => { setMode(mode === "pin" ? "view" : "pin"); setProductPinMode(false); setPendingProductPos(null); }} className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md border transition-colors ${mode === "pin" ? "bg-gray-900 text-white border-gray-900" : "border-transparent text-gray-500 dark:text-gray-400 hover:bg-muted"}`}>
+                <Pin size={14} /> Dodaj pin
+              </button>
             )}
             {isDesigner && (
-              <span className="flex items-center gap-1 text-xs text-muted-foreground" title="Ilość wyświetleń pliku przez klienta">
-                <Eye size={13} />{viewCount}
-              </span>
+              <button onClick={() => { setProductPinMode((v) => !v); setMode("view"); setPending(null); setPendingProductPos(null); }} className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md border transition-colors ${productPinMode ? "bg-gray-900 text-white border-gray-900" : "border-transparent text-gray-500 dark:text-gray-400 hover:bg-muted"}`}>
+                <Package size={14} /> Dodaj produkt
+              </button>
             )}
-            <div className="w-px h-4 bg-gray-200 mx-1" />
+
+            {/* Separator */}
+            <div className="w-px h-4 bg-gray-200 dark:bg-gray-700 mx-1" />
+
+            {/* Zone 2: View controls — icon only */}
+            <button onClick={() => setHidePins((v) => !v)} title={hidePins ? "Pokaż piny" : "Ukryj piny"} className={`flex items-center justify-center w-8 h-8 rounded-md border transition-colors ${hidePins ? "bg-gray-900 text-white border-gray-900" : "border-transparent text-gray-500 dark:text-gray-400 hover:bg-muted"}`}>
+              {hidePins ? <EyeOff size={15} /> : <Eye size={15} />}
+            </button>
+            <button onClick={openLightbox} title="Podgląd pełnoekranowy" className={`flex items-center justify-center w-8 h-8 rounded-md border transition-colors ${lightboxOpen ? "bg-gray-900 text-white border-gray-900" : "border-transparent text-gray-500 dark:text-gray-400 hover:bg-muted"}`}>
+              <Maximize2 size={15} />
+            </button>
+            {isDesigner && (
+              <button onClick={() => setShowVersionHistory(true)} title={`Historia wersji${versions.length > 0 ? ` (${versions.length})` : ""}`} className="relative flex items-center justify-center w-8 h-8 rounded-md border border-transparent text-gray-500 dark:text-gray-400 hover:bg-muted transition-colors">
+                <History size={15} />
+                {versions.length > 0 && (
+                  <span className="absolute -top-1 -right-1 min-w-[14px] h-3.5 px-0.5 bg-gray-400 text-white text-[9px] font-bold rounded-full flex items-center justify-center leading-none">{versions.length}</span>
+                )}
+              </button>
+            )}
+
+            {/* Separator */}
+            <div className="w-px h-4 bg-gray-200 dark:bg-gray-700 mx-1" />
+
+            {/* Zone 3: Render status */}
             {isDesigner ? (
-              <>
-                {/* Tablet: select dropdown */}
-                <div className="relative flex xl:hidden flex-shrink-0">
-                  <select
-                    value={renderStatus}
-                    onChange={(e) => updateRenderStatus(e.target.value as RenderStatus)}
-                    className={`appearance-none text-xs pl-2.5 pr-7 py-1.5 rounded-md border font-medium cursor-pointer ${renderStatus === "ACCEPTED" ? "bg-green-500 text-white border-green-600" : "bg-blue-500 text-white border-blue-600"}`}
-                  >
-                    <option value="REVIEW" className="bg-white text-gray-900">Do weryfikacji</option>
-                    <option value="ACCEPTED" className="bg-white text-gray-900">Zaakceptowany</option>
-                  </select>
-                  <ChevronDown size={12} className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-white" />
-                </div>
-                {/* Desktop: two buttons */}
-                <div className="hidden xl:flex items-center gap-1 bg-muted rounded-md p-0.5">
-                  <button onClick={() => updateRenderStatus("REVIEW")} className={`text-xs px-2.5 py-1 rounded transition-colors font-medium ${renderStatus === "REVIEW" ? "bg-blue-500 text-white shadow-sm" : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"}`}>Do weryfikacji</button>
-                  <button onClick={() => updateRenderStatus("ACCEPTED")} className={`text-xs px-2.5 py-1 rounded transition-colors font-medium ${renderStatus === "ACCEPTED" ? "bg-green-500 text-white shadow-sm" : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"}`}>Zaakceptowany</button>
-                </div>
-              </>
+              <DropdownMenu>
+                <DropdownMenuTrigger className={`flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-md border transition-colors ${renderStatus === "ACCEPTED" ? "bg-green-500 text-white border-green-600" : "bg-blue-500 text-white border-blue-600"}`}>
+                  {renderStatus === "ACCEPTED" ? "Zaakceptowany" : "Do weryfikacji"}
+                  <ChevronDown size={11} />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => updateRenderStatus("REVIEW")} className={renderStatus === "REVIEW" ? "font-semibold" : ""}>
+                    Do weryfikacji
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => updateRenderStatus("ACCEPTED")} className={renderStatus === "ACCEPTED" ? "font-semibold" : ""}>
+                    Zaakceptowany
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             ) : renderStatus === "ACCEPTED" ? (
               <div className="flex items-center gap-2">
                 <span className="text-xs font-semibold px-2.5 py-1 rounded-md bg-green-100 text-green-700">Zaakceptowany</span>
@@ -1147,27 +1227,11 @@ export default function RenderViewer({
             ) : (
               <span className="text-xs font-semibold px-2.5 py-1 rounded-md bg-blue-100 text-blue-700">Do weryfikacji</span>
             )}
-            <div className="w-px h-4 bg-gray-200 mx-1" />
-            <button onClick={() => setShowVersionHistory(true)} className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md border border-transparent text-gray-500 hover:bg-muted transition-colors" title="Historia wersji">
-              <History size={14} /> Wersje{versions.length > 0 ? ` (${versions.length})` : ""}
-            </button>
-            <button onClick={openLightbox} className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md border transition-colors ${lightboxOpen ? "bg-gray-900 text-white border-gray-900" : "border-transparent text-gray-500 dark:text-gray-400 hover:bg-muted"}`}>
-              <Maximize2 size={14} /> Podgląd
-            </button>
-            {(isDesigner || allowClientComments) && (
-              <button onClick={() => { setMode(mode === "pin" ? "view" : "pin"); setProductPinMode(false); setPendingProductPos(null); }} className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md border transition-colors ${mode === "pin" ? "bg-gray-900 text-white border-gray-900" : "border-transparent text-gray-500 dark:text-gray-400 hover:bg-muted"}`}>
-                <Pin size={14} /> Dodaj pin
-              </button>
-            )}
-            {isDesigner && (
-              <button onClick={() => { setProductPinMode((v) => !v); setMode("view"); setPending(null); setPendingProductPos(null); }} className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md border transition-colors ${productPinMode ? "bg-gray-900 text-white border-gray-900" : "border-transparent text-gray-500 dark:text-gray-400 hover:bg-muted"}`}>
-                <Package size={14} /> Dodaj produkt
-              </button>
-            )}
-            <button onClick={() => setHidePins((v) => !v)} className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md border transition-colors ${hidePins ? "bg-gray-900 text-white border-gray-900" : "border-transparent text-gray-500 dark:text-gray-400 hover:bg-muted"}`}>
-              {hidePins ? <EyeOff size={14} /> : <Eye size={14} />}
-              {hidePins ? "Pokaż piny" : "Ukryj piny"}
-            </button>
+
+            {/* Separator */}
+            <div className="w-px h-4 bg-gray-200 dark:bg-gray-700 mx-1" />
+
+            {/* Zone 4: Discussion */}
             <button
               onClick={() => setShowComments((v) => { const next = !v; sessionStorage.setItem("renderflow_showComments", String(next)); if (next && sidebarTabRef.current === "chat") markChatRead(); return next; })}
               className={`relative flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md border transition-colors ${showComments ? "bg-gray-900 text-white border-gray-900" : "border-transparent text-gray-500 dark:text-gray-400 hover:bg-muted"}`}
@@ -1185,19 +1249,54 @@ export default function RenderViewer({
         {/* Row 2: Mobile scrollable toolbar */}
         <div className="sm:hidden border-t overflow-x-auto" style={{ scrollbarWidth: "none" }}>
           <div className="flex items-center gap-1 px-2 py-1.5 w-max">
-            {/* Status */}
+            {/* Zone 1: Primary actions */}
+            {(isDesigner || allowClientComments) && (
+              <button onClick={() => { setMode(mode === "pin" ? "view" : "pin"); setProductPinMode(false); setPendingProductPos(null); }} className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md border transition-colors flex-shrink-0 ${mode === "pin" ? "bg-gray-900 text-white border-gray-900" : "border-transparent text-gray-500 dark:text-gray-400 hover:bg-muted"}`}>
+                <Pin size={14} /> Dodaj pin
+              </button>
+            )}
+            {isDesigner && (
+              <button onClick={() => { setProductPinMode((v) => !v); setMode("view"); setPending(null); setPendingProductPos(null); }} className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md border transition-colors flex-shrink-0 ${productPinMode ? "bg-gray-900 text-white border-gray-900" : "border-transparent text-gray-500 dark:text-gray-400 hover:bg-muted"}`}>
+                <Package size={14} /> Dodaj produkt
+              </button>
+            )}
+
+            <div className="w-px h-5 bg-gray-200 dark:bg-gray-700 mx-0.5 flex-shrink-0" />
+
+            {/* Zone 2: View controls — icon only */}
+            <button onClick={() => setHidePins((v) => !v)} title={hidePins ? "Pokaż piny" : "Ukryj piny"} className={`flex items-center justify-center w-8 h-8 rounded-md border transition-colors flex-shrink-0 ${hidePins ? "bg-gray-900 text-white border-gray-900" : "border-transparent text-gray-500 dark:text-gray-400 hover:bg-muted"}`}>
+              {hidePins ? <EyeOff size={15} /> : <Eye size={15} />}
+            </button>
+            <button onClick={openLightbox} title="Podgląd pełnoekranowy" className={`flex items-center justify-center w-8 h-8 rounded-md border transition-colors flex-shrink-0 ${lightboxOpen ? "bg-gray-900 text-white border-gray-900" : "border-transparent text-gray-500 dark:text-gray-400 hover:bg-muted"}`}>
+              <Maximize2 size={15} />
+            </button>
+            {isDesigner && (
+              <button onClick={() => setShowVersionHistory(true)} title={`Historia wersji${versions.length > 0 ? ` (${versions.length})` : ""}`} className="relative flex items-center justify-center w-8 h-8 rounded-md border border-transparent text-gray-500 dark:text-gray-400 hover:bg-muted transition-colors flex-shrink-0">
+                <History size={15} />
+                {versions.length > 0 && (
+                  <span className="absolute -top-1 -right-1 min-w-[14px] h-3.5 px-0.5 bg-gray-400 text-white text-[9px] font-bold rounded-full flex items-center justify-center leading-none">{versions.length}</span>
+                )}
+              </button>
+            )}
+
+            <div className="w-px h-5 bg-gray-200 dark:bg-gray-700 mx-0.5 flex-shrink-0" />
+
+            {/* Zone 3: Status */}
             {isDesigner ? (
-              <div className="relative flex-shrink-0">
-                <select
-                  value={renderStatus}
-                  onChange={(e) => updateRenderStatus(e.target.value as RenderStatus)}
-                  className={`appearance-none text-xs pl-2.5 pr-7 py-1.5 rounded-md border font-medium cursor-pointer ${renderStatus === "ACCEPTED" ? "bg-green-500 text-white border-green-600" : "bg-blue-500 text-white border-blue-600"}`}
-                >
-                  <option value="REVIEW" className="bg-white text-gray-900">Do weryfikacji</option>
-                  <option value="ACCEPTED" className="bg-white text-gray-900">Zaakceptowany</option>
-                </select>
-                <ChevronDown size={12} className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-white" />
-              </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger className={`flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-md border transition-colors flex-shrink-0 ${renderStatus === "ACCEPTED" ? "bg-green-500 text-white border-green-600" : "bg-blue-500 text-white border-blue-600"}`}>
+                  {renderStatus === "ACCEPTED" ? "Zaakceptowany" : "Do weryfikacji"}
+                  <ChevronDown size={11} />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => updateRenderStatus("REVIEW")} className={renderStatus === "REVIEW" ? "font-semibold" : ""}>
+                    Do weryfikacji
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => updateRenderStatus("ACCEPTED")} className={renderStatus === "ACCEPTED" ? "font-semibold" : ""}>
+                    Zaakceptowany
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             ) : renderStatus === "ACCEPTED" ? (
               <div className="flex items-center gap-1.5 flex-shrink-0">
                 <span className="text-xs font-semibold px-2 py-1.5 rounded-md bg-green-100 text-green-700">Zaakceptowany</span>
@@ -1212,20 +1311,10 @@ export default function RenderViewer({
             ) : (
               <span className="text-xs font-semibold px-2 py-1.5 rounded-md bg-blue-100 text-blue-700 flex-shrink-0">Do weryfikacji</span>
             )}
+
             <div className="w-px h-5 bg-gray-200 dark:bg-gray-700 mx-0.5 flex-shrink-0" />
-            {/* Dodaj pin */}
-            {(isDesigner || allowClientComments) && (
-              <button onClick={() => { setMode(mode === "pin" ? "view" : "pin"); setProductPinMode(false); setPendingProductPos(null); }} className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md border transition-colors flex-shrink-0 ${mode === "pin" ? "bg-gray-900 text-white border-gray-900" : "border-transparent text-gray-500 dark:text-gray-400 hover:bg-muted"}`}>
-                <Pin size={14} /> Dodaj pin
-              </button>
-            )}
-            {/* Dodaj produkt */}
-            {isDesigner && (
-              <button onClick={() => { setProductPinMode((v) => !v); setMode("view"); setPending(null); setPendingProductPos(null); }} className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md border transition-colors flex-shrink-0 ${productPinMode ? "bg-gray-900 text-white border-gray-900" : "border-transparent text-gray-500 dark:text-gray-400 hover:bg-muted"}`}>
-                <Package size={14} /> Dodaj produkt
-              </button>
-            )}
-            {/* Dyskusja */}
+
+            {/* Zone 4: Discussion */}
             <button
               onClick={() => setShowComments((v) => { const next = !v; sessionStorage.setItem("renderflow_showComments", String(next)); if (next && sidebarTabRef.current === "chat") markChatRead(); return next; })}
               className={`relative flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md border transition-colors flex-shrink-0 ${showComments ? "bg-gray-900 text-white border-gray-900" : "border-transparent text-gray-500 dark:text-gray-400 hover:bg-muted"}`}
@@ -1236,20 +1325,6 @@ export default function RenderViewer({
                   {chatUnreadCount > 99 ? "99+" : chatUnreadCount}
                 </span>
               )}
-            </button>
-            {/* Ukryj/Pokaż piny */}
-            <button onClick={() => setHidePins((v) => !v)} className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md border transition-colors flex-shrink-0 ${hidePins ? "bg-gray-900 text-white border-gray-900" : "border-transparent text-gray-500 dark:text-gray-400 hover:bg-muted"}`}>
-              {hidePins ? <EyeOff size={14} /> : <Eye size={14} />}
-              {hidePins ? "Pokaż" : "Ukryj"}
-            </button>
-            <div className="w-px h-5 bg-gray-200 dark:bg-gray-700 mx-0.5 flex-shrink-0" />
-            {/* Wersje */}
-            <button onClick={() => setShowVersionHistory(true)} className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md border border-transparent text-gray-500 hover:bg-muted transition-colors flex-shrink-0" title="Historia wersji">
-              <History size={14} /> Wersje{versions.length > 0 ? ` (${versions.length})` : ""}
-            </button>
-            {/* Podgląd */}
-            <button onClick={openLightbox} className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md border transition-colors flex-shrink-0 ${lightboxOpen ? "bg-gray-900 text-white border-gray-900" : "border-transparent text-gray-500 dark:text-gray-400 hover:bg-muted"}`}>
-              <Maximize2 size={14} /> Podgląd
             </button>
           </div>
         </div>
@@ -1461,18 +1536,6 @@ export default function RenderViewer({
                   className="mb-2 text-sm"
                   onKeyDown={(e) => { if (e.key === "Escape") cancelPending(); }}
                 />
-                <Textarea
-                  value={newContent}
-                  onChange={(e) => setNewContent(e.target.value)}
-                  placeholder="Opisz co wymaga zmiany..."
-                  className="mb-3 text-sm resize-none max-h-40 overflow-y-auto"
-                  rows={3}
-                  autoFocus
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && e.ctrlKey) submitComment();
-                    if (e.key === "Escape") cancelPending();
-                  }}
-                />
                 {isDesigner && (
                   <button
                     type="button"
@@ -1488,42 +1551,68 @@ export default function RenderViewer({
                   </button>
                 )}
                 {pendingVoiceUrl && (
-                  <div className="flex items-center gap-1.5 text-xs text-green-600 dark:text-green-400 mb-3">
-                    <CheckCircle2 size={12} />
-                    <span>Nagranie dodane</span>
+                  <div className="flex items-center gap-2 mb-3 px-2 py-1.5 rounded-lg bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800">
+                    <CheckCircle2 size={12} className="text-green-600 dark:text-green-400 flex-shrink-0" />
                     <audio src={pendingVoiceUrl} controls className="h-6 flex-1 min-w-0" />
-                    <button onClick={() => setPendingVoiceUrl(null)} className="text-gray-400 hover:text-red-400 ml-1">
-                      <X size={11} />
+                    <button onClick={() => setPendingVoiceUrl(null)} className="text-gray-400 hover:text-red-400 flex-shrink-0 transition-colors">
+                      <X size={12} />
                     </button>
                   </div>
                 )}
-                <div className="flex gap-2 justify-end items-center">
-                  <button
-                    type="button"
-                    onClick={isRecording ? stopRecording : startRecording}
-                    disabled={uploadingVoice}
-                    title={isRecording ? "Zatrzymaj nagrywanie" : "Nagraj wiadomość głosową"}
-                    className={`flex items-center gap-1 text-xs px-2 py-1 rounded border transition-colors flex-shrink-0 ${
-                      isRecording
-                        ? "border-red-400 bg-red-50 dark:bg-red-950 text-red-600 dark:text-red-400"
-                        : "border-border text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 hover:border-gray-400"
-                    }`}
-                  >
-                    {isRecording ? (
-                      <>
-                        <StopCircle size={13} />
-                        <span>{Math.floor(recordingSeconds / 60)}:{String(recordingSeconds % 60).padStart(2, "0")}</span>
-                      </>
-                    ) : uploadingVoice ? (
-                      <span className="text-[10px]">…</span>
-                    ) : (
-                      <Mic size={13} />
-                    )}
-                  </button>
-                  <Button size="sm" onClick={submitComment} disabled={adding || uploadingVoice || isRecording || (!newContent.trim() && !pendingVoiceUrl)}>
-                    {adding ? "Dodawanie..." : "Dodaj pin"}
-                  </Button>
-                </div>
+                {isRecording ? (
+                  <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-950/30 mb-3">
+                    <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse flex-shrink-0" />
+                    <span className="text-sm text-red-600 dark:text-red-400 flex-1 font-medium tabular-nums">
+                      {Math.floor(recordingSeconds / 60)}:{String(recordingSeconds % 60).padStart(2, "0")}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={stopRecording}
+                      className="flex items-center gap-1.5 text-xs text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-200 transition-colors"
+                    >
+                      <StopCircle size={16} />
+                      <span>Zatrzymaj</span>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="relative mb-3">
+                    <Textarea
+                      value={newContent}
+                      onChange={(e) => setNewContent(e.target.value)}
+                      placeholder="Opisz co wymaga zmiany..."
+                      className="text-sm resize-none pr-10 max-h-40 overflow-y-auto"
+                      rows={3}
+                      autoFocus
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && e.ctrlKey) submitComment();
+                        if (e.key === "Escape") cancelPending();
+                      }}
+                    />
+                    <button
+                      type="button"
+                      disabled={uploadingVoice || adding}
+                      onClick={
+                        newContent.trim() || pendingVoiceUrl
+                          ? submitComment
+                          : startRecording
+                      }
+                      title={
+                        newContent.trim() || pendingVoiceUrl
+                          ? "Dodaj pin"
+                          : "Nagraj wiadomość głosową"
+                      }
+                      className="absolute right-2 bottom-2 z-10 flex items-center justify-center w-6 h-6 rounded-md transition-colors text-muted-foreground hover:text-foreground disabled:opacity-40"
+                    >
+                      {uploadingVoice || adding ? (
+                        <Loader2 size={15} className="animate-spin" />
+                      ) : newContent.trim() || pendingVoiceUrl ? (
+                        <Send size={15} />
+                      ) : (
+                        <Mic size={15} />
+                      )}
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 
@@ -1546,9 +1635,6 @@ export default function RenderViewer({
                   </span>
                   <span className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate flex-1">
                     {selectedComment.title || `Pin #${selectedIndex + 1}`}
-                  </span>
-                  <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0 ${STATUS_BADGE[selectedComment.status]}`}>
-                    {STATUS_LABEL[selectedComment.status]}
                   </span>
                   {isDesigner && (
                     <button
@@ -1612,62 +1698,98 @@ export default function RenderViewer({
                           )}
                         </div>
                       </div>
-                      <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{r.content}</p>
+                      {r.content !== "[wiadomość głosowa]" && (
+                        <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{r.content}</p>
+                      )}
+                      {r.voiceUrl && (
+                        <audio src={r.voiceUrl} controls className="w-full h-8 mt-1" />
+                      )}
                     </div>
                   ))}
                 </div>
 
-                {/* Status buttons (designer only) + delete */}
+                {/* Status dropdown + delete */}
                 {(isDesigner || selectedComment.author === authorName) && (
-                  <div className="px-4 py-2 border-t flex gap-1 flex-wrap flex-shrink-0">
-                    {isDesigner && (["NEW", "IN_PROGRESS", "DONE"] as CommentStatus[]).map((s) => (
-                      <button
-                        key={s}
-                        onClick={() => updateStatus(selectedComment.id, s)}
-                        className={`text-xs px-2 py-1 rounded-md border transition-colors ${
-                          selectedComment.status === s
-                            ? "bg-gray-900 text-white border-gray-900"
-                            : "border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:border-gray-400 dark:hover:border-gray-500"
-                        }`}
-                      >
-                        {STATUS_LABEL[s]}
-                      </button>
-                    ))}
-                    {(isDesigner || selectedComment.author === authorName) && (
-                      <button
-                        onClick={() => deleteComment(selectedComment.id)}
-                        className="ml-auto text-red-500 hover:text-red-700 transition-colors p-1"
-                        title="Usuń pin"
-                      >
-                        <Trash2 size={14} />
-                      </button>
+                  <div className="px-4 py-2 border-t flex items-center gap-2 flex-shrink-0">
+                    {isDesigner && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger className={`flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-lg border transition-colors ${STATUS_BADGE[selectedComment.status]}`}>
+                          {STATUS_LABEL[selectedComment.status]}
+                          <ChevronDown size={11} />
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start">
+                          {(["NEW", "IN_PROGRESS", "DONE"] as CommentStatus[]).map((s) => (
+                            <DropdownMenuItem
+                              key={s}
+                              onClick={() => updateStatus(selectedComment.id, s)}
+                              className={selectedComment.status === s ? "font-semibold" : ""}
+                            >
+                              {STATUS_LABEL[s]}
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     )}
+                    <button
+                      onClick={() => deleteComment(selectedComment.id)}
+                      className="ml-auto text-red-500 hover:text-red-700 transition-colors p-1"
+                      title="Usuń pin"
+                    >
+                      <Trash2 size={14} />
+                    </button>
                   </div>
                 )}
 
                 {/* Reply input */}
                 <div className="px-4 py-3 border-t flex-shrink-0">
-                  <div className="flex gap-2">
-                    <Textarea
-                      value={replyContent}
-                      onChange={(e) => setReplyContent(e.target.value)}
-                      placeholder="Dodaj odpowiedź..."
-                      className="text-sm resize-none flex-1"
-                      rows={2}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" && e.ctrlKey) submitReply();
-                        if (e.key === "Escape") { setSelectedId(null); setReplyContent(""); }
-                      }}
-                    />
-                    <Button
-                      size="sm"
-                      className="self-end flex-shrink-0"
-                      onClick={submitReply}
-                      disabled={replying || !replyContent.trim()}
-                    >
-                      <Send size={13} />
-                    </Button>
-                  </div>
+                  {replyPendingVoiceUrl && (
+                    <div className="flex items-center gap-2 mb-2 px-2 py-1.5 rounded-lg bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800">
+                      <CheckCircle2 size={12} className="text-green-600 dark:text-green-400 flex-shrink-0" />
+                      <audio src={replyPendingVoiceUrl} controls className="h-6 flex-1 min-w-0" />
+                      <button onClick={() => setReplyPendingVoiceUrl(null)} className="text-gray-400 hover:text-red-400 flex-shrink-0 transition-colors">
+                        <X size={12} />
+                      </button>
+                    </div>
+                  )}
+                  {isReplyRecording ? (
+                    <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-950/30">
+                      <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse flex-shrink-0" />
+                      <span className="text-sm text-red-600 dark:text-red-400 flex-1 font-medium tabular-nums">
+                        {Math.floor(replyRecordingSeconds / 60)}:{String(replyRecordingSeconds % 60).padStart(2, "0")}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={stopReplyRecording}
+                        className="flex items-center gap-1.5 text-xs text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-200 transition-colors"
+                      >
+                        <StopCircle size={16} />
+                        <span>Zatrzymaj</span>
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="relative">
+                      <Textarea
+                        value={replyContent}
+                        onChange={(e) => setReplyContent(e.target.value)}
+                        placeholder="Dodaj odpowiedź..."
+                        className="text-sm resize-none pr-10"
+                        rows={2}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && e.ctrlKey) submitReply();
+                          if (e.key === "Escape") { setSelectedId(null); setReplyContent(""); setReplyPendingVoiceUrl(null); }
+                        }}
+                      />
+                      <button
+                        type="button"
+                        disabled={replyUploadingVoice || replying}
+                        onClick={replyContent.trim() || replyPendingVoiceUrl ? submitReply : startReplyRecording}
+                        title={replyContent.trim() || replyPendingVoiceUrl ? "Wyślij" : "Nagraj wiadomość głosową"}
+                        className="absolute right-2 bottom-2 z-10 flex items-center justify-center w-6 h-6 rounded-md transition-colors text-muted-foreground hover:text-foreground disabled:opacity-40"
+                      >
+                        {replyUploadingVoice || replying ? <Loader2 size={15} className="animate-spin" /> : replyContent.trim() || replyPendingVoiceUrl ? <Send size={15} /> : <Mic size={15} />}
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -1955,7 +2077,7 @@ export default function RenderViewer({
                                   )}
                                   <div className={`px-3 py-2 text-sm leading-relaxed break-words ${
                                     isOwn
-                                      ? "bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 rounded-2xl rounded-tr-sm"
+                                      ? "bg-violet-600 text-white rounded-2xl rounded-tr-sm"
                                       : "bg-gray-100 dark:bg-muted text-gray-800 dark:text-gray-200 rounded-2xl rounded-tl-sm"
                                   }`}>
                                     {item.content !== "[wiadomość głosowa]" && item.content}
@@ -1988,61 +2110,75 @@ export default function RenderViewer({
                   {/* Message input */}
                   {(isDesigner || allowClientComments) && (
                     <div className="px-3 py-3 border-t flex-shrink-0">
+                      {/* Pending voice preview */}
                       {chatPendingVoiceUrl && (
-                        <div className="flex items-center gap-1.5 mb-2 text-xs text-green-600 dark:text-green-400">
-                          <CheckCircle2 size={12} />
-                          <span>Nagranie gotowe</span>
+                        <div className="flex items-center gap-2 mb-2 px-2 py-1.5 rounded-lg bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800">
+                          <CheckCircle2 size={12} className="text-green-600 dark:text-green-400 flex-shrink-0" />
                           <audio src={chatPendingVoiceUrl} controls className="h-6 flex-1 min-w-0" />
-                          <button onClick={() => setChatPendingVoiceUrl(null)} className="text-gray-400 hover:text-red-400 ml-1 flex-shrink-0">
-                            <X size={11} />
+                          <button onClick={() => setChatPendingVoiceUrl(null)} className="text-gray-400 hover:text-red-400 flex-shrink-0 transition-colors">
+                            <X size={12} />
                           </button>
                         </div>
                       )}
-                      <div className="flex gap-2 items-end">
-                        <Textarea
-                          value={chatMessage}
-                          onChange={(e) => setChatMessage(e.target.value)}
-                          placeholder="Napisz wiadomość…"
-                          className="text-sm resize-none flex-1 max-h-28 overflow-y-auto"
-                          rows={1}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter" && !e.shiftKey) {
-                              e.preventDefault();
-                              submitChatMessage();
+
+                      {/* Recording state */}
+                      {isChatRecording ? (
+                        <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-950/30">
+                          <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse flex-shrink-0" />
+                          <span className="text-sm text-red-600 dark:text-red-400 flex-1 font-medium tabular-nums">
+                            {Math.floor(chatRecordingSeconds / 60)}:{String(chatRecordingSeconds % 60).padStart(2, "0")}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={stopChatRecording}
+                            title="Zatrzymaj nagrywanie"
+                            className="flex items-center gap-1.5 text-xs text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-200 transition-colors"
+                          >
+                            <StopCircle size={16} />
+                            <span>Zatrzymaj</span>
+                          </button>
+                        </div>
+                      ) : (
+                        /* Textarea + dynamic button */
+                        <div className="relative">
+                          <Textarea
+                            value={chatMessage}
+                            onChange={(e) => setChatMessage(e.target.value)}
+                            placeholder="Napisz wiadomość…"
+                            className="text-sm resize-none pr-10 max-h-28 overflow-y-auto"
+                            rows={1}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" && !e.shiftKey) {
+                                e.preventDefault();
+                                submitChatMessage();
+                              }
+                            }}
+                          />
+                          <button
+                            type="button"
+                            disabled={chatUploadingVoice || sendingChatMessage}
+                            onClick={
+                              chatMessage.trim() || chatPendingVoiceUrl
+                                ? submitChatMessage
+                                : startChatRecording
                             }
-                          }}
-                        />
-                        <button
-                          type="button"
-                          onClick={isChatRecording ? stopChatRecording : startChatRecording}
-                          disabled={chatUploadingVoice}
-                          title={isChatRecording ? "Zatrzymaj nagrywanie" : "Nagraj wiadomość głosową"}
-                          className={`flex items-center gap-1 text-xs px-2 py-1.5 rounded border transition-colors flex-shrink-0 mb-px ${
-                            isChatRecording
-                              ? "border-red-400 bg-red-50 dark:bg-red-950 text-red-600 dark:text-red-400"
-                              : "border-border text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 hover:border-gray-400"
-                          }`}
-                        >
-                          {isChatRecording ? (
-                            <>
-                              <StopCircle size={13} />
-                              <span>{Math.floor(chatRecordingSeconds / 60)}:{String(chatRecordingSeconds % 60).padStart(2, "0")}</span>
-                            </>
-                          ) : chatUploadingVoice ? (
-                            <span className="text-[10px]">…</span>
-                          ) : (
-                            <Mic size={13} />
-                          )}
-                        </button>
-                        <Button
-                          size="sm"
-                          className="flex-shrink-0 mb-px"
-                          onClick={submitChatMessage}
-                          disabled={sendingChatMessage || chatUploadingVoice || isChatRecording || (!chatMessage.trim() && !chatPendingVoiceUrl)}
-                        >
-                          <Send size={13} />
-                        </Button>
-                      </div>
+                            title={
+                              chatMessage.trim() || chatPendingVoiceUrl
+                                ? "Wyślij"
+                                : "Nagraj wiadomość głosową"
+                            }
+                            className="absolute right-2 bottom-2 z-10 flex items-center justify-center w-6 h-6 rounded-md transition-colors text-muted-foreground hover:text-foreground disabled:opacity-40"
+                          >
+                            {chatUploadingVoice || sendingChatMessage ? (
+                              <Loader2 size={15} className="animate-spin" />
+                            ) : chatMessage.trim() || chatPendingVoiceUrl ? (
+                              <Send size={15} />
+                            ) : (
+                              <Mic size={15} />
+                            )}
+                          </button>
+                        </div>
+                      )}
                     </div>
                   )}
                 </>
@@ -2292,55 +2428,69 @@ export default function RenderViewer({
                     className="mb-2 text-sm"
                     onKeyDown={(e) => { if (e.key === "Escape") cancelPending(); }}
                   />
-                  <Textarea
-                    value={newContent}
-                    onChange={(e) => setNewContent(e.target.value)}
-                    placeholder="Opisz co wymaga zmiany..."
-                    className="mb-3 text-sm resize-none max-h-40 overflow-y-auto"
-                    rows={3}
-                    autoFocus
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && e.ctrlKey) submitComment();
-                      if (e.key === "Escape") cancelPending();
-                    }}
-                  />
                   {pendingVoiceUrl && (
-                    <div className="flex items-center gap-1.5 text-xs text-green-600 dark:text-green-400 mb-3">
-                      <CheckCircle2 size={12} />
-                      <span>Nagranie dodane</span>
+                    <div className="flex items-center gap-2 mb-3 px-2 py-1.5 rounded-lg bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800">
+                      <CheckCircle2 size={12} className="text-green-600 dark:text-green-400 flex-shrink-0" />
                       <audio src={pendingVoiceUrl} controls className="h-6 flex-1 min-w-0" />
-                      <button onClick={() => setPendingVoiceUrl(null)} className="text-gray-400 hover:text-red-400 ml-1">
-                        <X size={11} />
+                      <button onClick={() => setPendingVoiceUrl(null)} className="text-gray-400 hover:text-red-400 flex-shrink-0 transition-colors">
+                        <X size={12} />
                       </button>
                     </div>
                   )}
-                  <div className="flex gap-2 justify-end items-center">
-                    <button
-                      type="button"
-                      onClick={isRecording ? stopRecording : startRecording}
-                      disabled={uploadingVoice}
-                      title={isRecording ? "Zatrzymaj nagrywanie" : "Nagraj wiadomość głosową"}
-                      className={`flex items-center gap-1 text-xs px-2 py-1 rounded border transition-colors flex-shrink-0 ${
-                        isRecording
-                          ? "border-red-400 bg-red-50 dark:bg-red-950 text-red-600 dark:text-red-400"
-                          : "border-border text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 hover:border-gray-400"
-                      }`}
-                    >
-                      {isRecording ? (
-                        <>
-                          <StopCircle size={13} />
-                          <span>{Math.floor(recordingSeconds / 60)}:{String(recordingSeconds % 60).padStart(2, "0")}</span>
-                        </>
-                      ) : uploadingVoice ? (
-                        <span className="text-[10px]">…</span>
-                      ) : (
-                        <Mic size={13} />
-                      )}
-                    </button>
-                    <Button size="sm" onClick={submitComment} disabled={adding || uploadingVoice || isRecording || (!newContent.trim() && !pendingVoiceUrl)}>
-                      {adding ? "Dodawanie..." : "Dodaj"}
-                    </Button>
-                  </div>
+                  {isRecording ? (
+                    <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-950/30 mb-3">
+                      <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse flex-shrink-0" />
+                      <span className="text-sm text-red-600 dark:text-red-400 flex-1 font-medium tabular-nums">
+                        {Math.floor(recordingSeconds / 60)}:{String(recordingSeconds % 60).padStart(2, "0")}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={stopRecording}
+                        className="flex items-center gap-1.5 text-xs text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-200 transition-colors"
+                      >
+                        <StopCircle size={16} />
+                        <span>Zatrzymaj</span>
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="relative mb-3">
+                      <Textarea
+                        value={newContent}
+                        onChange={(e) => setNewContent(e.target.value)}
+                        placeholder="Opisz co wymaga zmiany..."
+                        className="text-sm resize-none pr-10 max-h-40 overflow-y-auto"
+                        rows={3}
+                        autoFocus
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && e.ctrlKey) submitComment();
+                          if (e.key === "Escape") cancelPending();
+                        }}
+                      />
+                      <button
+                        type="button"
+                        disabled={uploadingVoice || adding}
+                        onClick={
+                          newContent.trim() || pendingVoiceUrl
+                            ? submitComment
+                            : startRecording
+                        }
+                        title={
+                          newContent.trim() || pendingVoiceUrl
+                            ? "Dodaj pin"
+                            : "Nagraj wiadomość głosową"
+                        }
+                        className="absolute right-2 bottom-2 z-10 flex items-center justify-center w-6 h-6 rounded-md transition-colors text-muted-foreground hover:text-foreground disabled:opacity-40"
+                      >
+                        {uploadingVoice || adding ? (
+                          <Loader2 size={15} className="animate-spin" />
+                        ) : newContent.trim() || pendingVoiceUrl ? (
+                          <Send size={15} />
+                        ) : (
+                          <Mic size={15} />
+                        )}
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -2360,9 +2510,6 @@ export default function RenderViewer({
                     </span>
                     <span className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate flex-1">
                       {selectedComment.title || `Pin #${selectedIndex + 1}`}
-                    </span>
-                    <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0 ${STATUS_BADGE[selectedComment.status]}`}>
-                      {STATUS_LABEL[selectedComment.status]}
                     </span>
                     <button
                       onClick={() => { setSelectedId(null); setReplyContent(""); }}
@@ -2410,21 +2557,27 @@ export default function RenderViewer({
                     ))}
                   </div>
 
-                  {isDesigner && (
-                    <div className="px-4 py-2 border-t flex gap-1 flex-wrap flex-shrink-0">
-                      {(["NEW", "IN_PROGRESS", "DONE"] as CommentStatus[]).map((s) => (
-                        <button
-                          key={s}
-                          onClick={() => updateStatus(selectedComment.id, s)}
-                          className={`text-xs px-2 py-1 rounded-md border transition-colors ${
-                            selectedComment.status === s
-                              ? "bg-gray-900 text-white border-gray-900"
-                              : "border-gray-200 text-gray-500 hover:border-gray-400"
-                          }`}
-                        >
-                          {STATUS_LABEL[s]}
-                        </button>
-                      ))}
+                  {(isDesigner || selectedComment.author === authorName) && (
+                    <div className="px-4 py-2 border-t flex items-center gap-2 flex-shrink-0">
+                      {isDesigner && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger className={`flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-lg border transition-colors ${STATUS_BADGE[selectedComment.status]}`}>
+                            {STATUS_LABEL[selectedComment.status]}
+                            <ChevronDown size={11} />
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="start">
+                            {(["NEW", "IN_PROGRESS", "DONE"] as CommentStatus[]).map((s) => (
+                              <DropdownMenuItem
+                                key={s}
+                                onClick={() => updateStatus(selectedComment.id, s)}
+                                className={selectedComment.status === s ? "font-semibold" : ""}
+                              >
+                                {STATUS_LABEL[s]}
+                              </DropdownMenuItem>
+                            ))}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
                       <button
                         onClick={() => deleteComment(selectedComment.id)}
                         className="ml-auto text-red-500 hover:text-red-700 transition-colors p-1"
@@ -2436,27 +2589,54 @@ export default function RenderViewer({
                   )}
 
                   <div className="px-4 py-3 border-t flex-shrink-0">
-                    <div className="flex gap-2">
-                      <Textarea
-                        value={replyContent}
-                        onChange={(e) => setReplyContent(e.target.value)}
-                        placeholder="Dodaj odpowiedź..."
-                        className="text-sm resize-none flex-1"
-                        rows={2}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" && e.ctrlKey) submitReply();
-                          if (e.key === "Escape") { setSelectedId(null); setReplyContent(""); }
-                        }}
-                      />
-                      <Button
-                        size="sm"
-                        className="self-end flex-shrink-0"
-                        onClick={submitReply}
-                        disabled={replying || !replyContent.trim()}
-                      >
-                        <Send size={13} />
-                      </Button>
-                    </div>
+                    {replyPendingVoiceUrl && (
+                      <div className="flex items-center gap-2 mb-2 px-2 py-1.5 rounded-lg bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800">
+                        <CheckCircle2 size={12} className="text-green-600 dark:text-green-400 flex-shrink-0" />
+                        <audio src={replyPendingVoiceUrl} controls className="h-6 flex-1 min-w-0" />
+                        <button onClick={() => setReplyPendingVoiceUrl(null)} className="text-gray-400 hover:text-red-400 flex-shrink-0 transition-colors">
+                          <X size={12} />
+                        </button>
+                      </div>
+                    )}
+                    {isReplyRecording ? (
+                      <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-950/30">
+                        <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse flex-shrink-0" />
+                        <span className="text-sm text-red-600 dark:text-red-400 flex-1 font-medium tabular-nums">
+                          {Math.floor(replyRecordingSeconds / 60)}:{String(replyRecordingSeconds % 60).padStart(2, "0")}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={stopReplyRecording}
+                          className="flex items-center gap-1.5 text-xs text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-200 transition-colors"
+                        >
+                          <StopCircle size={16} />
+                          <span>Zatrzymaj</span>
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="relative">
+                        <Textarea
+                          value={replyContent}
+                          onChange={(e) => setReplyContent(e.target.value)}
+                          placeholder="Dodaj odpowiedź..."
+                          className="text-sm resize-none pr-10"
+                          rows={2}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" && e.ctrlKey) submitReply();
+                            if (e.key === "Escape") { setSelectedId(null); setReplyContent(""); setReplyPendingVoiceUrl(null); }
+                          }}
+                        />
+                        <button
+                          type="button"
+                          disabled={replyUploadingVoice || replying}
+                          onClick={replyContent.trim() || replyPendingVoiceUrl ? submitReply : startReplyRecording}
+                          title={replyContent.trim() || replyPendingVoiceUrl ? "Wyślij" : "Nagraj wiadomość głosową"}
+                          className="absolute right-2 bottom-2 z-10 flex items-center justify-center w-6 h-6 rounded-md transition-colors text-muted-foreground hover:text-foreground disabled:opacity-40"
+                        >
+                          {replyUploadingVoice || replying ? <Loader2 size={15} className="animate-spin" /> : replyContent.trim() || replyPendingVoiceUrl ? <Send size={15} /> : <Mic size={15} />}
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}

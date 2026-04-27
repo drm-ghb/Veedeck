@@ -383,6 +383,7 @@ model Reply {
   id        String   @id @default(cuid())
   content   String
   author    String
+  voiceUrl  String?
   createdAt DateTime @default(now())
   commentId String
   comment   Comment  @relation(fields: [commentId], references: [id], onDelete: Cascade)

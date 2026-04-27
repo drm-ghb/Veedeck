@@ -42,6 +42,8 @@ export async function PATCH(
   if (body.name !== undefined) updateData.name = body.name;
   if (body.status !== undefined) updateData.status = body.status;
   if (body.pinned !== undefined) updateData.pinned = body.pinned;
+  if (body.folderId !== undefined) updateData.folderId = body.folderId;
+  if (body.roomId !== undefined) updateData.roomId = body.roomId;
 
   const updated = await prisma.render.update({ where: { id }, data: updateData });
 

@@ -7,9 +7,10 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const { content, author } = await req.json();
+  const { content, author, voiceUrl } = await req.json();
+  const finalContent = content?.trim() || (voiceUrl ? "[wiadomość głosowa]" : "");
 
-  if (!content || !author) {
+  if (!finalContent || !author) {
     return NextResponse.json({ error: "Brakujące pola" }, { status: 400 });
   }
 
@@ -19,7 +20,7 @@ export async function POST(
   }
 
   const reply = await prisma.reply.create({
-    data: { commentId: id, content, author },
+    data: { commentId: id, content: finalContent, author, voiceUrl: voiceUrl ?? null },
   });
 
   await pusherServer.trigger(`render-${comment.renderId}`, "comment-reply", {

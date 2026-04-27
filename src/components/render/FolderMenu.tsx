@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { MoreHorizontal, Pencil, Trash2, Pin, PinOff, Archive } from "lucide-react";
+import { MoreHorizontal, Pencil, Trash2, Pin, PinOff, Archive, FolderInput } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -19,14 +19,18 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import MoveFolderDialog from "./MoveFolderDialog";
 
 interface FolderMenuProps {
   folder: { id: string; name: string; pinned?: boolean; archived?: boolean };
+  projectId: string;
+  currentRoomId: string;
 }
 
-export default function FolderMenu({ folder }: FolderMenuProps) {
+export default function FolderMenu({ folder, projectId, currentRoomId }: FolderMenuProps) {
   const router = useRouter();
   const [renameOpen, setRenameOpen] = useState(false);
+  const [moveOpen, setMoveOpen] = useState(false);
   const [name, setName] = useState(folder.name);
   const [loading, setLoading] = useState(false);
 
@@ -38,7 +42,6 @@ export default function FolderMenu({ folder }: FolderMenuProps) {
     });
     if (res.ok) {
       toast.success(folder.pinned ? "Odpięto folder" : "Folder przypięty");
-      setRenameOpen(false);
       router.refresh();
     } else {
       toast.error("Błąd operacji");
@@ -107,6 +110,10 @@ export default function FolderMenu({ folder }: FolderMenuProps) {
             <Pencil size={14} />
             Zmień nazwę
           </DropdownMenuItem>
+          <DropdownMenuItem onClick={(e) => { e.preventDefault(); setMoveOpen(true); }}>
+            <FolderInput size={14} />
+            Przenieś
+          </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={handleArchive}>
             <Archive size={14} />
@@ -139,6 +146,14 @@ export default function FolderMenu({ folder }: FolderMenuProps) {
           </div>
         </DialogContent>
       </Dialog>
+
+      <MoveFolderDialog
+        open={moveOpen}
+        onOpenChange={setMoveOpen}
+        folder={{ id: folder.id, name: folder.name }}
+        projectId={projectId}
+        currentRoomId={currentRoomId}
+      />
     </>
   );
 }
