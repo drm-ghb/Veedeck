@@ -1,7 +1,12 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { Search, X, Package } from "lucide-react";
+import { useState } from "react";
+import { Search, X, Package, SlidersHorizontal, ChevronDown, ChevronRight, Loader2 } from "lucide-react";
+import { useProductSearch } from "@/components/produkty/useProductSearch";
+import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
 interface Product {
   id: string;
@@ -19,100 +24,331 @@ interface Props {
 }
 
 export default function SearchProductDialog({ open, onClose, onSelect }: Props) {
-  const [query, setQuery] = useState("");
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const search = useProductSearch();
+  const [showFilters, setShowFilters] = useState(false);
+  const [expandedFilters, setExpandedFilters] = useState<Record<string, boolean>>({
+    categories: true,
+    manufacturers: true,
+    colors: true,
+  });
+  const [filterSearch, setFilterSearch] = useState<Record<string, string>>({
+    categories: "",
+    manufacturers: "",
+    colors: "",
+  });
 
-  useEffect(() => {
-    if (open) {
-      setQuery("");
-      setProducts([]);
-      setTimeout(() => inputRef.current?.focus(), 50);
-    }
-  }, [open]);
+  const toggleSection = (key: string) =>
+    setExpandedFilters((prev) => ({ ...prev, [key]: !prev[key] }));
 
-  useEffect(() => {
-    if (timerRef.current) clearTimeout(timerRef.current);
-    if (!open) return;
-    timerRef.current = setTimeout(async () => {
-      setLoading(true);
-      try {
-        const res = await fetch(`/api/products?q=${encodeURIComponent(query)}`);
-        const data = await res.json();
-        setProducts(Array.isArray(data) ? data.slice(0, 30) : []);
-      } catch {
-        setProducts([]);
-      } finally {
-        setLoading(false);
-      }
-    }, 300);
-    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
-  }, [query, open]);
+  const getActiveCount = (key: keyof typeof search.filters) =>
+    search.filters[key].length;
+
+  const totalActiveFilters =
+    getActiveCount("categories") + getActiveCount("manufacturers") + getActiveCount("colors");
+
+  function handleClose() {
+    search.resetFilters();
+    setFilterSearch({ categories: "", manufacturers: "", colors: "" });
+    onClose();
+  }
 
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
-      {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+    <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center sm:p-4">
+      <div className="absolute inset-0 bg-black/50" onClick={handleClose} />
 
-      {/* Dialog */}
-      <div className="relative w-full max-w-md bg-background rounded-2xl shadow-2xl flex flex-col overflow-hidden max-h-[80vh]">
-        {/* Header */}
-        <div className="flex items-center gap-3 px-4 py-3 border-b border-border">
+      <div className="relative w-full sm:max-w-3xl bg-background rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden h-[90svh] sm:h-[85vh]">
+        {/* Header — search bar */}
+        <div className="flex items-center gap-3 px-4 py-3 border-b border-border flex-shrink-0">
           <Search size={16} className="text-muted-foreground shrink-0" />
-          <input
-            ref={inputRef}
-            type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
+          <Input
+            autoFocus
+            value={search.query}
+            onChange={(e) => search.handleQueryChange(e.target.value)}
             placeholder="Szukaj produktu..."
-            className="flex-1 text-sm bg-transparent outline-none placeholder:text-muted-foreground"
+            className="flex-1 border-0 shadow-none focus-visible:ring-0 px-0 text-sm bg-transparent"
           />
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors">
+          <button
+            type="button"
+            onClick={() => setShowFilters((v) => !v)}
+            title="Filtry zaawansowane"
+            className={`relative flex-shrink-0 transition-colors ${
+              showFilters || totalActiveFilters > 0
+                ? "text-primary"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <SlidersHorizontal size={16} />
+            {totalActiveFilters > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 rounded-full bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-[9px] font-bold flex items-center justify-center">
+                {totalActiveFilters}
+              </span>
+            )}
+          </button>
+          <button
+            onClick={handleClose}
+            className="text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
+          >
             <X size={16} />
           </button>
         </div>
 
-        {/* Results */}
-        <div className="overflow-y-auto flex-1">
-          {loading && (
-            <div className="px-4 py-8 text-center text-sm text-muted-foreground">Szukanie...</div>
-          )}
-          {!loading && products.length === 0 && (
-            <div className="flex flex-col items-center justify-center gap-2 py-10 text-muted-foreground">
-              <Package size={28} className="opacity-30" />
-              <p className="text-sm">{query ? "Brak wyników" : "Zacznij wpisywać nazwę produktu"}</p>
+        {/* Body */}
+        <div className="flex flex-1 overflow-hidden min-h-0">
+          {/* Left sidebar — filters */}
+          {showFilters && search.availableFilters && (
+            <div className="w-56 border-r border-border overflow-y-auto flex-shrink-0">
+              <div className="p-4 space-y-4">
+                {/* Kategorie */}
+                {search.availableFilters.categories.length > 0 && (
+                  <div>
+                    <button
+                      onClick={() => toggleSection("categories")}
+                      className="flex items-center justify-between w-full mb-2"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium">Kategorie</span>
+                        {getActiveCount("categories") > 0 && (
+                          <Badge variant="secondary" className="text-xs">
+                            {getActiveCount("categories")}
+                          </Badge>
+                        )}
+                      </div>
+                      {expandedFilters.categories ? (
+                        <ChevronDown size={14} className="text-muted-foreground" />
+                      ) : (
+                        <ChevronRight size={14} className="text-muted-foreground" />
+                      )}
+                    </button>
+                    {expandedFilters.categories && (
+                      <div className="space-y-2 ml-1">
+                        {search.availableFilters.categories.length > 5 && (
+                          <Input
+                            placeholder="Szukaj..."
+                            value={filterSearch.categories}
+                            onChange={(e) =>
+                              setFilterSearch((p) => ({ ...p, categories: e.target.value }))
+                            }
+                            className="h-7 text-xs"
+                          />
+                        )}
+                        {search.availableFilters.categories
+                          .filter((v) =>
+                            v.toLowerCase().includes(filterSearch.categories.toLowerCase())
+                          )
+                          .map((v) => (
+                            <div key={v} className="flex items-center gap-2">
+                              <Checkbox
+                                id={`cat-${v}`}
+                                checked={search.filters.categories.includes(v)}
+                                onCheckedChange={() =>
+                                  search.handleFilterChange("categories", v)
+                                }
+                              />
+                              <label
+                                htmlFor={`cat-${v}`}
+                                className="text-sm cursor-pointer flex-1 truncate"
+                              >
+                                {v}
+                              </label>
+                            </div>
+                          ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Producenci */}
+                {search.availableFilters.manufacturers.length > 0 && (
+                  <div>
+                    <button
+                      onClick={() => toggleSection("manufacturers")}
+                      className="flex items-center justify-between w-full mb-2"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium">Producenci</span>
+                        {getActiveCount("manufacturers") > 0 && (
+                          <Badge variant="secondary" className="text-xs">
+                            {getActiveCount("manufacturers")}
+                          </Badge>
+                        )}
+                      </div>
+                      {expandedFilters.manufacturers ? (
+                        <ChevronDown size={14} className="text-muted-foreground" />
+                      ) : (
+                        <ChevronRight size={14} className="text-muted-foreground" />
+                      )}
+                    </button>
+                    {expandedFilters.manufacturers && (
+                      <div className="space-y-2 ml-1">
+                        {search.availableFilters.manufacturers.length > 5 && (
+                          <Input
+                            placeholder="Szukaj..."
+                            value={filterSearch.manufacturers}
+                            onChange={(e) =>
+                              setFilterSearch((p) => ({ ...p, manufacturers: e.target.value }))
+                            }
+                            className="h-7 text-xs"
+                          />
+                        )}
+                        <div className="max-h-40 overflow-y-auto space-y-2">
+                          {search.availableFilters.manufacturers
+                            .filter((v) =>
+                              v.toLowerCase().includes(filterSearch.manufacturers.toLowerCase())
+                            )
+                            .map((v) => (
+                              <div key={v} className="flex items-center gap-2">
+                                <Checkbox
+                                  id={`mfr-${v}`}
+                                  checked={search.filters.manufacturers.includes(v)}
+                                  onCheckedChange={() =>
+                                    search.handleFilterChange("manufacturers", v)
+                                  }
+                                />
+                                <label
+                                  htmlFor={`mfr-${v}`}
+                                  className="text-sm cursor-pointer flex-1 truncate"
+                                >
+                                  {v}
+                                </label>
+                              </div>
+                            ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Kolory */}
+                {search.availableFilters.colors.length > 0 && (
+                  <div>
+                    <button
+                      onClick={() => toggleSection("colors")}
+                      className="flex items-center justify-between w-full mb-2"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium">Kolory</span>
+                        {getActiveCount("colors") > 0 && (
+                          <Badge variant="secondary" className="text-xs">
+                            {getActiveCount("colors")}
+                          </Badge>
+                        )}
+                      </div>
+                      {expandedFilters.colors ? (
+                        <ChevronDown size={14} className="text-muted-foreground" />
+                      ) : (
+                        <ChevronRight size={14} className="text-muted-foreground" />
+                      )}
+                    </button>
+                    {expandedFilters.colors && (
+                      <div className="space-y-2 ml-1">
+                        {search.availableFilters.colors.length > 5 && (
+                          <Input
+                            placeholder="Szukaj..."
+                            value={filterSearch.colors}
+                            onChange={(e) =>
+                              setFilterSearch((p) => ({ ...p, colors: e.target.value }))
+                            }
+                            className="h-7 text-xs"
+                          />
+                        )}
+                        <div className="max-h-40 overflow-y-auto space-y-2">
+                          {search.availableFilters.colors
+                            .filter((v) =>
+                              v.toLowerCase().includes(filterSearch.colors.toLowerCase())
+                            )
+                            .map((v) => (
+                              <div key={v} className="flex items-center gap-2">
+                                <Checkbox
+                                  id={`color-${v}`}
+                                  checked={search.filters.colors.includes(v)}
+                                  onCheckedChange={() =>
+                                    search.handleFilterChange("colors", v)
+                                  }
+                                />
+                                <label
+                                  htmlFor={`color-${v}`}
+                                  className="text-sm cursor-pointer flex-1 truncate"
+                                >
+                                  {v}
+                                </label>
+                              </div>
+                            ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {totalActiveFilters > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      search.resetFilters();
+                      setFilterSearch({ categories: "", manufacturers: "", colors: "" });
+                    }}
+                    className="w-full"
+                  >
+                    Wyczyść filtry
+                  </Button>
+                )}
+              </div>
             </div>
           )}
-          {!loading && products.map((p) => (
-            <button
-              key={p.id}
-              onClick={() => { onSelect(p); onClose(); }}
-              className="w-full flex items-center gap-3 px-4 py-3 hover:bg-muted transition-colors border-b border-border/50 last:border-0 text-left"
-            >
-              {p.imageUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={p.imageUrl}
-                  alt={p.name}
-                  className="w-10 h-10 rounded-lg object-cover shrink-0 border border-border"
-                />
-              ) : (
-                <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center shrink-0">
-                  <Package size={16} className="text-muted-foreground" />
-                </div>
-              )}
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">{p.name}</p>
-                <p className="text-xs text-muted-foreground truncate">
-                  {[p.manufacturer, p.price].filter(Boolean).join(" · ") || "Brak szczegółów"}
+
+          {/* Right panel — results */}
+          <div className="flex-1 overflow-y-auto min-w-0">
+            {search.loading && (
+              <div className="flex items-center justify-center h-32">
+                <Loader2 size={24} className="animate-spin text-muted-foreground" />
+              </div>
+            )}
+            {!search.loading && search.products.length === 0 && (
+              <div className="flex flex-col items-center justify-center gap-2 py-12 text-muted-foreground">
+                <Package size={28} className="opacity-30" />
+                <p className="text-sm">
+                  {search.query || totalActiveFilters > 0
+                    ? "Brak wyników"
+                    : "Zacznij wpisywać nazwę produktu"}
                 </p>
               </div>
-            </button>
-          ))}
+            )}
+            {!search.loading && search.products.length > 0 && (
+              <div className="divide-y divide-border">
+                {search.products.map((p) => (
+                  <button
+                    key={p.id}
+                    onClick={() => {
+                      onSelect(p as Product);
+                      handleClose();
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-muted/50 transition-colors text-left"
+                  >
+                    {p.imageUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={p.imageUrl}
+                        alt={p.name}
+                        className="w-[120px] h-[120px] rounded-lg object-cover flex-shrink-0 border border-border"
+                      />
+                    ) : (
+                      <div className="w-[120px] h-[120px] rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
+                        <Package size={20} className="text-muted-foreground opacity-40" />
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium leading-snug line-clamp-2">{p.name}</p>
+                      {p.manufacturer && (
+                        <p className="text-xs text-muted-foreground mt-0.5 truncate">{p.manufacturer}</p>
+                      )}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

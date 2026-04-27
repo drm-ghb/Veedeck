@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { ChevronLeft, ChevronRight, ChevronDown, Eye, EyeOff, Pin, X, Send, ZoomIn, ZoomOut, History, Upload, Maximize2, RotateCcw, Lock, LockOpen, SplitSquareHorizontal, ChevronsLeftRight, MessageSquare, Sparkles, Package, Trash2, ExternalLink } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronDown, Eye, EyeOff, Pin, X, Send, ZoomIn, ZoomOut, History, Upload, Maximize2, RotateCcw, Lock, LockOpen, SplitSquareHorizontal, ChevronsLeftRight, MessageSquare, Sparkles, Package, Trash2, ExternalLink, Mic, StopCircle, CheckCircle2, Armchair } from "lucide-react";
 import RenderUploader from "./RenderUploader";
 import SearchProductDialog from "./SearchProductDialog";
 import { useUploadThing } from "@/lib/uploadthing-client";
@@ -34,6 +34,7 @@ interface Comment {
   author: string;
   createdAt: string;
   replies: Reply[];
+  voiceUrl?: string | null;
 }
 
 interface CommentWithMeta extends Comment {
@@ -248,6 +249,22 @@ export default function RenderViewer({
   const [lightboxProductPins, setLightboxProductPins] = useState<ProductPin[]>([]);
   const productPinHoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingSeconds, setRecordingSeconds] = useState(0);
+  const [pendingVoiceUrl, setPendingVoiceUrl] = useState<string | null>(null);
+  const [uploadingVoice, setUploadingVoice] = useState(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const [isChatRecording, setIsChatRecording] = useState(false);
+  const [chatRecordingSeconds, setChatRecordingSeconds] = useState(0);
+  const [chatPendingVoiceUrl, setChatPendingVoiceUrl] = useState<string | null>(null);
+  const [chatUploadingVoice, setChatUploadingVoice] = useState(false);
+  const chatMediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const chatAudioChunksRef = useRef<Blob[]>([]);
+  const chatRecordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
   const [visualVP, setVisualVP] = useState({ height: 0, offsetTop: 0 });
   useEffect(() => {
     const vv = window.visualViewport;
@@ -326,6 +343,38 @@ export default function RenderViewer({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+
+  const { startUpload: startVoiceUpload } = useUploadThing(
+    isDesigner ? "pinVoiceUploader" : "clientPinVoiceUploader",
+    {
+      headers: !isDesigner && shareToken ? { "x-share-token": shareToken } : undefined,
+      onClientUploadComplete: (res) => {
+        const url = res[0]?.url;
+        if (url) setPendingVoiceUrl(url);
+        setUploadingVoice(false);
+      },
+      onUploadError: () => {
+        toast.error("Błąd przesyłania nagrania głosowego");
+        setUploadingVoice(false);
+      },
+    }
+  );
+
+  const { startUpload: startChatVoiceUpload } = useUploadThing(
+    isDesigner ? "pinVoiceUploader" : "clientPinVoiceUploader",
+    {
+      headers: !isDesigner && shareToken ? { "x-share-token": shareToken } : undefined,
+      onClientUploadComplete: (res) => {
+        const url = res[0]?.url;
+        if (url) setChatPendingVoiceUrl(url);
+        setChatUploadingVoice(false);
+      },
+      onUploadError: () => {
+        toast.error("Błąd przesyłania nagrania głosowego");
+        setChatUploadingVoice(false);
+      },
+    }
+  );
 
   const { startUpload, isUploading: isVersionUploading } = useUploadThing("renderUploader", {
     onClientUploadComplete: async (res) => {
@@ -449,15 +498,56 @@ export default function RenderViewer({
     setSelectedId(null);
   }
 
+  async function startRecording() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data);
+      };
+
+      mediaRecorder.onstop = () => {
+        stream.getTracks().forEach((t) => t.stop());
+        const blob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+        const file = new File([blob], `voice-${Date.now()}.webm`, { type: "audio/webm" });
+        setUploadingVoice(true);
+        startVoiceUpload([file]);
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+      setRecordingSeconds(0);
+      setPendingVoiceUrl(null);
+      recordingTimerRef.current = setInterval(
+        () => setRecordingSeconds((s) => s + 1),
+        1000
+      );
+    } catch {
+      toast.error("Brak dostępu do mikrofonu");
+    }
+  }
+
+  function stopRecording() {
+    if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+    mediaRecorderRef.current?.stop();
+    setIsRecording(false);
+  }
+
   function cancelPending() {
+    if (isRecording) stopRecording();
     setPending(null);
     setNewTitle("");
     setNewContent("");
     setNewPinInternal(false);
+    setPendingVoiceUrl(null);
+    setUploadingVoice(false);
   }
 
   async function submitComment() {
-    if (!pending || !newContent.trim()) return;
+    if (!pending || (!newContent.trim() && !pendingVoiceUrl)) return;
     setAdding(true);
     try {
       const res = await fetch("/api/comments", {
@@ -471,6 +561,7 @@ export default function RenderViewer({
           posY: pending.y,
           author: authorName,
           isInternal: isDesigner ? newPinInternal : false,
+          voiceUrl: pendingVoiceUrl ?? null,
         }),
       });
       if (!res.ok) {
@@ -493,8 +584,46 @@ export default function RenderViewer({
     }
   }
 
+  async function startChatRecording() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      chatMediaRecorderRef.current = mediaRecorder;
+      chatAudioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) chatAudioChunksRef.current.push(e.data);
+      };
+
+      mediaRecorder.onstop = () => {
+        stream.getTracks().forEach((t) => t.stop());
+        const blob = new Blob(chatAudioChunksRef.current, { type: "audio/webm" });
+        const file = new File([blob], `voice-chat-${Date.now()}.webm`, { type: "audio/webm" });
+        setChatUploadingVoice(true);
+        startChatVoiceUpload([file]);
+      };
+
+      mediaRecorder.start();
+      setIsChatRecording(true);
+      setChatRecordingSeconds(0);
+      setChatPendingVoiceUrl(null);
+      chatRecordingTimerRef.current = setInterval(
+        () => setChatRecordingSeconds((s) => s + 1),
+        1000
+      );
+    } catch {
+      toast.error("Brak dostępu do mikrofonu");
+    }
+  }
+
+  function stopChatRecording() {
+    if (chatRecordingTimerRef.current) clearInterval(chatRecordingTimerRef.current);
+    chatMediaRecorderRef.current?.stop();
+    setIsChatRecording(false);
+  }
+
   async function submitChatMessage() {
-    if (!chatMessage.trim()) return;
+    if (!chatMessage.trim() && !chatPendingVoiceUrl) return;
     setSendingChatMessage(true);
     try {
       const res = await fetch("/api/comments", {
@@ -506,6 +635,7 @@ export default function RenderViewer({
           posX: null,
           posY: null,
           author: authorName,
+          voiceUrl: chatPendingVoiceUrl ?? null,
         }),
       });
       if (!res.ok) {
@@ -514,6 +644,7 @@ export default function RenderViewer({
         return;
       }
       setChatMessage("");
+      setChatPendingVoiceUrl(null);
     } catch {
       toast.error("Błąd wysyłania wiadomości");
     } finally {
@@ -1250,12 +1381,14 @@ export default function RenderViewer({
               <div
                 key={pin.id}
                 className="absolute z-10"
-                style={{ left: `calc(${pin.posX}% - 8px)`, top: `calc(${pin.posY}% - 8px)` }}
+                style={{ left: `calc(${pin.posX}% - 13px)`, top: `calc(${pin.posY}% - 13px)` }}
                 onMouseEnter={() => handleProductPinMouseEnter(pin.id)}
                 onMouseLeave={handleProductPinMouseLeave}
                 onClick={(e) => e.stopPropagation()}
               >
-                <div className={`w-4 h-4 rounded-full bg-gray-500 border-2 border-white shadow-lg cursor-pointer ${productPinsPulsing ? "animate-pulse" : ""}`} />
+                <div className={`w-[26px] h-[26px] rounded-lg bg-black/60 backdrop-blur-sm border border-white/20 shadow-lg cursor-pointer flex items-center justify-center transition-transform hover:scale-110 hover:bg-black/80 ${productPinsPulsing ? "animate-pulse" : ""}`}>
+                  <Armchair size={14} className="text-white" />
+                </div>
                 {hoveredProductPinId === pin.id && (
                   <div
                     className="fixed z-50 bg-card rounded-xl shadow-xl border border-border p-3 w-56"
@@ -1274,7 +1407,6 @@ export default function RenderViewer({
                       </div>
                     )}
                     <p className="text-sm font-medium text-foreground truncate">{pin.product.name}</p>
-                    {pin.product.price && <p className="text-xs text-muted-foreground mt-0.5">{pin.product.price}</p>}
                     <div className="flex items-center gap-2 mt-2">
                       {pin.product.url && (
                         <a href={pin.product.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs text-blue-500 hover:text-blue-600 transition-colors">
@@ -1355,9 +1487,40 @@ export default function RenderViewer({
                     {newPinInternal ? "Notatka wewnętrzna" : "Widoczny dla klienta"}
                   </button>
                 )}
-                <div className="flex gap-2 justify-end">
-                  <Button size="sm" variant="outline" onClick={cancelPending}>Anuluj</Button>
-                  <Button size="sm" onClick={submitComment} disabled={adding || !newContent.trim()}>
+                {pendingVoiceUrl && (
+                  <div className="flex items-center gap-1.5 text-xs text-green-600 dark:text-green-400 mb-3">
+                    <CheckCircle2 size={12} />
+                    <span>Nagranie dodane</span>
+                    <audio src={pendingVoiceUrl} controls className="h-6 flex-1 min-w-0" />
+                    <button onClick={() => setPendingVoiceUrl(null)} className="text-gray-400 hover:text-red-400 ml-1">
+                      <X size={11} />
+                    </button>
+                  </div>
+                )}
+                <div className="flex gap-2 justify-end items-center">
+                  <button
+                    type="button"
+                    onClick={isRecording ? stopRecording : startRecording}
+                    disabled={uploadingVoice}
+                    title={isRecording ? "Zatrzymaj nagrywanie" : "Nagraj wiadomość głosową"}
+                    className={`flex items-center gap-1 text-xs px-2 py-1 rounded border transition-colors flex-shrink-0 ${
+                      isRecording
+                        ? "border-red-400 bg-red-50 dark:bg-red-950 text-red-600 dark:text-red-400"
+                        : "border-border text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 hover:border-gray-400"
+                    }`}
+                  >
+                    {isRecording ? (
+                      <>
+                        <StopCircle size={13} />
+                        <span>{Math.floor(recordingSeconds / 60)}:{String(recordingSeconds % 60).padStart(2, "0")}</span>
+                      </>
+                    ) : uploadingVoice ? (
+                      <span className="text-[10px]">…</span>
+                    ) : (
+                      <Mic size={13} />
+                    )}
+                  </button>
+                  <Button size="sm" onClick={submitComment} disabled={adding || uploadingVoice || isRecording || (!newContent.trim() && !pendingVoiceUrl)}>
                     {adding ? "Dodawanie..." : "Dodaj pin"}
                   </Button>
                 </div>
@@ -1423,7 +1586,12 @@ export default function RenderViewer({
                         )}
                       </div>
                     </div>
-                    <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{selectedComment.content}</p>
+                    {selectedComment.content !== "[wiadomość głosowa]" && (
+                      <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{selectedComment.content}</p>
+                    )}
+                    {selectedComment.voiceUrl && (
+                      <audio src={selectedComment.voiceUrl} controls className="w-full h-8 mt-1" />
+                    )}
                   </div>
 
                   {/* Replies */}
@@ -1634,8 +1802,14 @@ export default function RenderViewer({
                                   {STATUS_LABEL[c.status]}
                                 </span>
                               </div>
-                              {c.content && (
+                              {c.content && c.content !== "[wiadomość głosowa]" && (
                                 <p className="text-xs text-gray-700 dark:text-gray-300 mt-1 line-clamp-2">{c.content}</p>
+                              )}
+                              {c.voiceUrl && (
+                                <span className="inline-flex items-center gap-0.5 text-[10px] text-blue-500 mt-0.5">
+                                  <Mic size={9} />
+                                  wiadomość głosowa
+                                </span>
                               )}
                               <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                                 {c.author} · {formatDate(c.createdAt)}
@@ -1784,7 +1958,10 @@ export default function RenderViewer({
                                       ? "bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 rounded-2xl rounded-tr-sm"
                                       : "bg-gray-100 dark:bg-muted text-gray-800 dark:text-gray-200 rounded-2xl rounded-tl-sm"
                                   }`}>
-                                    {item.content}
+                                    {item.content !== "[wiadomość głosowa]" && item.content}
+                                    {item.voiceUrl && (
+                                      <audio src={item.voiceUrl} controls className="mt-1 h-8 w-48 max-w-full" />
+                                    )}
                                   </div>
                                   <div className={`flex items-center gap-1.5 mt-1 ${isOwn ? "flex-row-reverse" : "flex-row"}`}>
                                     <span className="text-[10px] text-gray-400">{formatDate(item.createdAt)}</span>
@@ -1810,28 +1987,62 @@ export default function RenderViewer({
 
                   {/* Message input */}
                   {(isDesigner || allowClientComments) && (
-                    <div className="px-3 py-3 border-t flex gap-2 items-end flex-shrink-0">
-                      <Textarea
-                        value={chatMessage}
-                        onChange={(e) => setChatMessage(e.target.value)}
-                        placeholder="Napisz wiadomość…"
-                        className="text-sm resize-none flex-1 max-h-28 overflow-y-auto"
-                        rows={1}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" && !e.shiftKey) {
-                            e.preventDefault();
-                            submitChatMessage();
-                          }
-                        }}
-                      />
-                      <Button
-                        size="sm"
-                        className="flex-shrink-0 mb-px"
-                        onClick={submitChatMessage}
-                        disabled={sendingChatMessage || !chatMessage.trim()}
-                      >
-                        <Send size={13} />
-                      </Button>
+                    <div className="px-3 py-3 border-t flex-shrink-0">
+                      {chatPendingVoiceUrl && (
+                        <div className="flex items-center gap-1.5 mb-2 text-xs text-green-600 dark:text-green-400">
+                          <CheckCircle2 size={12} />
+                          <span>Nagranie gotowe</span>
+                          <audio src={chatPendingVoiceUrl} controls className="h-6 flex-1 min-w-0" />
+                          <button onClick={() => setChatPendingVoiceUrl(null)} className="text-gray-400 hover:text-red-400 ml-1 flex-shrink-0">
+                            <X size={11} />
+                          </button>
+                        </div>
+                      )}
+                      <div className="flex gap-2 items-end">
+                        <Textarea
+                          value={chatMessage}
+                          onChange={(e) => setChatMessage(e.target.value)}
+                          placeholder="Napisz wiadomość…"
+                          className="text-sm resize-none flex-1 max-h-28 overflow-y-auto"
+                          rows={1}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" && !e.shiftKey) {
+                              e.preventDefault();
+                              submitChatMessage();
+                            }
+                          }}
+                        />
+                        <button
+                          type="button"
+                          onClick={isChatRecording ? stopChatRecording : startChatRecording}
+                          disabled={chatUploadingVoice}
+                          title={isChatRecording ? "Zatrzymaj nagrywanie" : "Nagraj wiadomość głosową"}
+                          className={`flex items-center gap-1 text-xs px-2 py-1.5 rounded border transition-colors flex-shrink-0 mb-px ${
+                            isChatRecording
+                              ? "border-red-400 bg-red-50 dark:bg-red-950 text-red-600 dark:text-red-400"
+                              : "border-border text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 hover:border-gray-400"
+                          }`}
+                        >
+                          {isChatRecording ? (
+                            <>
+                              <StopCircle size={13} />
+                              <span>{Math.floor(chatRecordingSeconds / 60)}:{String(chatRecordingSeconds % 60).padStart(2, "0")}</span>
+                            </>
+                          ) : chatUploadingVoice ? (
+                            <span className="text-[10px]">…</span>
+                          ) : (
+                            <Mic size={13} />
+                          )}
+                        </button>
+                        <Button
+                          size="sm"
+                          className="flex-shrink-0 mb-px"
+                          onClick={submitChatMessage}
+                          disabled={sendingChatMessage || chatUploadingVoice || isChatRecording || (!chatMessage.trim() && !chatPendingVoiceUrl)}
+                        >
+                          <Send size={13} />
+                        </Button>
+                      </div>
                     </div>
                   )}
                 </>
@@ -1979,12 +2190,14 @@ export default function RenderViewer({
                 <div
                   key={pin.id}
                   className="absolute z-10"
-                  style={{ left: `calc(${pin.posX}% - 8px)`, top: `calc(${pin.posY}% - 8px)` }}
+                  style={{ left: `calc(${pin.posX}% - 13px)`, top: `calc(${pin.posY}% - 13px)` }}
                   onMouseEnter={() => handleProductPinMouseEnter(pin.id)}
                   onMouseLeave={handleProductPinMouseLeave}
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <div className={`w-4 h-4 rounded-full bg-gray-400 border-2 border-white shadow-lg cursor-pointer ${productPinsPulsing ? "animate-pulse" : ""}`} />
+                  <div className={`w-[26px] h-[26px] rounded-lg bg-black/60 backdrop-blur-sm border border-white/20 shadow-lg cursor-pointer flex items-center justify-center transition-transform hover:scale-110 hover:bg-black/80 ${productPinsPulsing ? "animate-pulse" : ""}`}>
+                    <Armchair size={14} className="text-white" />
+                  </div>
                   {hoveredProductPinId === pin.id && (
                     <div
                       className="fixed z-50 bg-card rounded-xl shadow-xl border border-border p-3 w-56"
@@ -2003,8 +2216,7 @@ export default function RenderViewer({
                         </div>
                       )}
                       <p className="text-sm font-medium text-foreground truncate">{pin.product.name}</p>
-                      {pin.product.price && <p className="text-xs text-muted-foreground mt-0.5">{pin.product.price}</p>}
-                      <div className="flex items-center gap-2 mt-2">
+                        <div className="flex items-center gap-2 mt-2">
                         {pin.product.url && (
                           <a href={pin.product.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs text-blue-500 hover:text-blue-600 transition-colors">
                             <ExternalLink size={12} /> Sklep
@@ -2092,9 +2304,40 @@ export default function RenderViewer({
                       if (e.key === "Escape") cancelPending();
                     }}
                   />
-                  <div className="flex gap-2 justify-end">
-                    <button onClick={cancelPending} className="text-sm text-gray-400 hover:text-gray-600 transition-colors px-2">Anuluj</button>
-                    <Button size="sm" onClick={submitComment} disabled={adding || !newContent.trim()}>
+                  {pendingVoiceUrl && (
+                    <div className="flex items-center gap-1.5 text-xs text-green-600 dark:text-green-400 mb-3">
+                      <CheckCircle2 size={12} />
+                      <span>Nagranie dodane</span>
+                      <audio src={pendingVoiceUrl} controls className="h-6 flex-1 min-w-0" />
+                      <button onClick={() => setPendingVoiceUrl(null)} className="text-gray-400 hover:text-red-400 ml-1">
+                        <X size={11} />
+                      </button>
+                    </div>
+                  )}
+                  <div className="flex gap-2 justify-end items-center">
+                    <button
+                      type="button"
+                      onClick={isRecording ? stopRecording : startRecording}
+                      disabled={uploadingVoice}
+                      title={isRecording ? "Zatrzymaj nagrywanie" : "Nagraj wiadomość głosową"}
+                      className={`flex items-center gap-1 text-xs px-2 py-1 rounded border transition-colors flex-shrink-0 ${
+                        isRecording
+                          ? "border-red-400 bg-red-50 dark:bg-red-950 text-red-600 dark:text-red-400"
+                          : "border-border text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 hover:border-gray-400"
+                      }`}
+                    >
+                      {isRecording ? (
+                        <>
+                          <StopCircle size={13} />
+                          <span>{Math.floor(recordingSeconds / 60)}:{String(recordingSeconds % 60).padStart(2, "0")}</span>
+                        </>
+                      ) : uploadingVoice ? (
+                        <span className="text-[10px]">…</span>
+                      ) : (
+                        <Mic size={13} />
+                      )}
+                    </button>
+                    <Button size="sm" onClick={submitComment} disabled={adding || uploadingVoice || isRecording || (!newContent.trim() && !pendingVoiceUrl)}>
                       {adding ? "Dodawanie..." : "Dodaj"}
                     </Button>
                   </div>
@@ -2142,7 +2385,12 @@ export default function RenderViewer({
                           )}
                         </div>
                       </div>
-                      <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{selectedComment.content}</p>
+                      {selectedComment.content !== "[wiadomość głosowa]" && (
+                        <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{selectedComment.content}</p>
+                      )}
+                      {selectedComment.voiceUrl && (
+                        <audio src={selectedComment.voiceUrl} controls className="w-full h-8 mt-1" />
+                      )}
                     </div>
                     {selectedComment.replies.map((r) => (
                       <div key={r.id} className="px-4 py-3 bg-gray-50 dark:bg-gray-800/50">

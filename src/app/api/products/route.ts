@@ -24,6 +24,10 @@ export async function GET(req: NextRequest) {
       if (query) {
         whereConditions.OR = [
           { name: { contains: query, mode: "insensitive" } },
+          { manufacturer: { contains: query, mode: "insensitive" } },
+          { color: { contains: query, mode: "insensitive" } },
+          { category: { contains: query, mode: "insensitive" } },
+          { supplier: { contains: query, mode: "insensitive" } },
           { description: { contains: query, mode: "insensitive" } },
           { catalogNumber: { contains: query, mode: "insensitive" } },
         ];

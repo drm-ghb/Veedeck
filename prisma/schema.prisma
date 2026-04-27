@@ -374,6 +374,7 @@ model Comment {
   isInternal        Boolean       @default(false)
   isAiSummary       Boolean       @default(false)
   viewedByDesigner  Boolean       @default(false)
+  voiceUrl          String?
   render      Render        @relation(fields: [renderId], references: [id], onDelete: Cascade)
   replies    Reply[]
 }
