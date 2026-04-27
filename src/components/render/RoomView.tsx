@@ -185,7 +185,7 @@ export default function RoomView({ projectId, roomId, renders, archivedRenders, 
             )}
           </button>
         </div>
-        {tab === "active" && ungrouped.length > 0 && (
+        {tab === "active" && renders.length > 0 && (
           <div className="flex items-center gap-2 mb-1">
             <button
               onClick={() => { setSelectionMode((v) => !v); setSelectedIds(new Set()); }}
