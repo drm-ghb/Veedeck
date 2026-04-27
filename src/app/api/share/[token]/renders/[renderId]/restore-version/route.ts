@@ -34,8 +34,8 @@ export async function POST(
 
   const versionNumber = render._count.versions + 1;
 
-  await prisma.$transaction([
-    prisma.renderVersion.create({
+  await prisma.$transaction(async (tx) => {
+    const newVersion = await tx.renderVersion.create({
       data: {
         renderId,
         fileUrl: render.fileUrl,
@@ -43,12 +43,28 @@ export async function POST(
         versionNumber,
         archivedAt: new Date(),
       },
-    }),
-    prisma.render.update({
+    });
+    await tx.comment.updateMany({
+      where: { renderId, archivedVersionId: null },
+      data: { archivedVersionId: newVersion.id },
+    });
+    await tx.renderProductPin.updateMany({
+      where: { renderId, archivedVersionId: null },
+      data: { archivedVersionId: newVersion.id },
+    });
+    await tx.comment.updateMany({
+      where: { renderId, archivedVersionId: versionId },
+      data: { archivedVersionId: null },
+    });
+    await tx.renderProductPin.updateMany({
+      where: { renderId, archivedVersionId: versionId },
+      data: { archivedVersionId: null },
+    });
+    await tx.render.update({
       where: { id: renderId },
       data: { fileUrl: version.fileUrl, fileKey: version.fileKey ?? render.fileKey },
-    }),
-  ]);
+    });
+  });
 
   return NextResponse.json({ success: true });
 }

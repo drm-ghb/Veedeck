@@ -331,9 +331,11 @@ model RenderProductPin {
   posX      Float
   posY      Float
   createdAt DateTime @default(now())
+  archivedVersionId String?
 
-  render  Render  @relation(fields: [renderId], references: [id], onDelete: Cascade)
-  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  render          Render         @relation(fields: [renderId], references: [id], onDelete: Cascade)
+  product         Product        @relation(fields: [productId], references: [id], onDelete: Cascade)
+  archivedVersion RenderVersion? @relation("ProductPinArchivedVersion", fields: [archivedVersionId], references: [id])
 }
 
 model RenderVersion {
@@ -344,6 +346,8 @@ model RenderVersion {
   versionNumber Int
   archivedAt    DateTime @default(now())
   render        Render   @relation(fields: [renderId], references: [id], onDelete: Cascade)
+  archivedComments    Comment[]          @relation("CommentArchivedVersion")
+  archivedProductPins RenderProductPin[] @relation("ProductPinArchivedVersion")
 }
 
 model VersionRestoreRequest {
@@ -375,7 +379,9 @@ model Comment {
   isAiSummary       Boolean       @default(false)
   viewedByDesigner  Boolean       @default(false)
   voiceUrl          String?
-  render      Render        @relation(fields: [renderId], references: [id], onDelete: Cascade)
+  archivedVersionId String?
+  render          Render         @relation(fields: [renderId], references: [id], onDelete: Cascade)
+  archivedVersion RenderVersion? @relation("CommentArchivedVersion", fields: [archivedVersionId], references: [id])
   replies    Reply[]
 }
 

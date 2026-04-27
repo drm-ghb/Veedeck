@@ -31,8 +31,8 @@ export async function POST(
 
   const versionNumber = render._count.versions + 1;
 
-  await prisma.$transaction([
-    prisma.renderVersion.create({
+  await prisma.$transaction(async (tx) => {
+    const newVersion = await tx.renderVersion.create({
       data: {
         renderId: id,
         fileUrl: render.fileUrl,
@@ -40,14 +40,30 @@ export async function POST(
         versionNumber,
         archivedAt: new Date(),
       },
-    }),
-    prisma.comment.deleteMany({ where: { renderId: id } }),
-    prisma.renderProductPin.deleteMany({ where: { renderId: id } }),
-    prisma.render.update({
+    });
+    // Archive active pins with the new version snapshot
+    await tx.comment.updateMany({
+      where: { renderId: id, archivedVersionId: null },
+      data: { archivedVersionId: newVersion.id },
+    });
+    await tx.renderProductPin.updateMany({
+      where: { renderId: id, archivedVersionId: null },
+      data: { archivedVersionId: newVersion.id },
+    });
+    // Restore pins belonging to the version being restored
+    await tx.comment.updateMany({
+      where: { renderId: id, archivedVersionId: versionId },
+      data: { archivedVersionId: null },
+    });
+    await tx.renderProductPin.updateMany({
+      where: { renderId: id, archivedVersionId: versionId },
+      data: { archivedVersionId: null },
+    });
+    await tx.render.update({
       where: { id },
       data: { fileUrl: version.fileUrl, fileKey: version.fileKey ?? render.fileKey },
-    }),
-  ]);
+    });
+  });
 
   return NextResponse.json({ success: true });
 }

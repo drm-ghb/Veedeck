@@ -46,6 +46,10 @@ vi.mock("@/components/ui/button", () => ({
   ),
 }));
 
+vi.mock("@/components/render/MoveFolderDialog", () => ({
+  default: () => null,
+}));
+
 global.fetch = vi.fn();
 global.confirm = vi.fn().mockReturnValue(true);
 
@@ -58,27 +62,27 @@ beforeEach(() => {
 
 describe("FolderMenu", () => {
   it("renderuje trigger menu", () => {
-    render(<FolderMenu folder={folder} />);
+    render(<FolderMenu folder={folder} projectId="project-1" currentRoomId="room-1" />);
     expect(screen.getByTestId("dropdown-trigger")).toBeInTheDocument();
   });
 
   it("wyświetla opcję Archiwizuj", () => {
-    render(<FolderMenu folder={folder} />);
+    render(<FolderMenu folder={folder} projectId="project-1" currentRoomId="room-1" />);
     expect(screen.getByText(/Archiwizuj/)).toBeInTheDocument();
   });
 
   it("wyświetla opcję Przypnij gdy folder nie jest przypięty", () => {
-    render(<FolderMenu folder={{ ...folder, pinned: false }} />);
+    render(<FolderMenu folder={{ ...folder, pinned: false }} projectId="project-1" currentRoomId="room-1" />);
     expect(screen.getByText(/Przypnij/)).toBeInTheDocument();
   });
 
   it("wyświetla opcję Odepnij gdy folder jest przypięty", () => {
-    render(<FolderMenu folder={{ ...folder, pinned: true }} />);
+    render(<FolderMenu folder={{ ...folder, pinned: true }} projectId="project-1" currentRoomId="room-1" />);
     expect(screen.getByText(/Odepnij/)).toBeInTheDocument();
   });
 
   it("kliknięcie Archiwizuj wywołuje PATCH z archived: true", async () => {
-    render(<FolderMenu folder={folder} />);
+    render(<FolderMenu folder={folder} projectId="project-1" currentRoomId="room-1" />);
     const items = screen.getAllByTestId("dropdown-item");
     const archiveBtn = items.find((el) => el.textContent?.includes("Archiwizuj"));
     expect(archiveBtn).toBeTruthy();
@@ -96,7 +100,7 @@ describe("FolderMenu", () => {
   });
 
   it("kliknięcie Припnij wywołuje PATCH z pinned: true", async () => {
-    render(<FolderMenu folder={{ ...folder, pinned: false }} />);
+    render(<FolderMenu folder={{ ...folder, pinned: false }} projectId="project-1" currentRoomId="room-1" />);
     const items = screen.getAllByTestId("dropdown-item");
     const pinBtn = items.find((el) => el.textContent?.includes("Przypnij"));
     fireEvent.click(pinBtn!);
@@ -112,7 +116,7 @@ describe("FolderMenu", () => {
   });
 
   it("kliknięcie Usuń wywołuje DELETE po potwierdzeniu", async () => {
-    render(<FolderMenu folder={folder} />);
+    render(<FolderMenu folder={folder} projectId="project-1" currentRoomId="room-1" />);
     const items = screen.getAllByTestId("dropdown-item");
     const deleteBtn = items.find((el) => el.textContent?.includes("Usuń"));
     fireEvent.click(deleteBtn!);
@@ -126,7 +130,7 @@ describe("FolderMenu", () => {
   });
 
   it("kliknięcie Zmień nazwę otwiera dialog", async () => {
-    render(<FolderMenu folder={folder} />);
+    render(<FolderMenu folder={folder} projectId="project-1" currentRoomId="room-1" />);
     const items = screen.getAllByTestId("dropdown-item");
     const renameBtn = items.find((el) => el.textContent?.includes("Zmień nazwę"));
     fireEvent.click(renameBtn!);

@@ -19,7 +19,7 @@ export async function GET(
   }
 
   const pins = await prisma.renderProductPin.findMany({
-    where: { renderId },
+    where: { renderId, archivedVersionId: null },
     include: {
       product: { select: { id: true, name: true, imageUrl: true, url: true, price: true } },
     },

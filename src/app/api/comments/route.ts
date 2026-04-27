@@ -9,7 +9,7 @@ export async function GET(req: NextRequest) {
   if (!renderId) return NextResponse.json({ error: "Brak renderId" }, { status: 400 });
 
   const comments = await prisma.comment.findMany({
-    where: { renderId },
+    where: { renderId, archivedVersionId: null },
     include: { replies: { orderBy: { createdAt: "asc" } } },
     orderBy: { createdAt: "asc" },
   });

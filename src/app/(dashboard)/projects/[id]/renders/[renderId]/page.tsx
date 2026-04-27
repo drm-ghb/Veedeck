@@ -16,6 +16,7 @@ export default async function RenderPage({ params }: Props) {
     where: { id: renderId },
     include: {
       comments: {
+        where: { archivedVersionId: null },
         orderBy: { createdAt: "asc" },
         include: { replies: { orderBy: { createdAt: "asc" } } },
       },
@@ -47,7 +48,7 @@ export default async function RenderPage({ params }: Props) {
     : [];
 
   const productPins = await prisma.renderProductPin.findMany({
-    where: { renderId: render.id },
+    where: { renderId: render.id, archivedVersionId: null },
     include: {
       product: { select: { id: true, name: true, imageUrl: true, url: true, price: true } },
     },

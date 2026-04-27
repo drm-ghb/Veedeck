@@ -25,7 +25,7 @@ export async function GET(
   if (!render) return NextResponse.json({ error: "Brak dostępu" }, { status: 403 });
 
   const pins = await prisma.renderProductPin.findMany({
-    where: { renderId: id },
+    where: { renderId: id, archivedVersionId: null },
     include: {
       product: { select: { id: true, name: true, imageUrl: true, url: true, price: true } },
     },

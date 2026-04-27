@@ -101,7 +101,7 @@ export async function GET(
   const render = await prisma.render.findUnique({
     where: { id },
     include: {
-      comments: { orderBy: { createdAt: "asc" } },
+      comments: { where: { archivedVersionId: null }, orderBy: { createdAt: "asc" } },
     },
   });
 
