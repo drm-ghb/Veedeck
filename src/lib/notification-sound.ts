@@ -1,29 +1,37 @@
 let audioCtx: AudioContext | null = null;
 
-function getAudioContext(): AudioContext | null {
-  if (typeof window === "undefined") return null;
-  try {
-    if (!audioCtx) audioCtx = new AudioContext();
-    return audioCtx;
-  } catch {
-    return null;
-  }
+// Unlock AudioContext on first user interaction (browser requires this)
+if (typeof window !== "undefined") {
+  const unlock = () => {
+    if (!audioCtx) {
+      try {
+        audioCtx = new AudioContext();
+      } catch {}
+    }
+    if (audioCtx?.state === "suspended") {
+      audioCtx.resume().catch(() => {});
+    }
+  };
+  document.addEventListener("click", unlock, { passive: true });
+  document.addEventListener("keydown", unlock, { passive: true });
+  document.addEventListener("touchstart", unlock, { passive: true });
 }
 
-export function playMessageSound() {
-  const ctx = getAudioContext();
-  if (!ctx) return;
+export async function playMessageSound() {
+  if (typeof window === "undefined") return;
   try {
-    if (ctx.state === "suspended") ctx.resume();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
+    if (!audioCtx) audioCtx = new AudioContext();
+    if (audioCtx.state === "suspended") await audioCtx.resume();
+
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
     osc.connect(gain);
-    gain.connect(ctx.destination);
+    gain.connect(audioCtx.destination);
     osc.type = "sine";
-    osc.frequency.setValueAtTime(400, ctx.currentTime);
-    gain.gain.setValueAtTime(0.3, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
-    osc.start(ctx.currentTime);
-    osc.stop(ctx.currentTime + 0.15);
+    osc.frequency.setValueAtTime(400, audioCtx.currentTime);
+    gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.15);
+    osc.start(audioCtx.currentTime);
+    osc.stop(audioCtx.currentTime + 0.15);
   } catch {}
 }
