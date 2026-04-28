@@ -153,15 +153,6 @@ export default function DyskusjeView({ currentUserId, initialDiscussions, projec
       });
   }, [sortedDiscussions, archivedFilter, typeFilter, search]);
 
-  const displayMessages = useMemo(() => {
-    if (!chatSearch.trim()) return messages;
-    const q = chatSearch.toLowerCase();
-    return messages.filter(
-      (m) =>
-        m.content?.toLowerCase().includes(q) ||
-        m.attachmentName?.toLowerCase().includes(q)
-    );
-  }, [messages, chatSearch]);
 
   useEffect(() => {
     const unreadIds = discussions.filter((d) => hasUnread(d)).map((d) => d.id);
@@ -819,7 +810,7 @@ export default function DyskusjeView({ currentUserId, initialDiscussions, projec
                     type="text"
                     value={chatSearch}
                     onChange={(e) => setChatSearch(e.target.value)}
-                    placeholder="Szukaj wiadomości..."
+                    placeholder="Szukaj wiadomości i plików..."
                     className="w-full pl-7 pr-7 py-1.5 text-sm bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20"
                   />
                   {chatSearch && (
@@ -828,16 +819,17 @@ export default function DyskusjeView({ currentUserId, initialDiscussions, projec
                     </button>
                   )}
                 </div>
-                {chatSearch && (
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {displayMessages.length === 0 ? "Brak wyników" : `${displayMessages.length} ${displayMessages.length === 1 ? "wiadomość" : "wiadomości"}`}
-                  </p>
-                )}
               </div>
             )}
 
-            {/* Messages or Files */}
-            {showResources ? (
+            {/* Messages, Search results or Files */}
+            {chatSearchOpen && chatSearch.trim() ? (
+              <ChatSearchResults
+                messages={messages}
+                query={chatSearch}
+                onImageClick={setAnnotatingImage}
+              />
+            ) : showResources ? (
               <div className="flex-1 overflow-y-auto px-5 py-4">
                 <p className="text-xs text-muted-foreground mb-3 font-medium uppercase tracking-wide">Pliki w dyskusji</p>
                 {messages.filter((m) => m.attachmentType === "document" || m.attachmentType === "pdf").length === 0 ? (
@@ -890,13 +882,8 @@ export default function DyskusjeView({ currentUserId, initialDiscussions, projec
                     <p className="text-sm">Brak wiadomości</p>
                     <p className="text-xs">Zacznij pisać aby rozpocząć dyskusję</p>
                   </div>
-                ) : displayMessages.length === 0 && chatSearch ? (
-                  <div className="flex flex-col items-center justify-center h-full gap-2 text-muted-foreground">
-                    <Search size={32} className="opacity-30" />
-                    <p className="text-sm">Brak wiadomości pasujących do wyszukiwania</p>
-                  </div>
                 ) : (
-                  displayMessages.map((msg) => (
+                  messages.map((msg) => (
                     <MessageBubble
                       key={msg.id}
                       msg={msg}
@@ -1046,6 +1033,94 @@ function DocumentIcon({ name }: { name: string }) {
   if (["xls", "xlsx"].includes(ext)) return <FileSpreadsheet size={20} className="text-green-600 flex-shrink-0" />;
   if (["doc", "docx"].includes(ext)) return <FileText size={20} className="text-blue-500 flex-shrink-0" />;
   return <FileIcon size={20} className="text-muted-foreground flex-shrink-0" />;
+}
+
+function ChatSearchResults({ messages, query, onImageClick }: {
+  messages: DiscussionMessage[];
+  query: string;
+  onImageClick: (url: string) => void;
+}) {
+  const q = query.toLowerCase();
+  const textMatches = messages.filter(
+    (m) => m.content && m.content.toLowerCase().includes(q)
+  );
+  const fileMatches = messages.filter(
+    (m) =>
+      (m.attachmentType === "document" || m.attachmentType === "pdf" || m.attachmentType === "image") &&
+      m.attachmentName?.toLowerCase().includes(q)
+  );
+  const total = textMatches.length + fileMatches.length;
+
+  return (
+    <div className="flex-1 overflow-y-auto px-5 py-4">
+      <p className="text-xs text-muted-foreground mb-3 font-medium uppercase tracking-wide">
+        {total === 0 ? "Brak wyników" : `${total} ${total === 1 ? "wynik" : total < 5 ? "wyniki" : "wyników"}`}
+      </p>
+      {total === 0 ? (
+        <div className="flex flex-col items-center justify-center h-40 gap-2 text-muted-foreground">
+          <Search size={32} className="opacity-30" />
+          <p className="text-sm">Brak wiadomości ani plików pasujących do wyszukiwania</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {textMatches.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">Wiadomości ({textMatches.length})</p>
+              <div className="space-y-2">
+                {textMatches.map((m) => {
+                  const idx = m.content!.toLowerCase().indexOf(q);
+                  const start = Math.max(0, idx - 30);
+                  const end = Math.min(m.content!.length, idx + q.length + 50);
+                  const excerpt = (start > 0 ? "…" : "") + m.content!.slice(start, end) + (end < m.content!.length ? "…" : "");
+                  const before = excerpt.slice(0, idx - start + (start > 0 ? 1 : 0));
+                  const match = excerpt.slice(idx - start + (start > 0 ? 1 : 0), idx - start + (start > 0 ? 1 : 0) + q.length);
+                  const after = excerpt.slice(idx - start + (start > 0 ? 1 : 0) + q.length);
+                  return (
+                    <div key={m.id} className="px-3 py-2.5 rounded-xl border border-border bg-background">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-xs font-medium">{m.authorName}</span>
+                        <span className="text-xs text-muted-foreground">{formatTime(m.createdAt)}</span>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        {before}<mark className="bg-yellow-200 text-yellow-900 rounded px-0.5">{match}</mark>{after}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+          {fileMatches.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">Pliki ({fileMatches.length})</p>
+              <div className="space-y-2">
+                {fileMatches.map((m) => (
+                  <div key={m.id} className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-border bg-background">
+                    {m.attachmentType === "image" ? (
+                      <button onClick={() => onImageClick(m.attachmentUrl!)} className="flex-shrink-0 hover:opacity-80 transition-opacity">
+                        <img src={m.attachmentUrl!} alt={m.attachmentName || ""} className="w-10 h-10 rounded object-cover" />
+                      </button>
+                    ) : (
+                      <DocumentIcon name={m.attachmentName || ""} />
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{m.attachmentName}</p>
+                      <p className="text-xs text-muted-foreground">{m.authorName} · {formatTime(m.createdAt)}</p>
+                    </div>
+                    {m.attachmentType !== "image" && (
+                      <a href={m.attachmentUrl!} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground flex-shrink-0">
+                        <ExternalLink size={14} />
+                      </a>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function MessageBubble({ msg, isOwn, onImageClick }: {
