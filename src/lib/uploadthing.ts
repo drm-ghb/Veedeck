@@ -41,7 +41,7 @@ export const ourFileRouter = {
     .onUploadComplete(async ({ file }) => {
       return { url: file.url, key: file.key, name: file.name };
     }),
-  discussionAttachmentUploader: f({ blob: { maxFileSize: "32MB", maxFileCount: 1 } })
+  discussionAttachmentUploader: f({ blob: { maxFileSize: "32MB", maxFileCount: 10 } })
     .middleware(async () => {
       const session = await auth();
       if (!session?.user?.id) throw new Error("Unauthorized");
@@ -50,7 +50,7 @@ export const ourFileRouter = {
     .onUploadComplete(async ({ file }) => {
       return { url: file.url, key: file.key, name: file.name };
     }),
-  discussionClientAttachmentUploader: f({ blob: { maxFileSize: "32MB", maxFileCount: 1 } })
+  discussionClientAttachmentUploader: f({ blob: { maxFileSize: "32MB", maxFileCount: 10 } })
     .middleware(async ({ req }) => {
       const token = req.headers.get("x-share-token");
       if (!token) throw new Error("Unauthorized");
