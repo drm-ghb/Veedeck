@@ -21,13 +21,14 @@ export async function GET(
     return NextResponse.json({ error: "Nie znaleziono dyskusji" }, { status: 404 });
   }
 
-  const [messages, receipts] = await Promise.all([
-    prisma.discussionMessage.findMany({
-      where: { discussionId: id },
-      orderBy: { createdAt: "asc" },
-    }),
-    prisma.discussionReadReceipt.findMany({ where: { discussionId: id } }),
-  ]);
+  const messages = await prisma.discussionMessage.findMany({
+    where: { discussionId: id },
+    orderBy: { createdAt: "asc" },
+  });
+
+  const receipts = await prisma.discussionReadReceipt.findMany({
+    where: { discussionId: id },
+  }).catch(() => []);
 
   return NextResponse.json({ messages, receipts });
 }
