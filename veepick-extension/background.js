@@ -33,4 +33,18 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.type === "inject-image-picker" && sender.tab?.id) {
     chrome.scripting.executeScript({ target: { tabId: sender.tab.id }, files: ["image-picker.js"] }).catch(() => {});
   }
+
+  // Fetch image as data URL (bypasses page CSP restrictions)
+  if (msg.type === "fetch-image" && msg.url) {
+    fetch(msg.url)
+      .then(async (res) => {
+        if (!res.ok) { sendResponse({ ok: false }); return; }
+        const blob = await res.blob();
+        const reader = new FileReader();
+        reader.onloadend = () => sendResponse({ ok: true, dataUrl: reader.result });
+        reader.readAsDataURL(blob);
+      })
+      .catch(() => sendResponse({ ok: false }));
+    return true;
+  }
 });

@@ -78,11 +78,28 @@ export default function ShareSidebar({
     if (saved === "true") setCollapsed(true);
   }, []);
 
-  // Unread discussion count
+  // Unread discussion count — fetch from server on mount to catch messages sent before client first opened panel
   useEffect(() => {
-    const stored = localStorage.getItem(`share-discussion-unread-${token}`);
-    if (stored) setDiscussionUnread(parseInt(stored, 10) || 0);
-  }, [token]);
+    if (!discussionId) return;
+    const lastReadAt = localStorage.getItem(`share-discussion-last-read-${token}`);
+    const url = lastReadAt
+      ? `/api/share/${token}/discussions/${discussionId}/unread?since=${encodeURIComponent(lastReadAt)}`
+      : `/api/share/${token}/discussions/${discussionId}/unread`;
+    fetch(url)
+      .then((r) => r.json())
+      .then((data) => {
+        if (typeof data.count === "number") {
+          setDiscussionUnread(data.count);
+          localStorage.setItem(`share-discussion-unread-${token}`, String(data.count));
+        }
+      })
+      .catch(() => {
+        // fallback: read from localStorage
+        const stored = localStorage.getItem(`share-discussion-unread-${token}`);
+        if (stored) setDiscussionUnread(parseInt(stored, 10) || 0);
+      });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [discussionId, token]);
 
   // Reset when navigating to dyskusje page
   const dyskusjePathname = `/share/${token}/dyskusje`;
@@ -90,6 +107,7 @@ export default function ShareSidebar({
     if (pathname === dyskusjePathname) {
       setDiscussionUnread(0);
       localStorage.setItem(`share-discussion-unread-${token}`, "0");
+      localStorage.setItem(`share-discussion-last-read-${token}`, new Date().toISOString());
     }
   }, [pathname, dyskusjePathname, token]);
 
@@ -100,6 +118,7 @@ export default function ShareSidebar({
       if (detail?.token === token) {
         setDiscussionUnread(0);
         localStorage.setItem(`share-discussion-unread-${token}`, "0");
+        localStorage.setItem(`share-discussion-last-read-${token}`, new Date().toISOString());
       }
     }
     window.addEventListener("share-discussion-read", onRead);

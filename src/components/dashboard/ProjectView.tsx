@@ -130,11 +130,11 @@ export default function ProjectView({ projectId, rooms, archivedRooms, allRender
   return (
     <>
       {/* Tabs + view toggle */}
-      <div className="flex items-center justify-between border-b border-border mb-6">
-        <div className="flex items-center gap-1">
+      <div className="flex items-center gap-2 border-b border-border mb-6">
+        <div className="flex items-center gap-0.5 overflow-x-auto flex-1 min-w-0" style={{ scrollbarWidth: "none" }}>
           <button
             onClick={() => setTab("active")}
-            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px ${
+            className={`px-2.5 sm:px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px whitespace-nowrap flex-shrink-0 ${
               tab === "active"
                 ? "border-foreground text-foreground"
                 : "border-transparent text-muted-foreground hover:text-foreground"
@@ -149,7 +149,7 @@ export default function ProjectView({ projectId, rooms, archivedRooms, allRender
           </button>
           <button
             onClick={() => setTab("all")}
-            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px ${
+            className={`px-2.5 sm:px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px whitespace-nowrap flex-shrink-0 ${
               tab === "all"
                 ? "border-foreground text-foreground"
                 : "border-transparent text-muted-foreground hover:text-foreground"
@@ -164,7 +164,7 @@ export default function ProjectView({ projectId, rooms, archivedRooms, allRender
           </button>
           <button
             onClick={() => setTab("archived")}
-            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px ${
+            className={`px-2.5 sm:px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px whitespace-nowrap flex-shrink-0 ${
               tab === "archived"
                 ? "border-foreground text-foreground"
                 : "border-transparent text-muted-foreground hover:text-foreground"
@@ -179,7 +179,7 @@ export default function ProjectView({ projectId, rooms, archivedRooms, allRender
           </button>
         </div>
         {((tab === "active" && rooms.length > 0) || (tab === "all" && allRenders.length > 0)) && (
-          <div className="flex items-center gap-2 mb-1">
+          <div className="flex items-center gap-2 mb-1 flex-shrink-0">
             {tab === "all" && (
               <button
                 onClick={() => { setSelectionMode((v) => !v); setSelectedIds(new Set()); }}

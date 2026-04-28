@@ -61,8 +61,8 @@ export default async function ProjectPage({ params }: Props) {
             </p>
           )}
         </div>
-        <div className="flex items-center gap-2">
-<ShareDialog shareUrl={shareUrl} hiddenModules={project.hiddenModules} />
+        <div className="flex items-center gap-2 self-end sm:self-auto">
+          <ShareDialog shareUrl={shareUrl} hiddenModules={project.hiddenModules} />
           <AddRoomDialog projectId={id} />
         </div>
       </div>

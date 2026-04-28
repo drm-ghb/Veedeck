@@ -31,7 +31,7 @@ export async function GET(req: Request) {
             id: true,
             name: true,
             unsorted: true,
-            products: { select: { url: true, name: true } },
+            products: { select: { id: true, url: true, name: true, imageUrl: true, price: true } },
           },
         },
       },

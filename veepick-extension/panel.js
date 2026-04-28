@@ -1,7 +1,7 @@
 // Veepick Panel — injected into the page on extension icon click
 (function () {
   const PANEL_ID = "veepick-panel";
-  const PANEL_VERSION = "2.1";
+  const PANEL_VERSION = "2.2";
 
   // Toggle if already exists and version matches; replace if outdated
   const existing = document.getElementById(PANEL_ID);
@@ -9,11 +9,14 @@
     if (existing.dataset.version === PANEL_VERSION) {
       const isHidden = existing.style.getPropertyValue("display") === "none";
       existing.style.setProperty("display", isHidden ? "flex" : "none", "important");
+      if (isHidden) return;
+      // hide sidebar when hiding panel
+      document.getElementById("veepick-sidebar")?.remove();
       return;
     }
-    // Outdated panel — remove and reinject
     existing.remove();
     document.getElementById("veepick-panel-styles")?.remove();
+    document.getElementById("veepick-sidebar")?.remove();
   }
 
   // ── Styles ────────────────────────────────────────────────────────────────
@@ -91,6 +94,69 @@
     #veepick-panel .vp-user-info { font-size: 11px; color: #888; margin-top: 6px; }
     #veepick-panel .vp-back-btn { background: none; border: none; color: #6366f1; cursor: pointer; font-size: 12px; margin-bottom: 10px; padding: 0; display: block; }
     #veepick-panel .vp-back-btn:hover { text-decoration: underline; }
+
+    /* ── Tabs ── */
+    #veepick-panel .vp-tabs { display: flex; border-bottom: 1px solid #f0f0f0; flex-shrink: 0; }
+    #veepick-panel .vp-tab { flex: 1; padding: 10px 8px; font-size: 12px; font-weight: 600; text-align: center; cursor: pointer; border: none; background: none; border-bottom: 2px solid transparent; color: #999; transition: color .15s, border-color .15s; position: relative; }
+    #veepick-panel .vp-tab.vp-tab-active { color: #6366f1; border-bottom-color: #6366f1; }
+    #veepick-panel .vp-tab-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; background: #6366f1; color: #fff; font-size: 10px; font-weight: 700; margin-left: 5px; vertical-align: middle; }
+
+    /* ── Section preview button ── */
+    #veepick-panel .vp-field-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+    #veepick-panel .vp-preview-btn { background: none; border: none; cursor: pointer; font-size: 11px; color: #6366f1; padding: 0; font-weight: 500; }
+    #veepick-panel .vp-preview-btn:hover { text-decoration: underline; }
+    #veepick-panel .vp-preview-btn:disabled { color: #ccc; cursor: default; }
+
+    /* ── History tab ── */
+    #veepick-panel .vp-history { flex: 1; overflow-y: auto; }
+    #veepick-panel .vp-history-empty { padding: 40px 20px; text-align: center; color: #aaa; font-size: 12px; line-height: 1.6; }
+    #veepick-panel .vp-history-item { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid #f5f5f5; }
+    #veepick-panel .vp-history-img { width: 44px; height: 44px; border-radius: 6px; object-fit: contain; background: #f5f5f5; flex-shrink: 0; overflow: hidden; display: flex; align-items: center; justify-content: center; font-size: 20px; color: #ccc; }
+    #veepick-panel .vp-history-img img { width: 100%; height: 100%; object-fit: contain; }
+    #veepick-panel .vp-history-info { flex: 1; min-width: 0; }
+    #veepick-panel .vp-history-name { font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #111; }
+    #veepick-panel .vp-history-meta { font-size: 11px; color: #888; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+    #veepick-panel .vp-history-del { background: none; border: none; cursor: pointer; color: #ccc; padding: 6px; border-radius: 4px; flex-shrink: 0; transition: color .12s, background .12s; line-height: 1; font-size: 14px; }
+    #veepick-panel .vp-history-del:hover { color: #ef4444; background: #fef2f2; }
+    #veepick-panel .vp-history-del-loading { opacity: 0.4; pointer-events: none; }
+
+    /* ── Left sidebar ── */
+    #veepick-sidebar {
+      all: initial;
+      position: fixed !important;
+      right: 340px !important;
+      top: 0 !important;
+      height: 100vh !important;
+      width: 260px !important;
+      background: #fff !important;
+      box-shadow: -6px 0 28px rgba(0,0,0,0.14) !important;
+      z-index: 2147483645 !important;
+      display: none !important;
+      flex-direction: column !important;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
+      font-size: 13px !important;
+      color: #111 !important;
+      border-radius: 12px 0 0 12px !important;
+      transform: translateX(100%) !important;
+      transition: transform 0.22s ease !important;
+      overflow: hidden !important;
+    }
+    #veepick-sidebar.vp-sb-shown { display: flex !important; }
+    #veepick-sidebar.vp-sb-open { transform: translateX(0) !important; }
+    #veepick-sidebar * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    #veepick-sidebar .vp-sb-header { display: flex; align-items: center; gap: 8px; padding: 12px 14px; border-bottom: 1px solid #f0f0f0; flex-shrink: 0; }
+    #veepick-sidebar .vp-sb-title { font-size: 13px; font-weight: 700; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    #veepick-sidebar .vp-sb-close { background: none; border: none; cursor: pointer; color: #999; font-size: 16px; line-height: 1; padding: 2px; border-radius: 4px; }
+    #veepick-sidebar .vp-sb-close:hover { color: #333; background: #f4f4f4; }
+    #veepick-sidebar .vp-sb-list { flex: 1; overflow-y: auto; }
+    #veepick-sidebar .vp-sb-empty { padding: 32px 16px; text-align: center; color: #aaa; font-size: 12px; line-height: 1.6; }
+    #veepick-sidebar .vp-sb-item { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid #f5f5f5; }
+    #veepick-sidebar .vp-sb-img { width: 44px; height: 44px; border-radius: 6px; background: #f5f5f5; flex-shrink: 0; overflow: hidden; display: flex; align-items: center; justify-content: center; font-size: 20px; color: #ccc; }
+    #veepick-sidebar .vp-sb-img img { width: 100%; height: 100%; object-fit: contain; }
+    #veepick-sidebar .vp-sb-info { flex: 1; min-width: 0; }
+    #veepick-sidebar .vp-sb-name { font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    #veepick-sidebar .vp-sb-price { font-size: 11px; color: #888; margin-top: 2px; }
+    #veepick-sidebar .vp-sb-count { font-size: 11px; color: #aaa; padding: 8px 14px 6px; }
   `;
   document.head.appendChild(styleEl);
 
@@ -126,7 +192,14 @@
     </div>
 
     <div id="vp-screenMain" class="vp-screen vp-hidden">
-      <div class="vp-scroll">
+      <!-- Tabs -->
+      <div class="vp-tabs">
+        <button class="vp-tab vp-tab-active" id="vp-tabAdd">Dodaj produkt</button>
+        <button class="vp-tab" id="vp-tabHistory">Ostatnio dodane<span id="vp-historyBadge" class="vp-tab-badge vp-hidden">0</span></button>
+      </div>
+
+      <!-- Add product tab -->
+      <div id="vp-contentAdd" class="vp-scroll">
         <div class="vp-preview">
           <div class="vp-preview-img-wrap">
             <span class="vp-img-placeholder" id="vp-previewImgPlaceholder">🛍</span>
@@ -137,7 +210,13 @@
         </div>
         <p class="vp-hint" id="vp-imagePickerHint">Najedź na zdjęcie na stronie aby wybrać inne</p>
         <div class="vp-field"><label>Lista zakupowa</label><select id="vp-selectList"><option value="">Wybierz listę...</option></select></div>
-        <div class="vp-field"><label>Sekcja</label><select id="vp-selectSection" disabled><option value="">Wybierz sekcję...</option></select></div>
+        <div class="vp-field">
+          <div class="vp-field-row">
+            <label style="margin-bottom:0">Sekcja</label>
+            <button class="vp-preview-btn" id="vp-sidebarToggle" disabled>Podgląd listy</button>
+          </div>
+          <select id="vp-selectSection" disabled><option value="">Wybierz sekcję...</option></select>
+        </div>
         <div class="vp-divider"></div>
         <div class="vp-field"><label>Nazwa *</label><input id="vp-fieldName" type="text" placeholder="Nazwa produktu" /></div>
         <div class="vp-field"><label>Kategoria</label><select id="vp-fieldCategory"><option value="">Brak kategorii</option></select></div>
@@ -152,21 +231,42 @@
         </div>
         <div class="vp-field"><label>Wymiar</label><input id="vp-fieldDimensions" type="text" placeholder="np. 60x80 cm" /></div>
       </div>
-      <div class="vp-footer">
+      <div id="vp-footerAdd" class="vp-footer">
         <div id="vp-duplicateWarning" class="vp-status error vp-hidden"></div>
         <button class="vp-btn vp-btn-primary" id="vp-btnAdd" disabled>Dodaj do listy</button>
         <div id="vp-mainStatus"></div>
         <div class="vp-user-info" id="vp-userInfo"></div>
       </div>
+
+      <!-- History tab -->
+      <div id="vp-contentHistory" class="vp-history vp-hidden">
+        <div class="vp-history-empty">Brak historii.<br/>Dodane produkty pojawią się tutaj.</div>
+      </div>
     </div>
   `;
   document.body.appendChild(panel);
+
+  // ── Sidebar element ────────────────────────────────────────────────────────
+  const sidebar = document.createElement("div");
+  sidebar.id = "veepick-sidebar";
+  sidebar.innerHTML = `
+    <div class="vp-sb-header">
+      <span class="vp-sb-title" id="vp-sb-title">Produkty w sekcji</span>
+      <button class="vp-sb-close" id="vp-sb-close" title="Zamknij">✕</button>
+    </div>
+    <div class="vp-sb-list" id="vp-sb-list">
+      <div class="vp-sb-empty">Wybierz sekcję aby zobaczyć produkty.</div>
+    </div>
+  `;
+  document.body.appendChild(sidebar);
 
   // ── State ─────────────────────────────────────────────────────────────────
   let apiKey = "";
   let baseUrl = "";
   let lists = [];
   let productData = {};
+  let activeTab = "add"; // "add" | "history"
+  let sidebarOpen = false;
 
   // ── Helpers ───────────────────────────────────────────────────────────────
   const vp = (id) => document.getElementById(id);
@@ -177,6 +277,7 @@
     });
     vp("vp-settingsBtn").classList.toggle("vp-hidden", name !== "vp-screenMain");
     vp("vp-refreshBtn").classList.toggle("vp-hidden", name !== "vp-screenMain");
+    if (name !== "vp-screenMain") closeSidebar();
   }
 
   function setStatus(id, msg, type) {
@@ -193,7 +294,184 @@
     setTimeout(() => { hint.textContent = "Najedź na zdjęcie na stronie aby wybrać inne"; hint.style.color = ""; }, 2500);
   }
 
-  // ── API via background (avoids CORS issues in content scripts) ────────────
+  function formatRelativeTime(ts) {
+    const diff = Date.now() - ts;
+    if (diff < 60000) return "przed chwilą";
+    if (diff < 3600000) return `${Math.floor(diff / 60000)} min temu`;
+    if (diff < 86400000) return `${Math.floor(diff / 3600000)} godz. temu`;
+    return `${Math.floor(diff / 86400000)} dni temu`;
+  }
+
+  // ── Tabs ──────────────────────────────────────────────────────────────────
+  function switchTab(tab) {
+    activeTab = tab;
+    vp("vp-tabAdd").classList.toggle("vp-tab-active", tab === "add");
+    vp("vp-tabHistory").classList.toggle("vp-tab-active", tab === "history");
+    vp("vp-contentAdd").classList.toggle("vp-hidden", tab !== "add");
+    vp("vp-footerAdd").classList.toggle("vp-hidden", tab !== "add");
+    vp("vp-contentHistory").classList.toggle("vp-hidden", tab !== "history");
+    if (tab === "history") {
+      closeSidebar();
+      renderHistory();
+    }
+  }
+
+  // ── History ───────────────────────────────────────────────────────────────
+  function updateHistoryBadge(history) {
+    const badge = vp("vp-historyBadge");
+    if (history.length > 0) {
+      badge.textContent = history.length > 9 ? "9+" : String(history.length);
+      badge.classList.remove("vp-hidden");
+    } else {
+      badge.classList.add("vp-hidden");
+    }
+  }
+
+  async function saveToHistory(item) {
+    const stored = await chrome.storage.local.get("vp_history");
+    const history = [item, ...(stored.vp_history || [])].slice(0, 20);
+    await chrome.storage.local.set({ vp_history: history });
+    updateHistoryBadge(history);
+  }
+
+  async function renderHistory() {
+    const stored = await chrome.storage.local.get("vp_history");
+    const history = stored.vp_history || [];
+    const container = vp("vp-contentHistory");
+
+    if (history.length === 0) {
+      container.innerHTML = `<div class="vp-history-empty">Brak historii.<br/>Dodane produkty pojawią się tutaj.</div>`;
+      return;
+    }
+
+    container.innerHTML = history.map((item) => `
+      <div class="vp-history-item">
+        <div class="vp-history-img">${item.imageUrl ? "" : "🛍"}</div>
+        <div class="vp-history-info">
+          <div class="vp-history-name" title="${item.name}">${item.name}</div>
+          <div class="vp-history-meta">${item.listName} · ${item.sectionName}</div>
+          <div class="vp-history-meta">${formatRelativeTime(item.addedAt)}</div>
+        </div>
+        <button class="vp-history-del" title="Usuń z listy" data-pid="${item.productId}" data-lid="${item.listId}" data-sid="${item.sectionId}">🗑</button>
+      </div>
+    `).join("");
+
+    // Load images via background (bypasses page CSP)
+    const imgContainers = container.querySelectorAll(".vp-history-img");
+    history.forEach((item, i) => {
+      if (item.imageUrl && imgContainers[i]) loadImgInto(imgContainers[i], item.imageUrl);
+    });
+
+    container.querySelectorAll(".vp-history-del").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        btn.classList.add("vp-history-del-loading");
+        const res = await apiFetch(`/api/extension/product/${btn.dataset.pid}?listId=${btn.dataset.lid}&sectionId=${btn.dataset.sid}`, { method: "DELETE" });
+        if (res.ok) {
+          const s2 = await chrome.storage.local.get("vp_history");
+          const updated = (s2.vp_history || []).filter((h) => h.productId !== btn.dataset.pid);
+          await chrome.storage.local.set({ vp_history: updated });
+          updateHistoryBadge(updated);
+          renderHistory();
+          // Update duplicate check data
+          const list = lists.find((l) => l.id === btn.dataset.lid);
+          const section = list?.sections.find((s) => s.id === btn.dataset.sid);
+          if (section?.products) {
+            section.products = section.products.filter((p) => p.id !== btn.dataset.pid);
+          }
+        } else {
+          btn.classList.remove("vp-history-del-loading");
+        }
+      });
+    });
+  }
+
+  // ── Sidebar ───────────────────────────────────────────────────────────────
+  function openSidebar() {
+    sidebarOpen = true;
+    sidebar.classList.add("vp-sb-shown");
+    sidebar.offsetHeight; // force reflow so transition fires
+    sidebar.classList.add("vp-sb-open");
+    vp("vp-sidebarToggle").textContent = "Ukryj listę";
+    populateSidebar();
+  }
+
+  function closeSidebar() {
+    sidebarOpen = false;
+    sidebar.classList.remove("vp-sb-open");
+    setTimeout(() => { if (!sidebarOpen) sidebar.classList.remove("vp-sb-shown"); }, 230);
+    if (vp("vp-sidebarToggle")) vp("vp-sidebarToggle").textContent = "Podgląd listy";
+  }
+
+  function toggleSidebar() {
+    if (sidebarOpen) closeSidebar(); else openSidebar();
+  }
+
+  function populateSidebar() {
+    const sectionId = vp("vp-selectSection").value;
+    const listId = vp("vp-selectList").value;
+    if (!sectionId || !listId) {
+      vp("vp-sb-title").textContent = "Produkty w sekcji";
+      vp("vp-sb-list").innerHTML = `<div class="vp-sb-empty">Wybierz sekcję aby zobaczyć produkty.</div>`;
+      return;
+    }
+    const list = lists.find((l) => l.id === listId);
+    const section = list?.sections.find((s) => s.id === sectionId);
+    const products = section?.products || [];
+
+    vp("vp-sb-title").textContent = section?.name || "Sekcja";
+    const listEl = vp("vp-sb-list");
+
+    if (products.length === 0) {
+      listEl.innerHTML = `<div class="vp-sb-empty">Sekcja jest pusta.</div>`;
+      return;
+    }
+
+    listEl.innerHTML = `<div class="vp-sb-count">${products.length} ${products.length === 1 ? "produkt" : products.length < 5 ? "produkty" : "produktów"}</div>` +
+      products.map((p) => `
+        <div class="vp-sb-item">
+          <div class="vp-sb-img">${p.imageUrl ? "" : "🛍"}</div>
+          <div class="vp-sb-info">
+            <div class="vp-sb-name" title="${p.name}">${p.name}</div>
+            ${p.price ? `<div class="vp-sb-price">${p.price}</div>` : ""}
+          </div>
+        </div>
+      `).join("");
+
+    // Load images via background (bypasses page CSP)
+    const imgContainers = listEl.querySelectorAll(".vp-sb-item .vp-sb-img");
+    products.forEach((p, i) => {
+      if (p.imageUrl && imgContainers[i]) loadImgInto(imgContainers[i], p.imageUrl);
+    });
+  }
+
+  function updateSidebarIfOpen() {
+    if (sidebarOpen) populateSidebar();
+    const sectionId = vp("vp-selectSection").value;
+    vp("vp-sidebarToggle").disabled = !sectionId;
+  }
+
+  // ── Image proxy via background (bypasses page CSP) ────────────────────────
+  function loadImgViaBackground(url) {
+    return new Promise((resolve) => {
+      chrome.runtime.sendMessage({ type: "fetch-image", url }, (r) => {
+        if (chrome.runtime.lastError || !r?.ok) resolve(null);
+        else resolve(r.dataUrl);
+      });
+    });
+  }
+
+  function loadImgInto(container, url) {
+    loadImgViaBackground(url).then((dataUrl) => {
+      if (dataUrl) {
+        const img = document.createElement("img");
+        img.src = dataUrl;
+        container.innerHTML = "";
+        container.appendChild(img);
+      }
+    });
+  }
+
+  // ── API via background ─────────────────────────────────────────────────────
   function apiFetch(path, options = {}) {
     return new Promise((resolve) => {
       chrome.runtime.sendMessage({
@@ -219,7 +497,7 @@
     });
   }
 
-  // ── Extract product data directly from page DOM ───────────────────────────
+  // ── Extract product data ───────────────────────────────────────────────────
   function extractProductData() {
     function getMeta(prop) {
       return document.querySelector(`meta[property="${prop}"]`)?.content ||
@@ -255,14 +533,12 @@
       }
       return null;
     }
-    // Look for a label-value pair in product attribute tables
     function findAttributeValue(labelPatterns) {
       const allRows = document.querySelectorAll("tr, li, dl > div, [class*='attr'], [class*='spec'], [class*='param'], [class*='detail']");
       for (const row of allRows) {
         const text = row.textContent || "";
         for (const pattern of labelPatterns) {
           if (pattern.test(text)) {
-            // Try to get just the value part (after the label)
             const tds = row.querySelectorAll("td, dd, span, div");
             if (tds.length >= 2) {
               for (let i = 1; i < tds.length; i++) {
@@ -289,31 +565,15 @@
       return isNaN(num) ? null : `${num} ${curLabel}`;
     })() || null;
 
-    // Manufacturer: JSON-LD → itemprop → DOM selectors → og:site_name
     let manufacturer = (ld?.brand && (typeof ld.brand === "string" ? ld.brand : ld.brand?.name)) || null;
-    if (!manufacturer) manufacturer = queryText([
-      '[itemprop="brand"] [itemprop="name"]', '[itemprop="brand"]',
-      '[itemprop="manufacturer"]', '.product-brand', '.product__brand',
-      '.brand-name', '.manufacturer-name', '[data-testid="brand"]',
-      '.product-manufacturer', 'a[class*="brand"]',
-    ]);
-    if (!manufacturer) manufacturer = findAttributeValue([
-      /producent/i, /marka/i, /brand/i, /manufacturer/i,
-    ]);
+    if (!manufacturer) manufacturer = queryText(['[itemprop="brand"] [itemprop="name"]', '[itemprop="brand"]', '[itemprop="manufacturer"]', '.product-brand', '.product__brand', '.brand-name', '.manufacturer-name', '[data-testid="brand"]', '.product-manufacturer', 'a[class*="brand"]']);
+    if (!manufacturer) manufacturer = findAttributeValue([/producent/i, /marka/i, /brand/i, /manufacturer/i]);
 
-    // Color: JSON-LD → itemprop → DOM selectors → attribute table
     let color = ld?.color || getMeta("product:color") || null;
-    if (!color) color = queryText([
-      '[itemprop="color"]', '.product-color', '.color-name',
-      '.selected-color', '[data-testid="color"]',
-    ]);
+    if (!color) color = queryText(['[itemprop="color"]', '.product-color', '.color-name', '.selected-color', '[data-testid="color"]']);
     if (!color) color = findAttributeValue([/kolor/i, /color/i, /barwa/i]);
 
-    // Dimensions: not in JSON-LD standard, look in DOM tables
-    let dimensions = findAttributeValue([
-      /wymiary/i, /wymiar/i, /dimensions/i, /rozmiar/i, /gabaryty/i,
-      /długość.*szerokość/i, /dl\..*szer\./i,
-    ]);
+    let dimensions = findAttributeValue([/wymiary/i, /wymiar/i, /dimensions/i, /rozmiar/i, /gabaryty/i, /długość.*szerokość/i, /dl\..*szer\./i]);
 
     const description = (ld?.description || getMeta("og:description") || getMeta("description") || null);
     const hostname = location.hostname;
@@ -327,7 +587,7 @@
     };
   }
 
-  // ── Render preview ────────────────────────────────────────────────────────
+  // ── Render preview ─────────────────────────────────────────────────────────
   function renderPreview(p) {
     vp("vp-previewName").textContent = p.name || "Bez nazwy";
     vp("vp-previewPrice").textContent = p.price || "";
@@ -347,8 +607,8 @@
     updateAddBtn();
   }
 
-  // ── Lists / sections ──────────────────────────────────────────────────────
-  function populateLists() {
+  // ── Lists / sections ───────────────────────────────────────────────────────
+  async function populateLists() {
     const sel = vp("vp-selectList");
     sel.innerHTML = '<option value="">Wybierz listę...</option>';
     for (const list of lists) {
@@ -357,6 +617,16 @@
       opt.textContent = list.name + (list.project?.title ? ` (${list.project.title})` : "");
       sel.appendChild(opt);
     }
+    // Restore last selection
+    const stored = await chrome.storage.local.get(["lastListId", "lastSectionId"]);
+    if (stored.lastListId) {
+      sel.value = stored.lastListId;
+      if (sel.value) {
+        populateSections(sel.value, stored.lastSectionId || null);
+        return;
+      }
+    }
+    updateAddBtn();
   }
 
   function populateCategories(categories) {
@@ -370,13 +640,17 @@
     }
   }
 
-  function populateSections(listId) {
+  function populateSections(listId, restoreSectionId = null) {
     const sel = vp("vp-selectSection");
     sel.innerHTML = '<option value="">Wybierz sekcję...</option>';
     sel.disabled = !listId;
-    if (!listId) return;
+    if (!listId) {
+      vp("vp-sidebarToggle").disabled = true;
+      updateAddBtn();
+      return;
+    }
     const list = lists.find((l) => l.id === listId);
-    if (!list) return;
+    if (!list) { updateAddBtn(); return; }
     for (const section of list.sections) {
       const opt = document.createElement("option");
       opt.value = section.id;
@@ -384,6 +658,12 @@
       sel.appendChild(opt);
     }
     sel.disabled = false;
+    if (restoreSectionId) {
+      sel.value = restoreSectionId;
+    }
+    vp("vp-sidebarToggle").disabled = !sel.value;
+    updateAddBtn();
+    updateSidebarIfOpen();
   }
 
   function updateAddBtn() {
@@ -406,7 +686,6 @@
       const isDuplicate = url
         ? section.products.some((p) => p.url === url)
         : section.products.some((p) => p.name.toLowerCase() === name.toLowerCase());
-
       if (warning) {
         if (isDuplicate) {
           warning.textContent = `Ten produkt jest już na tej liście w sekcji „${section.name}"`;
@@ -423,7 +702,7 @@
     vp("vp-btnAdd").textContent = "Dodaj do listy";
   }
 
-  // ── Connect ───────────────────────────────────────────────────────────────
+  // ── Connect ────────────────────────────────────────────────────────────────
   async function connect() {
     const key = vp("vp-inputApiKey").value.trim();
     const url = vp("vp-inputBaseUrl").value.trim().replace(/\/$/, "");
@@ -443,7 +722,7 @@
     }
   }
 
-  // ── Settings ──────────────────────────────────────────────────────────────
+  // ── Settings ───────────────────────────────────────────────────────────────
   async function saveSettings() {
     const key = vp("vp-settingsApiKey").value.trim();
     const url = vp("vp-settingsBaseUrl").value.trim().replace(/\/$/, "");
@@ -468,12 +747,12 @@
     vp("vp-inputBaseUrl").value = baseUrl;
   }
 
-  // ── Main init ─────────────────────────────────────────────────────────────
+  // ── Main init ──────────────────────────────────────────────────────────────
   async function initMain() {
     showScreen("vp-screenMain");
+    switchTab("add");
     vp("vp-previewName").textContent = "Pobieranie danych...";
 
-    // Fetch user info
     try {
       const res = await apiFetch("/api/extension/me");
       if (!res.ok) throw new Error();
@@ -481,35 +760,31 @@
       vp("vp-userInfo").textContent = `Zalogowany: ${me.name || me.email}`;
     } catch { vp("vp-userInfo").textContent = ""; }
 
-    // Extract product data directly from page DOM (no executeScript needed)
     productData = extractProductData();
 
-    // Apply previously picked image if any
-    const stored = await chrome.storage.local.get("veepick_picked_image");
+    const stored = await chrome.storage.local.get(["veepick_picked_image", "vp_history"]);
     if (stored.veepick_picked_image) {
       productData.imageUrl = stored.veepick_picked_image;
       chrome.storage.local.remove("veepick_picked_image");
       showPickedHint();
     }
+    updateHistoryBadge(stored.vp_history || []);
 
     renderPreview(productData);
-
-    // Ask background to inject image picker
     chrome.runtime.sendMessage({ type: "inject-image-picker" });
 
-    // Fetch lists
     try {
       const res = await apiFetch("/api/extension/data");
       if (!res.ok) throw new Error();
       const data = await res.json();
       lists = data.lists || [];
-      populateLists();
+      await populateLists();
       populateCategories(data.categories || []);
       updateAddBtn();
     } catch { setStatus("vp-mainStatus", "Błąd pobierania list. Sprawdź połączenie.", "error"); }
   }
 
-  // ── Add product ───────────────────────────────────────────────────────────
+  // ── Add product ────────────────────────────────────────────────────────────
   async function addProduct() {
     const listId = vp("vp-selectList").value;
     const sectionId = vp("vp-selectSection").value;
@@ -533,14 +808,33 @@
         body: JSON.stringify({ listId, sectionId, name, url: productData.url || null, imageUrl: productData.imageUrl || null, price: price || null, manufacturer: manufacturer || null, color: color || null, dimensions: dimensions || null, note: note || null, category: category || null, supplier: productData.supplier || null, description: productData.description || null, quantity }),
       });
       if (!res.ok) { const err = await res.json(); throw new Error(err.error || "Błąd serwera"); }
-      const addedSection = lists.find((l) => l.id === listId)?.sections.find((s) => s.id === sectionId);
-      if (addedSection?.products) addedSection.products.push({ url: productData.url?.trim() || null, name });
+      const added = await res.json();
+
+      const addedList = lists.find((l) => l.id === listId);
+      const addedSection = addedList?.sections.find((s) => s.id === sectionId);
+      if (addedSection?.products) addedSection.products.push({ id: added.id, url: productData.url?.trim() || null, name, imageUrl: productData.imageUrl || null, price: price || null });
+
       setStatus("vp-mainStatus", "✓ Produkt dodany do listy!", "success");
       updateAddBtn();
-      // Hide panel and remove image picker after brief delay
+      updateSidebarIfOpen();
+
+      // Save to history
+      await saveToHistory({
+        productId: added.id,
+        listId,
+        sectionId,
+        name,
+        imageUrl: productData.imageUrl || null,
+        price: price || null,
+        listName: addedList?.name || "",
+        sectionName: addedSection?.name || "",
+        addedAt: Date.now(),
+      });
+
       setTimeout(() => {
         document.getElementById("veepick-picker")?.remove();
         document.getElementById("veepick-picker-styles")?.remove();
+        closeSidebar();
         panel.style.setProperty("display", "none", "important");
       }, 1200);
     } catch (e) {
@@ -550,7 +844,7 @@
     }
   }
 
-  // ── Image pick via storage listener ──────────────────────────────────────
+  // ── Image pick via storage listener ───────────────────────────────────────
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== "local" || !changes.veepick_picked_image) return;
     const url = changes.veepick_picked_image.newValue;
@@ -561,20 +855,23 @@
     showPickedHint();
   });
 
-  // ── Events ────────────────────────────────────────────────────────────────
+  // ── Events ─────────────────────────────────────────────────────────────────
   vp("vp-close").addEventListener("click", () => {
     document.getElementById("veepick-picker")?.remove();
     document.getElementById("veepick-picker-styles")?.remove();
+    closeSidebar();
     panel.style.setProperty("display", "none", "important");
   });
+
+  vp("vp-sb-close").addEventListener("click", closeSidebar);
+  vp("vp-sidebarToggle").addEventListener("click", toggleSidebar);
+
+  vp("vp-tabAdd").addEventListener("click", () => switchTab("add"));
+  vp("vp-tabHistory").addEventListener("click", () => switchTab("history"));
+
   vp("vp-refreshBtn").addEventListener("click", () => {
     productData = extractProductData();
     renderPreview(productData);
-    vp("vp-fieldName").value = productData.name || "";
-    vp("vp-fieldPrice").value = productData.price || "";
-    vp("vp-fieldManufacturer").value = productData.manufacturer || "";
-    vp("vp-fieldColor").value = productData.color || "";
-    vp("vp-fieldDimensions").value = productData.dimensions || "";
     setStatus("vp-mainStatus", "Odświeżono dane strony.", "info");
     setTimeout(() => setStatus("vp-mainStatus", "", ""), 2000);
   });
@@ -588,11 +885,22 @@
   vp("vp-btnDisconnect").addEventListener("click", disconnect);
   vp("vp-btnConnect").addEventListener("click", connect);
   vp("vp-btnAdd").addEventListener("click", addProduct);
-  vp("vp-selectList").addEventListener("change", () => { populateSections(vp("vp-selectList").value); updateAddBtn(); });
-  vp("vp-selectSection").addEventListener("change", updateAddBtn);
+
+  vp("vp-selectList").addEventListener("change", () => {
+    const id = vp("vp-selectList").value;
+    populateSections(id);
+    chrome.storage.local.set({ lastListId: id, lastSectionId: "" });
+  });
+  vp("vp-selectSection").addEventListener("change", () => {
+    const id = vp("vp-selectSection").value;
+    chrome.storage.local.set({ lastSectionId: id });
+    updateAddBtn();
+    updateSidebarIfOpen();
+    vp("vp-sidebarToggle").disabled = !id;
+  });
   vp("vp-fieldName").addEventListener("input", updateAddBtn);
 
-  // ── Boot ──────────────────────────────────────────────────────────────────
+  // ── Boot ───────────────────────────────────────────────────────────────────
   chrome.storage.local.get(["apiKey", "baseUrl"], (stored) => {
     apiKey = stored.apiKey || "";
     baseUrl = stored.baseUrl || "";
