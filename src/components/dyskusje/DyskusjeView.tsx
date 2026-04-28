@@ -277,7 +277,7 @@ export default function DyskusjeView({ currentUserId, initialDiscussions, projec
     try {
       const result = await startUpload([file]);
       if (!result?.[0]) throw new Error();
-      const attachmentType = file.type.startsWith("image/") ? "image" : "document";
+      const attachmentType = file.type.startsWith("image/") ? "image" : file.type === "application/pdf" ? "pdf" : "document";
       setPendingAttachment({ url: result[0].url, name: file.name, type: attachmentType });
     } catch {
       toast.error("Nie udało się przesłać pliku");
@@ -661,7 +661,7 @@ export default function DyskusjeView({ currentUserId, initialDiscussions, projec
                 </div>
                 <div className="ml-auto flex gap-1 items-center">
                   {(() => {
-                    const docCount = messages.filter((m) => m.attachmentType === "document").length;
+                    const docCount = messages.filter((m) => m.attachmentType === "document" || m.attachmentType === "pdf").length;
                     return (
                       <button
                         onClick={() => setShowResources((v) => !v)}
@@ -696,14 +696,14 @@ export default function DyskusjeView({ currentUserId, initialDiscussions, projec
           {showResources ? (
             <div className="flex-1 overflow-y-auto px-5 py-4">
               <p className="text-xs text-muted-foreground mb-3 font-medium uppercase tracking-wide">Pliki w dyskusji</p>
-              {messages.filter((m) => m.attachmentType === "document").length === 0 ? (
+              {messages.filter((m) => m.attachmentType === "document" || m.attachmentType === "pdf").length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-40 gap-2 text-muted-foreground">
                   <FolderOpen size={32} className="opacity-30" />
                   <p className="text-sm">Brak plików</p>
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {messages.filter((m) => m.attachmentType === "document").map((m) => (
+                  {messages.filter((m) => m.attachmentType === "document" || m.attachmentType === "pdf").map((m) => (
                     <a
                       key={m.id}
                       href={m.attachmentUrl!}
@@ -894,6 +894,20 @@ function MessageBubble({ msg, isOwn }: { msg: DiscussionMessage; isOwn: boolean 
               className="max-w-[260px] max-h-[200px] rounded-2xl object-cover border border-border"
             />
           </a>
+        )}
+        {msg.attachmentType === "pdf" && msg.attachmentUrl && (
+          <div className="flex flex-col gap-1 max-w-[280px]">
+            <iframe
+              src={msg.attachmentUrl}
+              className="w-full rounded-xl border border-border"
+              style={{ height: "200px", border: "none" }}
+              title={msg.attachmentName || "PDF"}
+            />
+            <a href={msg.attachmentUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground px-1 transition-colors">
+              <ExternalLink size={11} />
+              Otwórz pełny PDF
+            </a>
+          </div>
         )}
         {msg.attachmentType === "document" && msg.attachmentUrl && (
           <a
