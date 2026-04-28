@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { ChevronLeft, ChevronRight, ChevronDown, Eye, EyeOff, Pin, X, Send, ZoomIn, ZoomOut, History, Upload, Maximize2, RotateCcw, Lock, LockOpen, SplitSquareHorizontal, ChevronsLeftRight, MessageSquare, Sparkles, Package, Trash2, ExternalLink, Mic, StopCircle, CheckCircle2, Armchair, Loader2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronDown, Eye, EyeOff, Pin, X, Send, ZoomIn, ZoomOut, History, Upload, Maximize2, RotateCcw, Lock, LockOpen, SplitSquareHorizontal, ChevronsLeftRight, MessageSquare, Sparkles, Package, Trash2, ExternalLink, Mic, StopCircle, CheckCircle2, Armchair, Loader2, FileText } from "lucide-react";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import RenderUploader from "./RenderUploader";
 import SearchProductDialog from "./SearchProductDialog";
@@ -48,6 +48,7 @@ interface RoomRender {
   id: string;
   name: string;
   fileUrl: string;
+  fileType?: string | null;
 }
 
 interface RenderVersion {
@@ -81,6 +82,7 @@ interface RenderViewerProps {
   folderId?: string;
   folderName?: string;
   imageUrl: string;
+  fileType?: string;
   initialComments: Comment[];
   authorName: string;
   isDesigner?: boolean;
@@ -172,6 +174,7 @@ export default function RenderViewer({
   folderId,
   folderName,
   imageUrl,
+  fileType,
   initialComments,
   authorName,
   isDesigner = false,
@@ -194,6 +197,8 @@ export default function RenderViewer({
   shareToken,
   initialProductPins,
 }: RenderViewerProps) {
+  const isPdf = fileType === "pdf";
+
   const [comments, setComments] = useState<Comment[]>(initialComments);
   const [pending, setPending] = useState<{ x: number; y: number } | null>(null);
   const [newTitle, setNewTitle] = useState("");
@@ -1374,9 +1379,13 @@ export default function RenderViewer({
                         : "border-transparent hover:border-gray-200"
                     }`}
                   >
-                    <div className="aspect-video bg-muted overflow-hidden">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={r.fileUrl} alt={r.name} className="w-full h-full object-cover" />
+                    <div className="aspect-video bg-muted overflow-hidden flex items-center justify-center">
+                      {r.fileType === "pdf" ? (
+                        <FileText size={24} className="text-red-400" />
+                      ) : (
+                        /* eslint-disable-next-line @next/next/no-img-element */
+                        <img src={r.fileUrl} alt={r.name} className="w-full h-full object-cover" />
+                      )}
                     </div>
                     <p className={`text-xs px-1.5 py-1 truncate ${r.id === renderId ? "text-blue-600 font-semibold" : "text-gray-600"}`}>
                       {r.name}
@@ -1392,9 +1401,13 @@ export default function RenderViewer({
                         : "border-transparent hover:border-gray-200"
                     }`}
                   >
-                    <div className="aspect-video bg-muted overflow-hidden">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={r.fileUrl} alt={r.name} className="w-full h-full object-cover" />
+                    <div className="aspect-video bg-muted overflow-hidden flex items-center justify-center">
+                      {r.fileType === "pdf" ? (
+                        <FileText size={24} className="text-red-400" />
+                      ) : (
+                        /* eslint-disable-next-line @next/next/no-img-element */
+                        <img src={r.fileUrl} alt={r.name} className="w-full h-full object-cover" />
+                      )}
                     </div>
                     <p className={`text-xs px-1.5 py-1 truncate ${r.id === renderId ? "text-blue-600 font-semibold" : "text-gray-600"}`}>
                       {r.name}
@@ -1428,20 +1441,29 @@ export default function RenderViewer({
               <ChevronRight size={20} />
             </button>
           )}
-          <div className="absolute inset-0 overflow-auto flex items-start justify-start sm:justify-center p-2 sm:p-6">
+          <div className={`absolute inset-0 flex items-start justify-start sm:justify-center ${isPdf ? "" : "overflow-auto"} p-2 sm:p-6`}>
           <div
             ref={imgRef}
-            className={`relative select-none ${(mode === "pin" || productPinMode) ? "cursor-crosshair" : "cursor-default"}`}
-            onClick={handleImageClick}
+            className={`relative select-none ${isPdf ? "w-full h-full" : ""} ${(mode === "pin" || productPinMode) && !isPdf ? "cursor-crosshair" : "cursor-default"}`}
+            onClick={!isPdf ? handleImageClick : undefined}
           >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={imageUrl}
-              alt="Render"
-              className="block rounded-lg shadow-sm sm:max-w-full"
-              style={{ maxHeight: "calc(100vh - 180px)" }}
-              draggable={false}
-            />
+            {isPdf ? (
+              <iframe
+                src={imageUrl}
+                className="block rounded-lg shadow-sm w-full"
+                style={{ height: "calc(100vh - 180px)", border: "none" }}
+                title="PDF"
+              />
+            ) : (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img
+                src={imageUrl}
+                alt="Render"
+                className="block rounded-lg shadow-sm sm:max-w-full"
+                style={{ maxHeight: "calc(100vh - 180px)" }}
+                draggable={false}
+              />
+            )}
 
             {/* Comment pins */}
             {!hidePins && pinComments.map((c, i) => (
@@ -2837,15 +2859,19 @@ export default function RenderViewer({
                       href={v.fileUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex-shrink-0 w-20 h-14 rounded-lg overflow-hidden border border-border bg-muted hover:opacity-80 transition-opacity"
+                      className="flex-shrink-0 w-20 h-14 rounded-lg overflow-hidden border border-border bg-muted hover:opacity-80 transition-opacity flex items-center justify-center"
                       title="Otwórz pełny rozmiar"
                     >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={v.fileUrl}
-                        alt={`Wersja ${v.versionNumber}`}
-                        className="w-full h-full object-cover"
-                      />
+                      {isPdf ? (
+                        <FileText size={22} className="text-red-400" />
+                      ) : (
+                        /* eslint-disable-next-line @next/next/no-img-element */
+                        <img
+                          src={v.fileUrl}
+                          alt={`Wersja ${v.versionNumber}`}
+                          className="w-full h-full object-cover"
+                        />
+                      )}
                     </a>
                     <div className="flex-1">
                       <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">
@@ -2855,6 +2881,7 @@ export default function RenderViewer({
                         Zarchiwizowano: {formatted}
                       </p>
                     </div>
+                    {!isPdf && (
                     <button
                       onClick={() => {
                         setCompareVersion(v);
@@ -2867,6 +2894,7 @@ export default function RenderViewer({
                       <SplitSquareHorizontal size={12} />
                       Porównaj
                     </button>
+                    )}
                     {(isDesigner || onVersionRestore || onVersionRestoreRequest) && (
                       <button
                         onClick={() => handleRestoreVersion(v.id)}

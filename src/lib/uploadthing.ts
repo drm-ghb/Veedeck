@@ -5,7 +5,7 @@ import { prisma } from "./prisma";
 const f = createUploadthing();
 
 export const ourFileRouter = {
-  renderUploader: f({ image: { maxFileSize: "16MB", maxFileCount: 10 } })
+  renderUploader: f({ image: { maxFileSize: "32MB", maxFileCount: 10 }, pdf: { maxFileSize: "32MB", maxFileCount: 10 } })
     .middleware(async () => {
       const session = await auth();
       if (!session?.user?.id) throw new Error("Unauthorized");
@@ -87,7 +87,7 @@ export const ourFileRouter = {
     .onUploadComplete(async ({ file }) => {
       return { url: file.url, key: file.key };
     }),
-  clientRenderUploader: f({ image: { maxFileSize: "16MB", maxFileCount: 10 } })
+  clientRenderUploader: f({ image: { maxFileSize: "16MB", maxFileCount: 10 }, pdf: { maxFileSize: "16MB", maxFileCount: 10 } })
     .middleware(async ({ req }) => {
       const token = req.headers.get("x-share-token");
       if (!token) throw new Error("Unauthorized");

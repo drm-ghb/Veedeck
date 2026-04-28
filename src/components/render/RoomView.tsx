@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArchiveRestore, CopyCheck, Eye, Folder, LayoutGrid, List, Pin, Trash2 } from "lucide-react";
+import { ArchiveRestore, CopyCheck, Eye, FileText, Folder, LayoutGrid, List, Pin, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
@@ -18,6 +18,7 @@ interface Render {
   id: string;
   name: string;
   fileUrl: string;
+  fileType?: string;
   commentCount: number;
   viewCount: number;
   status: RenderStatus;
@@ -260,9 +261,13 @@ export default function RoomView({ projectId, roomId, renders, archivedRenders, 
                               <Pin size={13} className="text-red-500 fill-red-500 drop-shadow" />
                             </div>
                           )}
-                          <div className="aspect-video bg-muted overflow-hidden">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={render.fileUrl} alt={render.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" />
+                          <div className="aspect-video bg-muted overflow-hidden flex items-center justify-center">
+                            {render.fileType === "pdf" ? (
+                              <FileText size={36} className="text-red-400" />
+                            ) : (
+                              /* eslint-disable-next-line @next/next/no-img-element */
+                              <img src={render.fileUrl} alt={render.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" />
+                            )}
                           </div>
                           <div className="p-3">
                             <p className="text-sm font-medium truncate mb-1">{render.name}</p>
@@ -388,13 +393,13 @@ export default function RoomView({ projectId, roomId, renders, archivedRenders, 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-4">
                 {archivedRenders.map((render) => (
                   <Card key={render.id} className="overflow-hidden opacity-60">
-                    <div className="aspect-video bg-muted overflow-hidden">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={render.fileUrl}
-                        alt={render.name}
-                        className="w-full h-full object-cover"
-                      />
+                    <div className="aspect-video bg-muted overflow-hidden flex items-center justify-center">
+                      {render.fileType === "pdf" ? (
+                        <FileText size={36} className="text-red-400" />
+                      ) : (
+                        /* eslint-disable-next-line @next/next/no-img-element */
+                        <img src={render.fileUrl} alt={render.name} className="w-full h-full object-cover" />
+                      )}
                     </div>
                     <div className="p-3">
                       <p className="text-sm font-medium truncate mb-2">{render.name}</p>

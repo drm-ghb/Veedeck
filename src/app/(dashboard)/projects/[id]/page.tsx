@@ -75,6 +75,7 @@ export default async function ProjectPage({ params }: Props) {
           id: r.id,
           name: r.name,
           fileUrl: r.fileUrl,
+          fileType: r.fileType,
           status: r.status,
           commentCount: r._count.comments,
           viewCount: r.viewCount,

@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
   }
   const userId = getWorkspaceUserId(session);
 
-  const { projectId, name, fileUrl, fileKey, roomId, folderId } = await req.json();
+  const { projectId, name, fileUrl, fileKey, roomId, folderId, fileType } = await req.json();
 
   const project = await prisma.project.findFirst({
     where: { id: projectId, userId },
@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
       prisma.comment.deleteMany({ where: { renderId: existing.id } }),
       prisma.render.update({
         where: { id: existing.id },
-        data: { fileUrl, fileKey },
+        data: { fileUrl, fileKey, fileType: fileType || "image" },
       }),
     ]);
 
@@ -70,6 +70,7 @@ export async function POST(req: NextRequest) {
       roomId: roomId || null,
       folderId: folderId || null,
       status: project.user.defaultRenderStatus,
+      fileType: fileType || "image",
     },
   });
 

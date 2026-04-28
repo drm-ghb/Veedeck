@@ -315,6 +315,7 @@ model Render {
   viewCount              Int                     @default(0)
   folderId               String?
   pinned                 Boolean                 @default(false)
+  fileType               String                  @default("image")
   comments               Comment[]
   productPins            RenderProductPin[]
   folder                 Folder?                 @relation(fields: [folderId], references: [id])

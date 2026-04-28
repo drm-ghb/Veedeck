@@ -43,7 +43,7 @@ export default async function RenderPage({ params }: Props) {
           archived: false,
         },
         orderBy: { order: "asc" },
-        select: { id: true, name: true, fileUrl: true },
+        select: { id: true, name: true, fileUrl: true, fileType: true },
       })
     : [];
 
@@ -67,6 +67,7 @@ export default async function RenderPage({ params }: Props) {
         folderId={render.folderId ?? undefined}
         folderName={render.folder?.name ?? undefined}
         initialRenderStatus={render.status}
+        fileType={render.fileType}
         imageUrl={render.fileUrl}
         initialComments={render.comments.map((c) => ({
           ...c,
@@ -76,7 +77,7 @@ export default async function RenderPage({ params }: Props) {
         authorName={session!.user!.name || session!.user!.email || "Projektant"}
         isDesigner={true}
         viewCount={render.viewCount}
-        roomRenders={roomRenders}
+        roomRenders={roomRenders.map((r) => ({ ...r, fileType: r.fileType ?? "image" }))}
         versions={render.versions.map((v) => ({
           id: v.id,
           fileUrl: v.fileUrl,

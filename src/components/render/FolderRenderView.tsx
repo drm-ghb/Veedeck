@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CopyCheck, Eye, LayoutGrid, List, Pin } from "lucide-react";
+import { CopyCheck, Eye, FileText, LayoutGrid, List, Pin } from "lucide-react";
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import RenderMenu from "./RenderMenu";
@@ -16,6 +16,7 @@ interface Render {
   id: string;
   name: string;
   fileUrl: string;
+  fileType?: string;
   commentCount: number;
   viewCount: number;
   status: RenderStatus;
@@ -133,9 +134,13 @@ export default function FolderRenderView({ projectId, roomId, folderId, renders 
                     <Pin size={13} className="text-red-500 fill-red-500 drop-shadow" />
                   </div>
                 )}
-                <div className="aspect-video bg-muted overflow-hidden">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={render.fileUrl} alt={render.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" />
+                <div className="aspect-video bg-muted overflow-hidden flex items-center justify-center">
+                  {render.fileType === "pdf" ? (
+                    <FileText size={36} className="text-red-400" />
+                  ) : (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img src={render.fileUrl} alt={render.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" />
+                  )}
                 </div>
                 <div className="p-3">
                   <p className="text-sm font-medium truncate mb-1">{render.name}</p>
@@ -175,9 +180,13 @@ export default function FolderRenderView({ projectId, roomId, folderId, renders 
                   </div>
                 )}
                 <div className="flex items-center gap-3 flex-1 min-w-0">
-                  <div className="w-14 h-10 rounded-md overflow-hidden bg-muted flex-shrink-0">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={render.fileUrl} alt={render.name} className="w-full h-full object-cover" />
+                  <div className="w-14 h-10 rounded-md overflow-hidden bg-muted flex-shrink-0 flex items-center justify-center">
+                    {render.fileType === "pdf" ? (
+                      <FileText size={20} className="text-red-400" />
+                    ) : (
+                      /* eslint-disable-next-line @next/next/no-img-element */
+                      <img src={render.fileUrl} alt={render.name} className="w-full h-full object-cover" />
+                    )}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-foreground truncate flex items-center gap-1.5">

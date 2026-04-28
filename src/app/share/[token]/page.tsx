@@ -11,7 +11,7 @@ import ShareNavbar from "@/components/share/ShareNavbar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { getRoomIcon } from "@/lib/roomIcons";
-import { ChevronLeft, ChevronRight, MessageSquare, UserRound, Sun, Moon, Monitor, Lock, Folder, FolderPlus } from "lucide-react";
+import { ChevronLeft, ChevronRight, FileText, MessageSquare, UserRound, Sun, Moon, Monitor, Lock, Folder, FolderPlus } from "lucide-react";
 import { useTheme, type Theme } from "@/lib/theme";
 import { pusherClient } from "@/lib/pusher";
 import { toast } from "sonner";
@@ -50,6 +50,7 @@ interface Render {
   id: string;
   name: string;
   fileUrl: string;
+  fileType?: string;
   status: RenderStatus;
   comments: Comment[];
   versions: RenderVersion[];
@@ -543,6 +544,7 @@ export default function SharePage() {
       id: r.id,
       name: r.name,
       fileUrl: r.fileUrl,
+      fileType: r.fileType,
     }));
 
     const renderViewer = (
@@ -554,6 +556,7 @@ export default function SharePage() {
         roomName={selectedRoom.name}
         folderName={selectedRender.folder?.name ?? undefined}
         imageUrl={selectedRender.fileUrl}
+        fileType={selectedRender.fileType}
         initialComments={selectedRender.comments}
         authorName={authorName}
         isDesigner={false}
@@ -800,9 +803,13 @@ export default function SharePage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-4">
                   {folderRenders.map((render) => (
                     <button key={render.id} onClick={() => { setSelectedRender(render); setView("render"); fetch(`/api/share/${token}/renders/${render.id}/view`, { method: "POST" }); }} className="text-left bg-card border border-border rounded-xl overflow-hidden shadow-sm hover:shadow-[0_4px_16px_rgba(25,33,61,0.2)] hover:border-primary/30 transition-all group">
-                      <div className="aspect-video bg-muted overflow-hidden">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={render.fileUrl} alt={render.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" />
+                      <div className="aspect-video bg-muted overflow-hidden flex items-center justify-center">
+                        {render.fileType === "pdf" ? (
+                          <FileText size={36} className="text-red-400" />
+                        ) : (
+                          /* eslint-disable-next-line @next/next/no-img-element */
+                          <img src={render.fileUrl} alt={render.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" />
+                        )}
                       </div>
                       <div className="p-3">
                         <div className="flex items-start justify-between gap-2">
@@ -839,9 +846,13 @@ export default function SharePage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-4">
                       {ungrouped.map((render) => (
                         <button key={render.id} onClick={() => { setSelectedRender(render); setView("render"); fetch(`/api/share/${token}/renders/${render.id}/view`, { method: "POST" }); }} className="text-left bg-card border border-border rounded-xl overflow-hidden shadow-sm hover:shadow-[0_4px_16px_rgba(25,33,61,0.2)] hover:border-primary/30 transition-all group">
-                          <div className="aspect-video bg-muted overflow-hidden">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={render.fileUrl} alt={render.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" />
+                          <div className="aspect-video bg-muted overflow-hidden flex items-center justify-center">
+                            {render.fileType === "pdf" ? (
+                              <FileText size={36} className="text-red-400" />
+                            ) : (
+                              /* eslint-disable-next-line @next/next/no-img-element */
+                              <img src={render.fileUrl} alt={render.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" />
+                            )}
                           </div>
                           <div className="p-3">
                             <div className="flex items-start justify-between gap-2">

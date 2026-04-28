@@ -80,6 +80,7 @@ export default function RenderUploader({ projectId, roomId, folderId: fixedFolde
               onClientUploadComplete={async (res) => {
                 for (const file of res) {
                   const name = file.name.replace(/\.[^.]+$/, "");
+                  const fileType = file.type?.includes("pdf") ? "pdf" : "image";
                   await fetch("/api/renders", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
@@ -90,6 +91,7 @@ export default function RenderUploader({ projectId, roomId, folderId: fixedFolde
                       fileKey: file.key,
                       roomId: roomId ?? null,
                       folderId: fixedFolderId ?? (folderId || null),
+                      fileType,
                     }),
                   });
                 }
@@ -109,7 +111,7 @@ export default function RenderUploader({ projectId, roomId, folderId: fixedFolde
                 container: "w-full flex-col",
               }}
             />
-            <p className="text-xs text-gray-400 text-center">Możesz wybrać do 10 plików naraz</p>
+            <p className="text-xs text-gray-400 text-center">Obrazy i pliki PDF — do 10 naraz</p>
           </div>
         </div>
       </DialogContent>
