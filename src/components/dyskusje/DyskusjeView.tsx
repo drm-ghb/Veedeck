@@ -923,15 +923,20 @@ export default function DyskusjeView({ currentUserId, initialDiscussions, projec
                     <p className="text-xs">Zacznij pisać aby rozpocząć dyskusję</p>
                   </div>
                 ) : (
-                  messages.map((msg) => (
-                    <MessageBubble
-                      key={msg.id}
-                      msg={msg}
-                      isOwn={msg.userId === currentUserId}
-                      onImageClick={setAnnotatingImage}
-                      receipts={receipts.filter((r) => r.lastMessageId === msg.id && r.readerId !== currentUserId)}
-                    />
-                  ))
+                  messages.map((msg) => {
+                    const isOwn = msg.userId === currentUserId;
+                    return (
+                      <MessageBubble
+                        key={msg.id}
+                        msg={msg}
+                        isOwn={isOwn}
+                        onImageClick={setAnnotatingImage}
+                        receipts={isOwn
+                          ? receipts.filter((r) => r.lastMessageId === msg.id && r.readerId !== currentUserId)
+                          : undefined}
+                      />
+                    );
+                  })
                 )}
 
                 <div ref={bottomRef} />

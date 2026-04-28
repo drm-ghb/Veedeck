@@ -621,6 +621,7 @@ export default function ClientDiscussionView({ token, discussionId, discussionTi
                           <audio src={msg.attachmentUrl} controls className="max-w-[260px] rounded-xl" />
                         )}
                         {(() => {
+                          if (!isOwn) return null;
                           const msgReceipts = receipts.filter(
                             (r) => r.lastMessageId === msg.id && r.readerName !== authorName
                           );
