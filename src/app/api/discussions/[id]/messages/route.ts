@@ -17,12 +17,9 @@ export async function GET(
   if (!discussion) return NextResponse.json({ error: "Nie znaleziono" }, { status: 404 });
   if (discussion.ownerId !== userId) return NextResponse.json({ error: "Brak dostępu" }, { status: 403 });
 
-  const cursor = req.nextUrl.searchParams.get("cursor");
   const messages = await prisma.discussionMessage.findMany({
     where: { discussionId: id },
     orderBy: { createdAt: "asc" },
-    take: 50,
-    ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
   });
 
   const receipts = await prisma.discussionReadReceipt.findMany({
