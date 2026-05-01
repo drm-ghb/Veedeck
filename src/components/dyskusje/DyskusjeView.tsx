@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { MessageSquare, Plus, Trash2, Edit2, Check, X, ExternalLink, ChevronDown, Paperclip, FileText, FileSpreadsheet, File as FileIcon, Loader2, FolderOpen, Mic, Square, Search, Archive, ArchiveRestore } from "lucide-react";
+import { MessageSquare, Plus, Trash2, Edit2, Check, X, ExternalLink, ChevronDown, ChevronLeft, Paperclip, FileText, FileSpreadsheet, File as FileIcon, Loader2, FolderOpen, Mic, Square, Search, Archive, ArchiveRestore } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import Pusher from "pusher-js";
@@ -204,7 +204,7 @@ export default function DyskusjeView({ currentUserId, initialDiscussions, projec
   }, [selectedId]);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    bottomRef.current?.scrollIntoView({ behavior: "instant" });
   }, [messages]);
 
   useEffect(() => {
@@ -218,7 +218,7 @@ export default function DyskusjeView({ currentUserId, initialDiscussions, projec
 
     const channel = pusherRef.current.subscribe(`discussion-${selectedId}`);
     channel.bind("new-message", (msg: DiscussionMessage) => {
-      if (msg.userId !== currentUserId) { console.log("[sound] playing for msg from", msg.userId, "current:", currentUserId); playMessageSound(); }
+      if (msg.userId !== currentUserId) playMessageSound();
       setMessages((prev) => {
         if (prev.some((m) => m.id === msg.id)) return prev;
         const next = [...prev, msg];
@@ -563,9 +563,9 @@ export default function DyskusjeView({ currentUserId, initialDiscussions, projec
           sending={sendingAnnotation}
         />
       )}
-      <div className="flex flex-1 -mx-3 sm:-mx-6 -my-4 sm:-my-6 overflow-hidden bg-muted/30">
+      <div className="flex flex-1 min-h-0 -mx-3 sm:-mx-6 -my-4 sm:-my-6 overflow-hidden bg-muted/30">
         {/* Sidebar */}
-        <div className="w-72 flex-shrink-0 flex flex-col border-r border-border">
+        <div className={`md:flex-shrink-0 flex flex-col md:border-r border-border w-full md:w-72 ${selectedId ? "hidden md:flex" : "flex"}`}>
           {/* Header */}
           <div className="px-4 pt-4 pb-3 space-y-3 border-b border-border">
             <div className="flex items-center justify-between">
@@ -722,7 +722,7 @@ export default function DyskusjeView({ currentUserId, initialDiscussions, projec
         {/* Main area */}
         {selected ? (
           <div
-            className="flex-1 flex flex-col min-w-0 bg-background relative"
+            className="flex-1 min-h-0 flex flex-col min-w-0 bg-background relative"
             onDragEnter={handleDragEnter}
             onDragLeave={handleDragLeave}
             onDragOver={(e) => e.preventDefault()}
@@ -802,6 +802,13 @@ export default function DyskusjeView({ currentUserId, initialDiscussions, projec
                 </div>
               ) : (
                 <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => setSelectedId(null)}
+                    className="md:hidden p-1.5 -ml-1 rounded-lg text-muted-foreground hover:bg-muted transition-colors flex-shrink-0"
+                    aria-label="Wróć do listy"
+                  >
+                    <ChevronLeft size={20} />
+                  </button>
                   <div className="min-w-0">
                     <h2 className="font-semibold text-sm">{selected.title}</h2>
                     {selected.project ? (
@@ -915,7 +922,7 @@ export default function DyskusjeView({ currentUserId, initialDiscussions, projec
                 )}
               </div>
             ) : (
-              <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3 relative">
+              <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4 space-y-3 relative">
                 {loadingMessages ? (
                   <div className="flex items-center justify-center h-full text-muted-foreground text-sm">Ładowanie...</div>
                 ) : messages.length === 0 ? (
@@ -1020,7 +1027,7 @@ export default function DyskusjeView({ currentUserId, initialDiscussions, projec
             </div>
           </div>
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground gap-3 bg-background">
+          <div className="flex-1 hidden md:flex flex-col items-center justify-center text-muted-foreground gap-3 bg-background">
             <MessageSquare size={48} className="opacity-20" />
             <p className="text-sm">Wybierz dyskusję aby zobaczyć wiadomości</p>
           </div>
