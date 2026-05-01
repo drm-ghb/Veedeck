@@ -16,6 +16,7 @@ import {
   Check,
   Pencil,
 } from "lucide-react";
+import { generateClientLogin } from "@/lib/client-login";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -40,6 +41,8 @@ interface ProjectClient {
   createdAt: string;
   startDate: string | null;
   endDate: string | null;
+  userId: string | null;
+  user: { id: string; login: string } | null;
 }
 
 interface ProjectData {
@@ -99,19 +102,30 @@ export default function ProjectDetailView({ project }: { project: ProjectData })
   const [newClientName, setNewClientName] = useState("");
   const [newClientEmail, setNewClientEmail] = useState("");
   const [newClientPhone, setNewClientPhone] = useState("");
+  const [newClientPassword, setNewClientPassword] = useState("");
+  const [showNewPassword, setShowNewPassword] = useState(false);
   const [newClientIsMain, setNewClientIsMain] = useState(false);
-  const [newClientStartDate, setNewClientStartDate] = useState("");
-  const [newClientEndDate, setNewClientEndDate] = useState("");
   const [addingClient, setAddingClient] = useState(false);
   const [showAddClient, setShowAddClient] = useState(false);
 
-  // Inline editing state
+  // Per-client inline credential editing
+  const [clientCreds, setClientCreds] = useState<Record<string, { login: string; password: string; showPassword: boolean }>>(() =>
+    Object.fromEntries(
+      project.clients
+        .filter((c) => c.user)
+        .map((c) => [c.id, { login: c.user!.login, password: "", showPassword: false }])
+    )
+  );
+
+  // Inline contact editing state (email/phone only)
   const [editingClientId, setEditingClientId] = useState<string | null>(null);
   const [editEmail, setEditEmail] = useState("");
   const [editPhone, setEditPhone] = useState("");
-  const [editStartDate, setEditStartDate] = useState("");
-  const [editEndDate, setEditEndDate] = useState("");
   const [savingEdit, setSavingEdit] = useState(false);
+
+  const previewLogin = newClientName.trim().split(/\s+/).length >= 2
+    ? generateClientLogin(newClientName.trim())
+    : "";
 
   // Address state
   const [addressCountry, setAddressCountry] = useState(project.addressCountry ?? "");
@@ -127,7 +141,11 @@ export default function ProjectDetailView({ project }: { project: ProjectData })
   const [copiedPanel, setCopiedPanel] = useState(false);
 
   function copyPanelLink() {
-    navigator.clipboard.writeText(`${window.location.origin}/share/${project.shareToken}/home`);
+    const hasClientAccounts = project.clients.some((c) => c.userId);
+    const link = hasClientAccounts
+      ? `${window.location.origin}/client/${project.id}`
+      : `${window.location.origin}/share/${project.shareToken}/home`;
+    navigator.clipboard.writeText(link);
     setCopiedPanel(true);
     setTimeout(() => setCopiedPanel(false), 2000);
   }
@@ -189,7 +207,7 @@ export default function ProjectDetailView({ project }: { project: ProjectData })
   }
 
   async function addClient() {
-    if (!newClientName.trim()) return;
+    if (!newClientName.trim() || !newClientPassword.trim()) return;
     setAddingClient(true);
     try {
       const res = await fetch(`/api/projects/${project.id}/clients`, {
@@ -199,24 +217,25 @@ export default function ProjectDetailView({ project }: { project: ProjectData })
           name: newClientName.trim(),
           email: newClientEmail.trim() || null,
           phone: newClientPhone.trim() || null,
+          password: newClientPassword.trim(),
           isMainContact: newClientIsMain,
-          startDate: newClientStartDate || null,
-          endDate: newClientEndDate || null,
         }),
       });
       if (!res.ok) throw new Error();
       const created = await res.json();
-      setClients((prev) => [...prev, {
-        ...created,
-        startDate: created.startDate ? created.startDate.slice(0, 10) : null,
-        endDate: created.endDate ? created.endDate.slice(0, 10) : null,
-      }]);
+      setClients((prev) => [...prev, created]);
+      if (created.user?.login) {
+        setClientCreds((prev) => ({
+          ...prev,
+          [created.id]: { login: created.user.login, password: newClientPassword.trim(), showPassword: true },
+        }));
+      }
       setNewClientName("");
       setNewClientEmail("");
       setNewClientPhone("");
+      setNewClientPassword("");
+      setShowNewPassword(false);
       setNewClientIsMain(false);
-      setNewClientStartDate("");
-      setNewClientEndDate("");
       setShowAddClient(false);
       toast.success(t.projekty.clientAdded);
     } catch {
@@ -230,16 +249,12 @@ export default function ProjectDetailView({ project }: { project: ProjectData })
     setEditingClientId(client.id);
     setEditEmail(client.email ?? "");
     setEditPhone(client.phone ?? "");
-    setEditStartDate(client.startDate ?? "");
-    setEditEndDate(client.endDate ?? "");
   }
 
   function cancelEditing() {
     setEditingClientId(null);
     setEditEmail("");
     setEditPhone("");
-    setEditStartDate("");
-    setEditEndDate("");
   }
 
   async function saveClientEdit(clientId: string) {
@@ -248,28 +263,40 @@ export default function ProjectDetailView({ project }: { project: ProjectData })
       const res = await fetch(`/api/projects/${project.id}/clients/${clientId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: editEmail.trim() || null,
-          phone: editPhone.trim() || null,
-          startDate: editStartDate || null,
-          endDate: editEndDate || null,
-        }),
+        body: JSON.stringify({ email: editEmail.trim() || null, phone: editPhone.trim() || null }),
       });
       if (!res.ok) throw new Error();
       const updated = await res.json();
-      setClients((prev) => prev.map((c) => c.id === clientId ? {
-        ...c,
-        email: updated.email,
-        phone: updated.phone,
-        startDate: updated.startDate ? updated.startDate.slice(0, 10) : null,
-        endDate: updated.endDate ? updated.endDate.slice(0, 10) : null,
-      } : c));
+      setClients((prev) => prev.map((c) => c.id === clientId ? { ...c, email: updated.email, phone: updated.phone } : c));
       cancelEditing();
       toast.success(t.common.saved);
     } catch {
       toast.error(t.settings.saveError);
     } finally {
       setSavingEdit(false);
+    }
+  }
+
+  async function saveClientCreds(clientId: string) {
+    const creds = clientCreds[clientId];
+    if (!creds) return;
+    const body: Record<string, string> = {};
+    if (creds.login.trim()) body.login = creds.login.trim();
+    if (creds.password.trim()) body.password = creds.password.trim();
+    if (!Object.keys(body).length) return;
+    try {
+      const res = await fetch(`/api/projects/${project.id}/clients/${clientId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) throw new Error();
+      const updated = await res.json();
+      setClients((prev) => prev.map((c) => c.id === clientId ? { ...c, user: updated.user ?? c.user } : c));
+      setClientCreds((prev) => ({ ...prev, [clientId]: { ...prev[clientId], password: "", showPassword: false } }));
+      toast.success(t.common.saved);
+    } catch {
+      toast.error(t.settings.saveError);
     }
   }
 
@@ -542,16 +569,47 @@ export default function ProjectDetailView({ project }: { project: ProjectData })
 
           {showAddClient && (
             <div className="mb-4 p-4 rounded-lg border border-border bg-muted/30 space-y-3">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label>{t.projekty.clientFullName}</Label>
+                  <Label>
+                    {t.projekty.clientFullName}
+                    <span className="text-destructive ml-0.5">*</span>
+                  </Label>
                   <Input
                     value={newClientName}
                     onChange={(e) => setNewClientName(e.target.value)}
                     placeholder={t.projekty.clientFullNamePlaceholder}
-                    onKeyDown={(e) => e.key === "Enter" && addClient()}
                   />
+                  {previewLogin && (
+                    <p className="text-xs text-muted-foreground">
+                      Login: <span className="font-mono font-medium text-foreground">{previewLogin}</span>
+                    </p>
+                  )}
                 </div>
+                <div className="space-y-1.5">
+                  <Label>
+                    Hasło
+                    <span className="text-destructive ml-0.5">*</span>
+                  </Label>
+                  <div className="relative">
+                    <Input
+                      type={showNewPassword ? "text" : "password"}
+                      value={newClientPassword}
+                      onChange={(e) => setNewClientPassword(e.target.value)}
+                      placeholder="Hasło dla klienta"
+                      className="pr-9"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowNewPassword((v) => !v)}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      {showNewPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label>{t.projekty.clientEmailOpt}</Label>
                   <Input
@@ -559,7 +617,6 @@ export default function ProjectDetailView({ project }: { project: ProjectData })
                     value={newClientEmail}
                     onChange={(e) => setNewClientEmail(e.target.value)}
                     placeholder="jan@example.com"
-                    onKeyDown={(e) => e.key === "Enter" && addClient()}
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -569,25 +626,6 @@ export default function ProjectDetailView({ project }: { project: ProjectData })
                     value={newClientPhone}
                     onChange={(e) => setNewClientPhone(e.target.value)}
                     placeholder="+48 123 456 789"
-                    onKeyDown={(e) => e.key === "Enter" && addClient()}
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label>Data rozpoczęcia (opcjonalnie)</Label>
-                  <Input
-                    type="date"
-                    value={newClientStartDate}
-                    onChange={(e) => setNewClientStartDate(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Data zakończenia (opcjonalnie)</Label>
-                  <Input
-                    type="date"
-                    value={newClientEndDate}
-                    onChange={(e) => setNewClientEndDate(e.target.value)}
                   />
                 </div>
               </div>
@@ -610,9 +648,9 @@ export default function ProjectDetailView({ project }: { project: ProjectData })
                       setNewClientName("");
                       setNewClientEmail("");
                       setNewClientPhone("");
+                      setNewClientPassword("");
+                      setShowNewPassword(false);
                       setNewClientIsMain(false);
-                      setNewClientStartDate("");
-                      setNewClientEndDate("");
                     }}
                   >
                     {t.common.cancel}
@@ -620,7 +658,7 @@ export default function ProjectDetailView({ project }: { project: ProjectData })
                   <Button
                     size="sm"
                     onClick={addClient}
-                    disabled={addingClient || !newClientName.trim()}
+                    disabled={addingClient || !newClientName.trim() || !newClientPassword.trim()}
                   >
                     {addingClient ? "Dodawanie..." : t.common.add}
                   </Button>
@@ -642,34 +680,59 @@ export default function ProjectDetailView({ project }: { project: ProjectData })
                     client.isMainContact ? "border-primary/30 bg-primary/5" : "border-border"
                   }`}
                 >
-                  <div className="flex items-center justify-between px-4 py-3">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm font-medium truncate">{client.name}</p>
-                        {client.isMainContact && (
-                          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-primary text-white flex-shrink-0">
-                            {t.projekty.mainContact}
-                          </span>
-                        )}
-                      </div>
-                      {(client.email || client.phone) && editingClientId !== client.id && (
-                        <p className="text-xs text-muted-foreground truncate">
-                          {[client.email, client.phone].filter(Boolean).join(" · ")}
-                        </p>
-                      )}
-                      {(client.startDate || client.endDate) && editingClientId !== client.id && (
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          {client.startDate && `Od: ${client.startDate.split("-").reverse().join(".")}`}
-                          {client.startDate && client.endDate && " – "}
-                          {client.endDate && `Do: ${client.endDate.split("-").reverse().join(".")}`}
-                        </p>
+                  <div className="flex items-center gap-2 px-4 py-2.5 flex-wrap">
+                    {/* Name + main badge */}
+                    <div className="flex items-center gap-1.5 min-w-0 mr-1">
+                      <p className="text-sm font-medium truncate">{client.name}</p>
+                      {client.isMainContact && (
+                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-primary text-white flex-shrink-0">
+                          {t.projekty.mainContact}
+                        </span>
                       )}
                     </div>
-                    <div className="flex items-center gap-1 ml-3 flex-shrink-0">
+                    {/* Inline credentials */}
+                    {client.user && clientCreds[client.id] !== undefined && (
+                      <>
+                        <Input
+                          value={clientCreds[client.id].login}
+                          onChange={(e) => setClientCreds((prev) => ({ ...prev, [client.id]: { ...prev[client.id], login: e.target.value } }))}
+                          placeholder="Login"
+                          className="h-7 text-xs font-mono w-28 flex-shrink-0 px-2"
+                        />
+                        <div className="relative flex-shrink-0 w-32">
+                          <Input
+                            type={clientCreds[client.id].showPassword ? "text" : "password"}
+                            value={clientCreds[client.id].password}
+                            onChange={(e) => setClientCreds((prev) => ({ ...prev, [client.id]: { ...prev[client.id], password: e.target.value } }))}
+                            placeholder="Nowe hasło"
+                            className="h-7 text-xs pr-7 w-full px-2"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setClientCreds((prev) => ({ ...prev, [client.id]: { ...prev[client.id], showPassword: !prev[client.id].showPassword } }))}
+                            className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                          >
+                            {clientCreds[client.id].showPassword ? <EyeOff size={11} /> : <Eye size={11} />}
+                          </button>
+                        </div>
+                        {(clientCreds[client.id].login !== (client.user?.login ?? "") || clientCreds[client.id].password.trim() !== "") && (
+                          <Button size="sm" className="h-7 text-xs flex-shrink-0" onClick={() => saveClientCreds(client.id)}>
+                            {t.common.save}
+                          </Button>
+                        )}
+                      </>
+                    )}
+                    {/* Actions */}
+                    <div className="flex items-center gap-1 ml-auto flex-shrink-0">
+                      {(client.email || client.phone) && editingClientId !== client.id && (
+                        <span className="text-xs text-muted-foreground mr-1 hidden sm:inline">
+                          {[client.email, client.phone].filter(Boolean).join(" · ")}
+                        </span>
+                      )}
                       {!client.isMainContact && (
                         <button
                           onClick={() => setMainContact(client.id)}
-                          className="text-xs text-muted-foreground hover:text-foreground transition-colors px-2 py-1 rounded hover:bg-muted"
+                          className="text-xs text-muted-foreground hover:text-foreground transition-colors px-2 py-1 rounded hover:bg-muted hidden sm:inline"
                           title={t.projekty.setAsMain}
                         >
                           {t.projekty.setAsMain}
@@ -678,7 +741,7 @@ export default function ProjectDetailView({ project }: { project: ProjectData })
                       <button
                         onClick={() => editingClientId === client.id ? cancelEditing() : startEditing(client)}
                         className="text-muted-foreground hover:text-foreground transition-colors p-1"
-                        title="Edytuj dane kontaktowe i daty"
+                        title="Edytuj dane kontaktowe"
                       >
                         <Pencil size={14} />
                       </button>
@@ -698,7 +761,7 @@ export default function ProjectDetailView({ project }: { project: ProjectData })
                           type="email"
                           value={editEmail}
                           onChange={(e) => setEditEmail(e.target.value)}
-                          placeholder="Email"
+                          placeholder="Email kontaktowy"
                           className="h-8 text-sm"
                         />
                         <Input
@@ -708,26 +771,6 @@ export default function ProjectDetailView({ project }: { project: ProjectData })
                           placeholder="Telefon"
                           className="h-8 text-sm"
                         />
-                      </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        <div className="space-y-1">
-                          <label className="text-xs text-muted-foreground">Data rozpoczęcia</label>
-                          <Input
-                            type="date"
-                            value={editStartDate}
-                            onChange={(e) => setEditStartDate(e.target.value)}
-                            className="h-8 text-sm"
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-xs text-muted-foreground">Data zakończenia</label>
-                          <Input
-                            type="date"
-                            value={editEndDate}
-                            onChange={(e) => setEditEndDate(e.target.value)}
-                            className="h-8 text-sm"
-                          />
-                        </div>
                       </div>
                       <div className="flex gap-2 justify-end">
                         <Button size="sm" variant="outline" className="h-7 text-xs" onClick={cancelEditing}>
