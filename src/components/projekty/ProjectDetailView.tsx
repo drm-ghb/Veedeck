@@ -458,28 +458,6 @@ export default function ProjectDetailView({ project }: { project: ProjectData })
                 />
               </div>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="proj-password">{t.projekty.passwordLink}</Label>
-                <div className="relative">
-                  <Input
-                    id="proj-password"
-                    type={showPassword ? "text" : "password"}
-                    value={sharePassword}
-                    onChange={(e) => setSharePassword(e.target.value)}
-                    placeholder={t.projekty.noPassword}
-                    className="pr-9"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword((v) => !v)}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                  >
-                    {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
-                  </button>
-                </div>
-              </div>
-            </div>
             <div className="flex items-center justify-between pt-1">
               <p className="text-xs text-muted-foreground">
                 {t.projekty.createdAt}{" "}
