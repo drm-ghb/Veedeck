@@ -3,7 +3,8 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Grid2x2, Settings, Sun, Moon, Monitor, UserRound } from "lucide-react";
+import { Grid2x2, Settings, Sun, Moon, Monitor, UserRound, LogOut } from "lucide-react";
+import { signOut } from "next-auth/react";
 import { useTheme, type Theme } from "@/lib/theme";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -16,9 +17,11 @@ interface ShareNavbarProps {
   designerName?: string | null;
   listToken?: string;
   projectShareToken?: string;
+  /** Logged-in client name (client panel mode) — shown instead of localStorage author */
+  clientName?: string | null;
 }
 
-export default function ShareNavbar({ backHref, backLabel, clientLogoUrl, designerName, listToken, projectShareToken }: ShareNavbarProps) {
+export default function ShareNavbar({ backHref, backLabel, clientLogoUrl, designerName, listToken, projectShareToken, clientName }: ShareNavbarProps) {
   const t = useT();
   const { theme, setTheme } = useTheme();
 
@@ -92,13 +95,22 @@ export default function ShareNavbar({ backHref, backLabel, clientLogoUrl, design
             </div>
           </div>
 
-          {/* Right: client label */}
+          {/* Right: client label + logout */}
           <div className="flex items-center gap-3">
-            {authorName && (
+            {(clientName || authorName) && (
               <span className="hidden sm:flex items-center gap-1.5 text-sm text-muted-foreground">
                 <span className="font-medium text-foreground">Panel klienta:</span>
-                {authorName}
+                {clientName || authorName}
               </span>
+            )}
+            {clientName && (
+              <button
+                onClick={() => signOut({ callbackUrl: "/login" })}
+                title="Wyloguj"
+                className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              >
+                <LogOut size={18} />
+              </button>
             )}
           </div>
         </div>

@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
+import { signOut } from "next-auth/react";
 import Link from "next/link";
-import { LayoutDashboard, ScrollText, PanelLeftClose, PanelLeftOpen, PictureInPicture, Sun, Moon, HelpCircle, Settings, UserRound, X, CheckCircle, MessageSquare, Menu } from "lucide-react";
+import { LayoutDashboard, ScrollText, PanelLeftClose, PanelLeftOpen, PictureInPicture, Sun, Moon, HelpCircle, Settings, UserRound, X, CheckCircle, MessageSquare, Menu, LogOut } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { type Theme } from "@/lib/theme";
@@ -24,8 +25,18 @@ interface ShareSidebarProps {
   showListy?: boolean;
   showDyskusje?: boolean;
   shoppingLists?: ShoppingListLink[];
+  /** When provided, clicking Dashboard calls this instead of navigating (for SPA-style view) */
+  onHomeClick?: () => void;
   /** When provided, clicking RenderFlow calls this instead of navigating (for SPA-style view) */
   onRenderFlowClick?: () => void;
+  /** When provided, clicking Dyskusje calls this instead of navigating */
+  onDiscussionClick?: () => void;
+  /** When provided, use /client/[projectId] links instead of /share/[token] links */
+  clientProjectId?: string;
+  /** Current SPA view — used for active state in client mode */
+  activeView?: string;
+  /** Current logged-in user ID — used to filter out own messages from unread count */
+  currentUserId?: string;
 }
 
 export default function ShareSidebar({
@@ -35,7 +46,12 @@ export default function ShareSidebar({
   showListy = true,
   showDyskusje = false,
   shoppingLists = [],
+  onHomeClick,
   onRenderFlowClick,
+  onDiscussionClick,
+  clientProjectId,
+  activeView,
+  currentUserId,
 }: ShareSidebarProps) {
   const t = useT();
   const pathname = usePathname();
@@ -81,57 +97,81 @@ export default function ShareSidebar({
   // Unread discussion count — fetch from server on mount to catch messages sent before client first opened panel
   useEffect(() => {
     if (!discussionId) return;
-    const lastReadAt = localStorage.getItem(`share-discussion-last-read-${token}`);
-    const url = lastReadAt
-      ? `/api/share/${token}/discussions/${discussionId}/unread?since=${encodeURIComponent(lastReadAt)}`
-      : `/api/share/${token}/discussions/${discussionId}/unread`;
+    const storageKey = clientProjectId
+      ? `client-discussion-unread-${clientProjectId}`
+      : `share-discussion-unread-${token}`;
+    const lastReadKey = clientProjectId
+      ? `client-discussion-last-read-${clientProjectId}`
+      : `share-discussion-last-read-${token}`;
+    const lastReadAt = localStorage.getItem(lastReadKey);
+    const url = clientProjectId
+      ? (lastReadAt
+          ? `/api/client/${clientProjectId}/discussions/${discussionId}/unread?since=${encodeURIComponent(lastReadAt)}`
+          : `/api/client/${clientProjectId}/discussions/${discussionId}/unread`)
+      : (lastReadAt
+          ? `/api/share/${token}/discussions/${discussionId}/unread?since=${encodeURIComponent(lastReadAt)}`
+          : `/api/share/${token}/discussions/${discussionId}/unread`);
     fetch(url)
       .then((r) => r.json())
       .then((data) => {
         if (typeof data.count === "number") {
           setDiscussionUnread(data.count);
-          localStorage.setItem(`share-discussion-unread-${token}`, String(data.count));
+          localStorage.setItem(storageKey, String(data.count));
         }
       })
       .catch(() => {
-        // fallback: read from localStorage
-        const stored = localStorage.getItem(`share-discussion-unread-${token}`);
+        const stored = localStorage.getItem(storageKey);
         if (stored) setDiscussionUnread(parseInt(stored, 10) || 0);
       });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [discussionId, token]);
+  }, [discussionId, token, clientProjectId]);
 
-  // Reset when navigating to dyskusje page
+  const storageUnreadKey = clientProjectId
+    ? `client-discussion-unread-${clientProjectId}`
+    : `share-discussion-unread-${token}`;
+  const storageLastReadKey = clientProjectId
+    ? `client-discussion-last-read-${clientProjectId}`
+    : `share-discussion-last-read-${token}`;
+
+  // Reset when navigating to dyskusje page (share mode only) or when activeView === "discussion" (client mode)
   const dyskusjePathname = `/share/${token}/dyskusje`;
   useEffect(() => {
-    if (pathname === dyskusjePathname) {
+    const isOnDiscussion = clientProjectId
+      ? activeView === "discussion"
+      : pathname === dyskusjePathname;
+    if (isOnDiscussion) {
       setDiscussionUnread(0);
-      localStorage.setItem(`share-discussion-unread-${token}`, "0");
-      localStorage.setItem(`share-discussion-last-read-${token}`, new Date().toISOString());
+      localStorage.setItem(storageUnreadKey, "0");
+      localStorage.setItem(storageLastReadKey, new Date().toISOString());
     }
-  }, [pathname, dyskusjePathname, token]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname, dyskusjePathname, activeView, clientProjectId]);
 
   // Listen for read event from ClientDiscussionView
   useEffect(() => {
     function onRead(e: Event) {
       const detail = (e as CustomEvent<{ token: string }>).detail;
-      if (detail?.token === token) {
+      // In client mode: fire on any event; in share mode: match token
+      if (clientProjectId || detail?.token === token) {
         setDiscussionUnread(0);
-        localStorage.setItem(`share-discussion-unread-${token}`, "0");
-        localStorage.setItem(`share-discussion-last-read-${token}`, new Date().toISOString());
+        localStorage.setItem(storageUnreadKey, "0");
+        localStorage.setItem(storageLastReadKey, new Date().toISOString());
       }
     }
     window.addEventListener("share-discussion-read", onRead);
     return () => window.removeEventListener("share-discussion-read", onRead);
-  }, [token]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token, clientProjectId]);
 
   // Keep ref in sync for Pusher callback (avoids stale closure)
   const dyskusjeHrefForRef = `/share/${token}/dyskusje`;
   useEffect(() => {
-    isDyskusjeActiveRef.current = pathname === dyskusjeHrefForRef;
-  }, [pathname, dyskusjeHrefForRef]);
+    isDyskusjeActiveRef.current = clientProjectId
+      ? activeView === "discussion"
+      : pathname === dyskusjeHrefForRef;
+  }, [pathname, dyskusjeHrefForRef, activeView, clientProjectId]);
 
-  // Pusher — track incoming messages when not on dyskusje page
+  // Pusher — track incoming messages when not on dyskusje view
   useEffect(() => {
     if (!discussionId) return;
     if (!pusherRef.current) {
@@ -141,12 +181,14 @@ export default function ShareSidebar({
     }
     const channel = pusherRef.current.subscribe(`discussion-${discussionId}`);
     channel.bind("new-message", (msg: { userId?: string | null }) => {
-      // Only count designer messages (userId set), ignore client's own messages
-      if (!msg.userId) return;
+      // Skip messages from the current user (their own messages)
+      if (currentUserId && msg.userId === currentUserId) return;
+      // In share mode: only count designer messages (userId set)
+      if (!clientProjectId && !msg.userId) return;
       if (!isDyskusjeActiveRef.current) {
         setDiscussionUnread((prev) => {
           const next = prev + 1;
-          localStorage.setItem(`share-discussion-unread-${token}`, String(next));
+          localStorage.setItem(storageUnreadKey, String(next));
           return next;
         });
       }
@@ -154,7 +196,8 @@ export default function ShareSidebar({
     return () => {
       pusherRef.current?.unsubscribe(`discussion-${discussionId}`);
     };
-  }, [discussionId, token]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [discussionId, token, clientProjectId, currentUserId]);
 
   function toggle() {
     const next = !collapsed;
@@ -164,18 +207,25 @@ export default function ShareSidebar({
 
   const isCollapsed = collapsed;
 
-  const homeHref = `/share/${token}/home`;
-  const renderHref = `/share/${token}`;
+  const homeHref = clientProjectId ? `/client/${clientProjectId}` : `/share/${token}/home`;
+  const renderHref = clientProjectId ? `/client/${clientProjectId}` : `/share/${token}`;
   const listHref =
     shoppingLists.length === 1
       ? `/share/list/${shoppingLists[0].shareToken}`
       : homeHref;
-  const dyskusjeHref = `/share/${token}/dyskusje`;
+  const dyskusjeHref = clientProjectId ? `/client/${clientProjectId}` : `/share/${token}/dyskusje`;
 
-  const isHomeActive = pathname === homeHref;
-  const isRenderActive = pathname === renderHref;
-  const isListyActive = pathname.startsWith("/share/list/");
-  const isDyskusjeActive = pathname === dyskusjeHref;
+  // In client mode use activeView prop; in share mode use pathname
+  const isHomeActive = clientProjectId
+    ? (activeView === "rooms" || activeView === "room")
+    : pathname === homeHref;
+  const isRenderActive = clientProjectId
+    ? activeView === "render"
+    : pathname === renderHref;
+  const isListyActive = clientProjectId ? false : pathname.startsWith("/share/list/");
+  const isDyskusjeActive = clientProjectId
+    ? activeView === "discussion"
+    : pathname === dyskusjeHref;
 
   const linkCls = (active: boolean) =>
     `flex items-center gap-3 px-2.5 py-2.5 rounded-lg text-sm font-medium transition-colors ${
@@ -234,17 +284,30 @@ export default function ShareSidebar({
       )}
       <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto">
         {/* Dashboard */}
-        <Link
-          href={homeHref}
-          title={isCollapsed ? t.share.dashboard : undefined}
-          className={linkCls(isHomeActive)}
-          onClick={() => setMobileSidebarOpen(false)}
-        >
-          <span className="flex-shrink-0 w-5 flex items-center justify-center">
-            <LayoutDashboard size={18} />
-          </span>
-          {showLabels && t.share.dashboard}
-        </Link>
+        {onHomeClick ? (
+          <button
+            onClick={() => { onHomeClick(); setMobileSidebarOpen(false); }}
+            title={isCollapsed ? t.share.dashboard : undefined}
+            className={`w-full ${linkCls(isHomeActive)}`}
+          >
+            <span className="flex-shrink-0 w-5 flex items-center justify-center">
+              <LayoutDashboard size={18} />
+            </span>
+            {showLabels && t.share.dashboard}
+          </button>
+        ) : (
+          <Link
+            href={homeHref}
+            title={isCollapsed ? t.share.dashboard : undefined}
+            className={linkCls(isHomeActive)}
+            onClick={() => setMobileSidebarOpen(false)}
+          >
+            <span className="flex-shrink-0 w-5 flex items-center justify-center">
+              <LayoutDashboard size={18} />
+            </span>
+            {showLabels && t.share.dashboard}
+          </Link>
+        )}
 
         {/* RenderFlow */}
         {showRenderFlow &&
@@ -289,7 +352,28 @@ export default function ShareSidebar({
         )}
 
         {/* Dyskusje */}
-        {showDyskusje && (
+        {showDyskusje && (onDiscussionClick ? (
+          <button
+            onClick={() => { onDiscussionClick(); setMobileSidebarOpen(false); }}
+            title={isCollapsed ? t.share.discussions : undefined}
+            className={`w-full ${linkCls(isDyskusjeActive)}`}
+          >
+            <span className="flex-shrink-0 w-5 flex items-center justify-center relative">
+              <MessageSquare size={18} />
+              {discussionUnread > 0 && isCollapsed && !mobileSidebarOpen && (
+                <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-0.5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center leading-none">
+                  {discussionUnread > 99 ? "99+" : discussionUnread}
+                </span>
+              )}
+            </span>
+            {showLabels && t.share.discussions}
+            {showLabels && discussionUnread > 0 && (
+              <span className="ml-auto min-w-[20px] h-5 px-1.5 rounded-full bg-primary text-primary-foreground text-[11px] font-bold flex items-center justify-center leading-none">
+                {discussionUnread > 99 ? "99+" : discussionUnread}
+              </span>
+            )}
+          </button>
+        ) : (
           <Link
             href={dyskusjeHref}
             title={isCollapsed ? t.share.discussions : undefined}
@@ -304,14 +388,14 @@ export default function ShareSidebar({
                 </span>
               )}
             </span>
-            {showLabels && <span className="flex-1">{t.share.discussions}</span>}
+            {showLabels && t.share.discussions}
             {showLabels && discussionUnread > 0 && (
               <span className="ml-auto min-w-[20px] h-5 px-1.5 rounded-full bg-primary text-primary-foreground text-[11px] font-bold flex items-center justify-center leading-none">
                 {discussionUnread > 99 ? "99+" : discussionUnread}
               </span>
             )}
           </Link>
-        )}
+        ))}
       </nav>
 
       <div className="p-2 space-y-0.5">
@@ -356,17 +440,33 @@ export default function ShareSidebar({
           {showLabels && t.nav.help}
         </button>
 
-        {/* Settings */}
-        <button
-          onClick={() => { setNameInput(authorName); setSettingsOpen(true); }}
-          title={isCollapsed ? t.nav.settings : undefined}
-          className="flex items-center gap-3 px-2.5 py-2.5 rounded-lg text-sm font-medium transition-colors w-full text-gray-400 hover:bg-muted hover:text-foreground"
-        >
-          <span className="flex-shrink-0 w-5 flex items-center justify-center">
-            <Settings size={18} />
-          </span>
-          {showLabels && t.nav.settings}
-        </button>
+        {/* Settings — hide in client mode (no name needed) */}
+        {!clientProjectId && (
+          <button
+            onClick={() => { setNameInput(authorName); setSettingsOpen(true); }}
+            title={isCollapsed ? t.nav.settings : undefined}
+            className="flex items-center gap-3 px-2.5 py-2.5 rounded-lg text-sm font-medium transition-colors w-full text-gray-400 hover:bg-muted hover:text-foreground"
+          >
+            <span className="flex-shrink-0 w-5 flex items-center justify-center">
+              <Settings size={18} />
+            </span>
+            {showLabels && t.nav.settings}
+          </button>
+        )}
+
+        {/* Logout — client mode only */}
+        {clientProjectId && (
+          <button
+            onClick={() => signOut({ callbackUrl: "/login" })}
+            title={isCollapsed ? "Wyloguj" : undefined}
+            className="flex items-center gap-3 px-2.5 py-2.5 rounded-lg text-sm font-medium transition-colors w-full text-gray-400 hover:bg-muted hover:text-foreground"
+          >
+            <span className="flex-shrink-0 w-5 flex items-center justify-center">
+              <LogOut size={18} />
+            </span>
+            {showLabels && "Wyloguj"}
+          </button>
+        )}
 
         {/* Collapse toggle — desktop only */}
         <button
