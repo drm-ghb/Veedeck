@@ -220,7 +220,7 @@ export default function ClientDiscussionView({ token, discussionId, discussionTi
   }, [token, discussionId, msgApiBase, initialAuthorName]);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    bottomRef.current?.scrollIntoView({ behavior: "instant" });
   }, [messages]);
 
   useEffect(() => {

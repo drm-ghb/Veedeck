@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
@@ -13,14 +14,19 @@ interface Props {
 }
 
 export default function ClientNameGate({ token, requireClientEmail, clientLogoUrl, designerName, children }: Props) {
+  const { data: session, status } = useSession();
   const [nameSet, setNameSet] = useState<boolean | null>(null);
   const [nameInput, setNameInput] = useState("");
   const [emailInput, setEmailInput] = useState("");
 
+  // Logged-in client accounts skip the name gate entirely
+  const isClientAccount = status === "authenticated" && (session?.user as any)?.role === "client";
+
   useEffect(() => {
+    if (isClientAccount) { setNameSet(true); return; }
     const saved = localStorage.getItem(`veedeck-author-${token}`);
     setNameSet(!!saved);
-  }, [token]);
+  }, [token, isClientAccount]);
 
   function handleSetName() {
     if (!nameInput.trim()) return;
@@ -32,7 +38,7 @@ export default function ClientNameGate({ token, requireClientEmail, clientLogoUr
     setNameSet(true);
   }
 
-  if (nameSet === null) return null;
+  if (nameSet === null || status === "loading") return null;
 
   if (!nameSet) return (
     <div className="flex items-center justify-center min-h-screen px-4 py-10 bg-muted/40">

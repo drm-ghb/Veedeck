@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import Link from "next/link";
 import Image from "next/image";
 import RenderViewer from "@/components/render/RenderViewer";
@@ -101,6 +102,9 @@ interface Project {
 
 export default function SharePage() {
   const { token } = useParams<{ token: string }>();
+  const router = useRouter();
+  const { data: session, status: sessionStatus } = useSession();
+  const isClientAccount = sessionStatus === "authenticated" && (session?.user as any)?.role === "client";
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
@@ -154,6 +158,7 @@ export default function SharePage() {
     }
     if (r.status === 401) {
       const data = await r.json();
+      if (data.requiresLogin) { router.push("/login"); return null; }
       if (data.passwordRequired) { setPasswordRequired(true); return null; }
       setNotFound(true);
       return null;
@@ -163,16 +168,22 @@ export default function SharePage() {
   }
 
   useEffect(() => {
-    const saved = localStorage.getItem(`veedeck-author-${token}`);
-    const savedEmail = localStorage.getItem(`veedeck-author-email-${token}`);
-    if (saved) { setAuthorName(saved); setNameSet(true); }
-    if (savedEmail) setAuthorEmail(savedEmail);
+    if (isClientAccount) {
+      const clientName = (session?.user as any)?.name || session?.user?.name || "";
+      if (clientName) { setAuthorName(clientName); }
+      setNameSet(true);
+    } else {
+      const saved = localStorage.getItem(`veedeck-author-${token}`);
+      const savedEmail = localStorage.getItem(`veedeck-author-email-${token}`);
+      if (saved) { setAuthorName(saved); setNameSet(true); }
+      if (savedEmail) setAuthorEmail(savedEmail);
+    }
 
     fetchProject().then((data) => {
       if (data) setProject(data);
     }).finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
+  }, [token, isClientAccount]);
 
   // Apply accent color when project loads
   useEffect(() => {
@@ -398,7 +409,7 @@ export default function SharePage() {
   }
 
 
-  if (loading) return (
+  if (loading || sessionStatus === "loading") return (
     <div className="flex items-center justify-center min-h-screen bg-background">
       <p className="text-gray-400 animate-pulse">Ładowanie...</p>
     </div>
@@ -530,8 +541,6 @@ export default function SharePage() {
 
   if (!project) return null;
 
-  const isSidebar = project.navMode === "sidebar";
-
   const themeApplier = <ClientThemeApplier colorTheme={project.colorTheme} />;
 
   // Render view — full screen
@@ -595,42 +604,29 @@ export default function SharePage() {
 
     const renderNav = (
       <ShareNavbar
-        backHref={isSidebar ? undefined : `/share/${token}/home`}
         clientLogoUrl={project.clientLogoUrl}
         designerName={project.designerName ?? undefined}
         projectShareToken={token}
       />
     );
 
-    if (isSidebar) {
-      return (
-        <div className="h-dvh flex flex-col bg-muted/60">
-          {themeApplier}
-          {renderNav}
-          <div className="flex flex-1 min-h-0">
-            <ShareSidebar
-              token={token}
-              discussionId={project.discussionId}
-              showRenderFlow={!project.hiddenModules.includes("renderflow")}
-              showListy={!project.hiddenModules.includes("listy")}
-              showDyskusje={!project.hiddenModules.includes("dyskusje")}
-              shoppingLists={project.shoppingLists}
-              onRenderFlowClick={() => setView("rooms")}
-            />
-            <div className="flex-1 min-h-0 bg-background">
-              {renderViewer}
-            </div>
-          </div>
-        </div>
-      );
-    }
-
     return (
-      <div className="fixed inset-0 z-20 bg-background flex flex-col">
+      <div className="h-dvh flex flex-col bg-muted/60">
         {themeApplier}
         {renderNav}
-        <div className="flex-1 min-h-0">
-          {renderViewer}
+        <div className="flex flex-1 min-h-0">
+          <ShareSidebar
+            token={token}
+            discussionId={project.discussionId}
+            showRenderFlow={!project.hiddenModules.includes("renderflow")}
+            showListy={!project.hiddenModules.includes("listy")}
+            showDyskusje={!project.hiddenModules.includes("dyskusje")}
+            shoppingLists={project.shoppingLists}
+            onRenderFlowClick={() => setView("rooms")}
+          />
+          <div className="flex-1 min-h-0 bg-background">
+            {renderViewer}
+          </div>
         </div>
       </div>
     );
@@ -668,23 +664,6 @@ export default function SharePage() {
                   </button>
                 );
               })}
-            </div>
-          )}
-          {!isSidebar && project.hasDiscussion && (
-            <div className="mt-8">
-              <h3 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3">Inne moduły</h3>
-              <Link
-                href={`/share/${token}/dyskusje`}
-                className="inline-flex items-center gap-3 p-4 rounded-xl bg-card border border-border hover:shadow-md hover:border-gray-300 dark:hover:border-gray-600 transition-all"
-              >
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-primary">
-                  <MessageSquare size={20} className="text-white" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-foreground">Dyskusje</p>
-                  <p className="text-[11px] text-muted-foreground">Czat z projektantem</p>
-                </div>
-              </Link>
             </div>
           )}
         </>
@@ -875,36 +854,28 @@ export default function SharePage() {
   );
 
   return (
-    <div className={`${isSidebar ? "h-dvh" : "min-h-screen"} flex flex-col bg-muted/60`}>
+    <div className="h-dvh flex flex-col bg-muted/60">
       {themeApplier}
       {/* Nav */}
       <ShareNavbar
-        backHref={isSidebar ? undefined : `/share/${token}/home`}
         clientLogoUrl={project.clientLogoUrl}
         designerName={project.designerName ?? undefined}
         projectShareToken={token}
       />
-
-      {isSidebar ? (
-        <div className="flex flex-1 min-h-0">
-          <ShareSidebar
-            token={token}
-            discussionId={project.discussionId}
-            showRenderFlow={!project.hiddenModules.includes("renderflow")}
-            showListy={!project.hiddenModules.includes("listy")}
-            showDyskusje={!project.hiddenModules.includes("dyskusje")}
-            shoppingLists={project.shoppingLists}
-            onRenderFlowClick={() => setView("rooms")}
-          />
-          <main className="flex-1 overflow-y-auto px-6 py-6 bg-background rounded-tl-2xl">
-            {pageContent}
-          </main>
-        </div>
-      ) : (
-        <div className="flex-1 px-3 sm:px-6 py-4 sm:py-8">
+      <div className="flex flex-1 min-h-0">
+        <ShareSidebar
+          token={token}
+          discussionId={project.discussionId}
+          showRenderFlow={!project.hiddenModules.includes("renderflow")}
+          showListy={!project.hiddenModules.includes("listy")}
+          showDyskusje={!project.hiddenModules.includes("dyskusje")}
+          shoppingLists={project.shoppingLists}
+          onRenderFlowClick={() => setView("rooms")}
+        />
+        <main className="flex-1 overflow-y-auto px-6 py-6 bg-background rounded-tl-2xl">
           {pageContent}
-        </div>
-      )}
+        </main>
+      </div>
     </div>
   );
 }

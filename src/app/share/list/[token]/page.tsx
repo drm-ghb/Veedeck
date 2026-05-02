@@ -1,5 +1,6 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/lib/auth";
 import ShareNavbar from "@/components/share/ShareNavbar";
 import ShareListClient from "@/components/listy/ShareListClient";
 import ShareSidebar from "@/components/share/ShareSidebar";
@@ -59,6 +60,15 @@ export default async function PublicListPage({ params }: { params: Promise<{ tok
 
   if (!list || list.archived || list.project?.archived) notFound();
 
+  const session = await auth();
+  if (!session?.user && list.project) {
+    const hasClientAccounts = await prisma.projectClient.findFirst({
+      where: { projectId: list.project.id, userId: { not: null } },
+      select: { id: true },
+    });
+    if (hasClientAccounts) redirect("/login");
+  }
+
   const allProducts = list.sections.flatMap((s) => s.products);
   const grandTotal = allProducts.reduce((sum, p) => {
     const n = parsePrice(p.price);
@@ -67,7 +77,6 @@ export default async function PublicListPage({ params }: { params: Promise<{ tok
   const grandCurrency = getCurrency(allProducts.find((p) => getCurrency(p.price))?.price ?? null);
   const hasTotal = allProducts.some((p) => parsePrice(p.price) !== null);
 
-  const isSidebar = list.project?.user?.navMode === "sidebar";
   const projectToken = list.project?.shareToken;
   const showRenderFlow = !list.project?.hiddenModules.includes("renderflow");
   const showListy = !list.project?.hiddenModules.includes("listy");
@@ -121,7 +130,7 @@ export default async function PublicListPage({ params }: { params: Promise<{ tok
           {list.project && (
             <>
               <a
-                href={`/share/${list.project.shareToken}/home`}
+                href={`/share/${list.project.shareToken}/dashboard`}
                 className="text-sm text-muted-foreground hover:text-foreground transition-colors shrink-0"
               >
                 {list.project.title}
@@ -170,18 +179,15 @@ export default async function PublicListPage({ params }: { params: Promise<{ tok
       clientLogoUrl={gateClientLogoUrl}
       designerName={gateDesignerName}
     >
-    <div className={`${isSidebar ? "h-screen" : "min-h-screen"} flex flex-col bg-muted/60`}>
+    <div className="h-screen flex flex-col bg-muted/60">
       {list.project?.user?.colorTheme && <ClientThemeApplier colorTheme={list.project.user.colorTheme} />}
       <ShareNavbar
-        backHref={isSidebar ? undefined : (projectToken ? `/share/${projectToken}/home` : undefined)}
-        backLabel={list.project?.title}
         clientLogoUrl={list.project?.user?.showClientLogo ? (list.project.user.clientLogoUrl ?? undefined) : undefined}
         designerName={list.project?.user?.showProfileName ? (list.project.user.name ?? undefined) : undefined}
         listToken={token}
         projectShareToken={list.project?.shareToken}
       />
-
-      {isSidebar && projectToken ? (
+      {projectToken ? (
         <div className="flex flex-1 min-h-0">
           <ShareSidebar
             token={projectToken}

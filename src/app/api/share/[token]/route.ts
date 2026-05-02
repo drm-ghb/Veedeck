@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/lib/auth";
 
 export async function GET(
   req: NextRequest,
@@ -84,6 +85,18 @@ export async function GET(
   if (project.sharePassword) {
     if (!providedPassword || providedPassword !== project.sharePassword) {
       return NextResponse.json({ error: "Wymagane hasło", passwordRequired: true }, { status: 401 });
+    }
+  }
+
+  // Check if project requires client account login
+  const session = await auth();
+  if (!session?.user) {
+    const hasClientAccounts = await prisma.projectClient.findFirst({
+      where: { projectId: project.id, userId: { not: null } },
+      select: { id: true },
+    });
+    if (hasClientAccounts) {
+      return NextResponse.json({ requiresLogin: true }, { status: 401 });
     }
   }
 

@@ -37,7 +37,7 @@ export default function ClientProjectPage() {
   const { data: session, status } = useSession();
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState<"rooms" | "room" | "render" | "discussion">("rooms");
+  const [view, setView] = useState<"home" | "rooms" | "room" | "render" | "discussion">("home");
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
   const [selectedFolder, setSelectedFolder] = useState<{ id: string; name: string } | null>(null);
   const [selectedRender, setSelectedRender] = useState<Render | null>(null);
@@ -99,7 +99,6 @@ export default function ClientProjectPage() {
     );
   }
 
-  const isSidebar = project.navMode === "sidebar";
   const themeApplier = <ClientThemeApplier colorTheme={project.colorTheme} />;
 
   // Discussion view
@@ -115,37 +114,28 @@ export default function ClientProjectPage() {
       />
     );
 
-    if (isSidebar) {
-      return (
-        <div className="h-dvh flex flex-col bg-muted/60">
-          {themeApplier}
-          <ShareNavbar clientLogoUrl={project.clientLogoUrl} designerName={project.designerName ?? undefined} clientName={authorName} />
-          <div className="flex flex-1 min-h-0">
-            <ShareSidebar
-              token=""
-              discussionId={project.discussionId}
-              showRenderFlow={!project.hiddenModules.includes("renderflow")}
-              showListy={!project.hiddenModules.includes("listy")}
-              showDyskusje={!project.hiddenModules.includes("dyskusje")}
-              shoppingLists={project.shoppingLists}
-              onHomeClick={() => { setView("rooms"); setSelectedRoom(null); setSelectedFolder(null); }}
-              onRenderFlowClick={() => setView("rooms")}
-              onDiscussionClick={() => setView("discussion")}
-              clientProjectId={projectId}
-              activeView={view}
-              currentUserId={currentUserId}
-            />
-            <main className="flex-1 overflow-hidden bg-background rounded-tl-2xl flex flex-col">{content}</main>
-          </div>
-        </div>
-      );
-    }
-
     return (
-      <div className="min-h-screen flex flex-col bg-muted/60">
+      <div className="h-dvh flex flex-col bg-muted/60">
         {themeApplier}
         <ShareNavbar clientLogoUrl={project.clientLogoUrl} designerName={project.designerName ?? undefined} clientName={authorName} />
-        <main className="flex-1 overflow-hidden flex flex-col px-3 sm:px-6 py-4 sm:py-6">{content}</main>
+        <div className="flex flex-1 min-h-0">
+          <ShareSidebar
+            token=""
+            discussionId={project.discussionId}
+            showRenderFlow={!project.hiddenModules.includes("renderflow")}
+            showListy={!project.hiddenModules.includes("listy")}
+            showDyskusje={!project.hiddenModules.includes("dyskusje")}
+            shoppingLists={project.shoppingLists}
+            onHomeClick={() => { setView("home"); setSelectedRoom(null); setSelectedFolder(null); }}
+            onRenderFlowClick={() => setView("rooms")}
+            onDiscussionClick={() => setView("discussion")}
+            onListClick={project.shoppingLists.length === 1 ? () => router.push(`/share/list/${project.shoppingLists[0].shareToken}`) : () => { setView("home"); setSelectedRoom(null); setSelectedFolder(null); }}
+            clientProjectId={projectId}
+            activeView={view}
+            currentUserId={currentUserId}
+          />
+          <main className="flex-1 overflow-hidden bg-background rounded-tl-2xl flex flex-col">{content}</main>
+        </div>
       </div>
     );
   }
@@ -188,43 +178,45 @@ export default function ClientProjectPage() {
       />
     );
 
-    if (isSidebar) {
-      return (
-        <div className="h-dvh flex flex-col bg-muted/60">
-          {themeApplier}
-          <ShareNavbar clientLogoUrl={project.clientLogoUrl} designerName={project.designerName ?? undefined} clientName={authorName} />
-          <div className="flex flex-1 min-h-0">
-            <ShareSidebar
-              token=""
-              discussionId={project.discussionId}
-              showRenderFlow={!project.hiddenModules.includes("renderflow")}
-              showListy={!project.hiddenModules.includes("listy")}
-              showDyskusje={!project.hiddenModules.includes("dyskusje")}
-              shoppingLists={project.shoppingLists}
-              onHomeClick={() => { setView("rooms"); setSelectedRoom(null); setSelectedFolder(null); }}
-              onRenderFlowClick={() => setView("rooms")}
-              onDiscussionClick={() => setView("discussion")}
-              clientProjectId={projectId}
-              activeView={view}
-              currentUserId={currentUserId}
-            />
-            <div className="flex-1 min-h-0 bg-background">{renderViewer}</div>
-          </div>
-        </div>
-      );
-    }
-
     return (
-      <div className="fixed inset-0 z-20 bg-background flex flex-col">
+      <div className="h-dvh flex flex-col bg-muted/60">
         {themeApplier}
         <ShareNavbar clientLogoUrl={project.clientLogoUrl} designerName={project.designerName ?? undefined} clientName={authorName} />
-        <div className="flex-1 min-h-0">{renderViewer}</div>
+        <div className="flex flex-1 min-h-0">
+          <ShareSidebar
+            token=""
+            discussionId={project.discussionId}
+            showRenderFlow={!project.hiddenModules.includes("renderflow")}
+            showListy={!project.hiddenModules.includes("listy")}
+            showDyskusje={!project.hiddenModules.includes("dyskusje")}
+            shoppingLists={project.shoppingLists}
+            onHomeClick={() => { setView("home"); setSelectedRoom(null); setSelectedFolder(null); }}
+            onRenderFlowClick={() => setView("rooms")}
+            onDiscussionClick={() => setView("discussion")}
+            onListClick={project.shoppingLists.length === 1 ? () => router.push(`/share/list/${project.shoppingLists[0].shareToken}`) : () => { setView("home"); setSelectedRoom(null); setSelectedFolder(null); }}
+            clientProjectId={projectId}
+            activeView={view}
+            currentUserId={currentUserId}
+          />
+          <div className="flex-1 min-h-0 bg-background">{renderViewer}</div>
+        </div>
       </div>
     );
   }
 
   const pageContent = (
     <>
+      {view === "home" && (
+        <div className="flex flex-col items-start justify-start">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+            Witaj{authorName && authorName !== "Klient" ? `, ${authorName}` : ""}!
+          </h2>
+          <p className="text-sm text-muted-foreground mt-2">
+            {project.clientWelcomeMessage ?? "Wybierz moduł z paska bocznego, aby przeglądać projekt."}
+          </p>
+        </div>
+      )}
+
       {view === "rooms" && (
         <>
           <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-6">Pomieszczenia</h2>
@@ -248,23 +240,6 @@ export default function ClientProjectPage() {
                   </button>
                 );
               })}
-            </div>
-          )}
-          {!isSidebar && project.hasDiscussion && (
-            <div className="mt-8">
-              <h3 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3">Inne moduły</h3>
-              <button
-                onClick={() => setView("discussion")}
-                className="inline-flex items-center gap-3 p-4 rounded-xl bg-card border border-border hover:shadow-md hover:border-gray-300 dark:hover:border-gray-600 transition-all"
-              >
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-primary">
-                  <MessageSquare size={20} className="text-white" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-foreground">Dyskusje</p>
-                  <p className="text-[11px] text-muted-foreground">Czat z projektantem</p>
-                </div>
-              </button>
             </div>
           )}
         </>
@@ -349,29 +324,27 @@ export default function ClientProjectPage() {
   );
 
   return (
-    <div className={`${isSidebar ? "h-dvh" : "min-h-screen"} flex flex-col bg-muted/60`}>
+    <div className="h-dvh flex flex-col bg-muted/60">
       {themeApplier}
       <ShareNavbar clientLogoUrl={project.clientLogoUrl} designerName={project.designerName ?? undefined} clientName={authorName} />
-      {isSidebar ? (
-        <div className="flex flex-1 min-h-0">
-          <ShareSidebar
-            token=""
-            discussionId={project.discussionId}
-            showRenderFlow={!project.hiddenModules.includes("renderflow")}
-            showListy={!project.hiddenModules.includes("listy")}
-            showDyskusje={!project.hiddenModules.includes("dyskusje")}
-            shoppingLists={project.shoppingLists}
-            onRenderFlowClick={() => setView("rooms")}
-            onDiscussionClick={() => setView("discussion")}
-            clientProjectId={projectId}
-            activeView={view}
-            currentUserId={currentUserId}
-          />
-          <main className="flex-1 overflow-y-auto px-6 py-6 bg-background rounded-tl-2xl">{pageContent}</main>
-        </div>
-      ) : (
-        <div className="flex-1 px-3 sm:px-6 py-4 sm:py-8">{pageContent}</div>
-      )}
+      <div className="flex flex-1 min-h-0">
+        <ShareSidebar
+          token=""
+          discussionId={project.discussionId}
+          showRenderFlow={!project.hiddenModules.includes("renderflow")}
+          showListy={!project.hiddenModules.includes("listy")}
+          showDyskusje={!project.hiddenModules.includes("dyskusje")}
+          shoppingLists={project.shoppingLists}
+          onHomeClick={() => { setView("home"); setSelectedRoom(null); setSelectedFolder(null); }}
+          onRenderFlowClick={() => setView("rooms")}
+          onDiscussionClick={() => setView("discussion")}
+          onListClick={project.shoppingLists.length === 1 ? () => router.push(`/share/list/${project.shoppingLists[0].shareToken}`) : () => { setView("home"); setSelectedRoom(null); setSelectedFolder(null); }}
+          clientProjectId={projectId}
+          activeView={view}
+          currentUserId={currentUserId}
+        />
+        <main className="flex-1 overflow-y-auto px-6 py-6 bg-background rounded-tl-2xl">{pageContent}</main>
+      </div>
     </div>
   );
 }

@@ -42,6 +42,7 @@ export default auth((req) => {
   if (
     isClient &&
     !pathname.startsWith("/client") &&
+    !pathname.startsWith("/share/") &&
     !pathname.startsWith("/api/") &&
     !pathname.startsWith("/login") &&
     !pathname.startsWith("/_next")

@@ -224,7 +224,7 @@ export default function ShareListClient({
     setCommentsPanelProductId(null);
   }
 
-  const homeHref = projectShareToken ? `/share/${projectShareToken}/home` : undefined;
+  const homeHref = projectShareToken ? `/share/${projectShareToken}/dashboard` : undefined;
 
   return (
     <div className="space-y-10 md:max-w-[75%] md:mx-auto">

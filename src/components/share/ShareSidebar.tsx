@@ -31,6 +31,8 @@ interface ShareSidebarProps {
   onRenderFlowClick?: () => void;
   /** When provided, clicking Dyskusje calls this instead of navigating */
   onDiscussionClick?: () => void;
+  /** When provided, clicking Listy calls this instead of navigating */
+  onListClick?: () => void;
   /** When provided, use /client/[projectId] links instead of /share/[token] links */
   clientProjectId?: string;
   /** Current SPA view — used for active state in client mode */
@@ -49,6 +51,7 @@ export default function ShareSidebar({
   onHomeClick,
   onRenderFlowClick,
   onDiscussionClick,
+  onListClick,
   clientProjectId,
   activeView,
   currentUserId,
@@ -207,7 +210,7 @@ export default function ShareSidebar({
 
   const isCollapsed = collapsed;
 
-  const homeHref = clientProjectId ? `/client/${clientProjectId}` : `/share/${token}/home`;
+  const homeHref = clientProjectId ? `/client/${clientProjectId}` : `/share/${token}/dashboard`;
   const renderHref = clientProjectId ? `/client/${clientProjectId}` : `/share/${token}`;
   const listHref =
     shoppingLists.length === 1
@@ -217,10 +220,10 @@ export default function ShareSidebar({
 
   // In client mode use activeView prop; in share mode use pathname
   const isHomeActive = clientProjectId
-    ? (activeView === "rooms" || activeView === "room")
+    ? activeView === "home"
     : pathname === homeHref;
   const isRenderActive = clientProjectId
-    ? activeView === "render"
+    ? (activeView === "rooms" || activeView === "room" || activeView === "render")
     : pathname === renderHref;
   const isListyActive = clientProjectId ? false : pathname.startsWith("/share/list/");
   const isDyskusjeActive = clientProjectId
@@ -338,17 +341,30 @@ export default function ShareSidebar({
 
         {/* Listy */}
         {showListy && shoppingLists.length > 0 && (
-          <Link
-            href={listHref}
-            title={isCollapsed ? t.share.lists : undefined}
-            className={linkCls(isListyActive)}
-            onClick={() => setMobileSidebarOpen(false)}
-          >
-            <span className="flex-shrink-0 w-5 flex items-center justify-center">
-              <ScrollText size={18} />
-            </span>
-            {showLabels && t.share.lists}
-          </Link>
+          onListClick ? (
+            <button
+              onClick={() => { onListClick(); setMobileSidebarOpen(false); }}
+              title={isCollapsed ? t.share.lists : undefined}
+              className={`w-full ${linkCls(isListyActive)}`}
+            >
+              <span className="flex-shrink-0 w-5 flex items-center justify-center">
+                <ScrollText size={18} />
+              </span>
+              {showLabels && t.share.lists}
+            </button>
+          ) : (
+            <Link
+              href={listHref}
+              title={isCollapsed ? t.share.lists : undefined}
+              className={linkCls(isListyActive)}
+              onClick={() => setMobileSidebarOpen(false)}
+            >
+              <span className="flex-shrink-0 w-5 flex items-center justify-center">
+                <ScrollText size={18} />
+              </span>
+              {showLabels && t.share.lists}
+            </Link>
+          )
         )}
 
         {/* Dyskusje */}

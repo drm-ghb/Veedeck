@@ -146,7 +146,7 @@ export default function ProjectDetailView({ project }: { project: ProjectData })
     const hasClientAccounts = project.clients.some((c) => c.userId);
     const link = hasClientAccounts
       ? `${window.location.origin}/client/${project.id}`
-      : `${window.location.origin}/share/${project.shareToken}/home`;
+      : `${window.location.origin}/share/${project.shareToken}/dashboard`;
     navigator.clipboard.writeText(link);
     setCopiedPanel(true);
     setTimeout(() => setCopiedPanel(false), 2000);
@@ -369,7 +369,7 @@ export default function ProjectDetailView({ project }: { project: ProjectData })
 
   function getModuleLink(slug: string) {
     if (slug === "renderflow") return `${window.location.origin}/share/${project.shareToken}`;
-    if (slug === "listy") return `${window.location.origin}/share/${project.shareToken}/home`;
+    if (slug === "listy") return `${window.location.origin}/share/${project.shareToken}/dashboard`;
     return "";
   }
 
