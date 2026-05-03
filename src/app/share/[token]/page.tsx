@@ -158,7 +158,7 @@ export default function SharePage() {
     }
     if (r.status === 401) {
       const data = await r.json();
-      if (data.requiresLogin) { router.push("/login"); return null; }
+      if (data.requiresLogin) { router.push(`/login?callbackUrl=${encodeURIComponent(`/share/${token}`)}`); return null; }
       if (data.passwordRequired) { setPasswordRequired(true); return null; }
       setNotFound(true);
       return null;
@@ -180,7 +180,10 @@ export default function SharePage() {
     }
 
     fetchProject().then((data) => {
-      if (data) setProject(data);
+      if (!data) return;
+      // Logged-in clients go directly to their client panel
+      if (isClientAccount) { router.replace(`/client/${data.id}`); return; }
+      setProject(data);
     }).finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, isClientAccount]);
@@ -650,7 +653,7 @@ export default function SharePage() {
           {project.rooms.length === 0 ? (
             <p className="text-gray-400 text-center py-16">Brak pomieszczeń w tym projekcie.</p>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-4">
               {project.rooms.map((room) => {
                 const Icon = getRoomIcon(room.type, room.icon);
                 const renderCount = room.renders.length;
@@ -779,7 +782,7 @@ export default function SharePage() {
               folderRenders.length === 0 ? (
                 <p className="text-gray-400 text-center py-16">Brak plików w tym folderze.</p>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2 sm:gap-3">
                   {folderRenders.map((render) => (
                     <button key={render.id} onClick={() => { setSelectedRender(render); setView("render"); fetch(`/api/share/${token}/renders/${render.id}/view`, { method: "POST" }); }} className="text-left bg-card border border-border rounded-xl overflow-hidden shadow-sm hover:shadow-[0_4px_16px_rgba(25,33,61,0.2)] hover:border-primary/30 transition-all group">
                       <div className="aspect-video bg-muted overflow-hidden flex items-center justify-center">
@@ -804,7 +807,7 @@ export default function SharePage() {
             ) : (
               <div className="space-y-8">
                 {sortedFolders.length > 0 && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-4">
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-4">
                     {sortedFolders.map((folder) => {
                       const count = selectedRoom.renders.filter((r) => r.folder?.id === folder.id).length;
                       return (
@@ -822,7 +825,7 @@ export default function SharePage() {
                 {ungrouped.length > 0 && (
                   <div>
                     {sortedFolders.length > 0 && <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Pozostałe pliki</p>}
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-4">
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2 sm:gap-3">
                       {ungrouped.map((render) => (
                         <button key={render.id} onClick={() => { setSelectedRender(render); setView("render"); fetch(`/api/share/${token}/renders/${render.id}/view`, { method: "POST" }); }} className="text-left bg-card border border-border rounded-xl overflow-hidden shadow-sm hover:shadow-[0_4px_16px_rgba(25,33,61,0.2)] hover:border-primary/30 transition-all group">
                           <div className="aspect-video bg-muted overflow-hidden flex items-center justify-center">
@@ -872,7 +875,7 @@ export default function SharePage() {
           shoppingLists={project.shoppingLists}
           onRenderFlowClick={() => setView("rooms")}
         />
-        <main className="flex-1 overflow-y-auto px-6 py-6 bg-background rounded-tl-2xl">
+        <main className="flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-6 bg-background rounded-tl-2xl">
           {pageContent}
         </main>
       </div>

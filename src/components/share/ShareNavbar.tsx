@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Grid2x2, Settings, Sun, Moon, Monitor, UserRound, LogOut } from "lucide-react";
+import { Grid2x2, Settings, Sun, Moon, Monitor, UserRound, LogOut, Menu } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { useTheme, type Theme } from "@/lib/theme";
 import { Input } from "@/components/ui/input";
@@ -19,9 +19,13 @@ interface ShareNavbarProps {
   projectShareToken?: string;
   /** Logged-in client name (client panel mode) — shown instead of localStorage author */
   clientName?: string | null;
+  /** Called when user clicks logo/name — navigate to dashboard */
+  onLogoClick?: () => void;
+  /** When provided, renders a mobile hamburger button in the navbar */
+  onMobileMenuOpen?: () => void;
 }
 
-export default function ShareNavbar({ backHref, backLabel, clientLogoUrl, designerName, listToken, projectShareToken, clientName }: ShareNavbarProps) {
+export default function ShareNavbar({ backHref, backLabel, clientLogoUrl, designerName, listToken, projectShareToken, clientName, onLogoClick, onMobileMenuOpen }: ShareNavbarProps) {
   const t = useT();
   const { theme, setTheme } = useTheme();
 
@@ -71,7 +75,10 @@ export default function ShareNavbar({ backHref, backLabel, clientLogoUrl, design
                 <Grid2x2 size={18} />
               </Link>
             )}
-            <div className="flex items-center gap-2.5">
+            <div
+              className={`flex items-center gap-2.5 ${onLogoClick ? "cursor-pointer" : ""}`}
+              onClick={onLogoClick}
+            >
               {!clientLogoUrl && !designerName ? (
                 <>
                   <Image src="/logo.svg" alt="Veedeck" width={28} height={28} className="block dark:hidden" />
@@ -95,8 +102,8 @@ export default function ShareNavbar({ backHref, backLabel, clientLogoUrl, design
             </div>
           </div>
 
-          {/* Right: client label + logout */}
-          <div className="flex items-center gap-3">
+          {/* Right: client label + logout + hamburger */}
+          <div className="flex items-center gap-2">
             {(clientName || authorName) && (
               <span className="hidden sm:flex items-center gap-1.5 text-sm text-muted-foreground">
                 <span className="font-medium text-foreground">Panel klienta:</span>
@@ -107,9 +114,18 @@ export default function ShareNavbar({ backHref, backLabel, clientLogoUrl, design
               <button
                 onClick={() => signOut({ callbackUrl: "/login" })}
                 title="Wyloguj"
-                className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                className="hidden md:flex p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
               >
                 <LogOut size={18} />
+              </button>
+            )}
+            {onMobileMenuOpen && (
+              <button
+                className="md:hidden p-1.5 rounded-md text-gray-500 dark:text-gray-400 hover:bg-muted transition-colors"
+                onClick={onMobileMenuOpen}
+                aria-label="Nawigacja"
+              >
+                <Menu size={20} />
               </button>
             )}
           </div>

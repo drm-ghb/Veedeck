@@ -88,16 +88,10 @@ export async function GET(
     }
   }
 
-  // Check if project requires client account login
+  // Require authentication — share links only work for logged-in users
   const session = await auth();
   if (!session?.user) {
-    const hasClientAccounts = await prisma.projectClient.findFirst({
-      where: { projectId: project.id, userId: { not: null } },
-      select: { id: true },
-    });
-    if (hasClientAccounts) {
-      return NextResponse.json({ requiresLogin: true }, { status: 401 });
-    }
+    return NextResponse.json({ requiresLogin: true }, { status: 401 });
   }
 
   // Check module visibility

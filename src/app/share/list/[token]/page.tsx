@@ -61,12 +61,12 @@ export default async function PublicListPage({ params }: { params: Promise<{ tok
   if (!list || list.archived || list.project?.archived) notFound();
 
   const session = await auth();
-  if (!session?.user && list.project) {
-    const hasClientAccounts = await prisma.projectClient.findFirst({
-      where: { projectId: list.project.id, userId: { not: null } },
-      select: { id: true },
-    });
-    if (hasClientAccounts) redirect("/login");
+  if (!session?.user) {
+    redirect(`/login?callbackUrl=/share/list/${token}`);
+  }
+  // Logged-in clients go directly to their client panel
+  if ((session.user as any).role === "client" && list.project) {
+    redirect(`/client/${list.project.id}`);
   }
 
   const allProducts = list.sections.flatMap((s) => s.products);

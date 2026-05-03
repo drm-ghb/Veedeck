@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/lib/auth";
 
 export async function GET(
   _req: NextRequest,
@@ -26,6 +27,11 @@ export async function GET(
       },
     },
   });
+
+  const session = await auth();
+  if (!session?.user) {
+    return NextResponse.json({ requiresLogin: true }, { status: 401 });
+  }
 
   if (!list) return NextResponse.json({ error: "Nie znaleziono listy" }, { status: 404 });
 

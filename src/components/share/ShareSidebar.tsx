@@ -2,9 +2,9 @@
 
 import { useState, useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
-import { signOut } from "next-auth/react";
 import Link from "next/link";
-import { LayoutDashboard, ScrollText, PanelLeftClose, PanelLeftOpen, PictureInPicture, Sun, Moon, HelpCircle, Settings, UserRound, X, CheckCircle, MessageSquare, Menu, LogOut } from "lucide-react";
+import { LayoutDashboard, ScrollText, PanelLeftClose, PanelLeftOpen, PictureInPicture, Sun, Moon, HelpCircle, Settings, UserRound, X, CheckCircle, MessageSquare, LogOut } from "lucide-react";
+import { signOut } from "next-auth/react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { type Theme } from "@/lib/theme";
@@ -33,12 +33,18 @@ interface ShareSidebarProps {
   onDiscussionClick?: () => void;
   /** When provided, clicking Listy calls this instead of navigating */
   onListClick?: () => void;
+  /** When provided, clicking Ustawienia calls this instead of navigating (client mode) */
+  onSettingsClick?: () => void;
   /** When provided, use /client/[projectId] links instead of /share/[token] links */
   clientProjectId?: string;
   /** Current SPA view — used for active state in client mode */
   activeView?: string;
   /** Current logged-in user ID — used to filter out own messages from unread count */
   currentUserId?: string;
+  /** External control for mobile sidebar open state (lifts state to parent) */
+  mobileOpen?: boolean;
+  /** Called when mobile sidebar open state changes (lifts state to parent) */
+  onMobileOpenChange?: (v: boolean) => void;
 }
 
 export default function ShareSidebar({
@@ -52,9 +58,12 @@ export default function ShareSidebar({
   onRenderFlowClick,
   onDiscussionClick,
   onListClick,
+  onSettingsClick,
   clientProjectId,
   activeView,
   currentUserId,
+  mobileOpen,
+  onMobileOpenChange,
 }: ShareSidebarProps) {
   const t = useT();
   const pathname = usePathname();
@@ -68,7 +77,12 @@ export default function ShareSidebar({
   const [authorName, setAuthorName] = useState("");
   const [nameInput, setNameInput] = useState("");
   const [discussionUnread, setDiscussionUnread] = useState(0);
-  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [_internalMobileOpen, _setInternalMobileOpen] = useState(false);
+  const mobileSidebarOpen = mobileOpen !== undefined ? mobileOpen : _internalMobileOpen;
+  const setMobileSidebarOpen = (v: boolean) => {
+    if (onMobileOpenChange) onMobileOpenChange(v);
+    else _setInternalMobileOpen(v);
+  };
   const pusherRef = useRef<Pusher | null>(null);
   const isDyskusjeActiveRef = useRef(false);
 
@@ -242,17 +256,6 @@ export default function ShareSidebar({
 
   return (
     <>
-    {/* Mobile hamburger button — fixed in navbar area, only on mobile */}
-    {!mobileSidebarOpen && (
-      <button
-        className="md:hidden fixed top-3.5 right-3 z-40 p-1.5 rounded-lg bg-card border border-border shadow-sm"
-        onClick={() => setMobileSidebarOpen(true)}
-        aria-label="Nawigacja"
-      >
-        <Menu size={18} className="text-muted-foreground" />
-      </button>
-    )}
-
     {/* Mobile backdrop */}
     {mobileSidebarOpen && (
       <div
@@ -263,13 +266,12 @@ export default function ShareSidebar({
 
     <aside
       className={[
-        "flex-col flex-shrink-0 transition-all duration-200",
-        // Mobile: show as fixed overlay when open, hidden otherwise
-        mobileSidebarOpen
-          ? "flex fixed inset-y-0 left-0 z-50 w-64 bg-card border-r border-border shadow-2xl"
-          : "hidden",
-        // Desktop: always flex, static positioning
-        "md:flex md:static md:z-auto md:bg-transparent md:border-0 md:shadow-none",
+        "flex flex-col flex-shrink-0",
+        // Mobile: fixed overlay, slides in/out from right
+        "fixed inset-y-0 right-0 z-50 w-72 max-w-[85vw] bg-card shadow-2xl transition-transform duration-200",
+        mobileSidebarOpen ? "translate-x-0" : "translate-x-full",
+        // Desktop: static in layout, no animation, no overlay background
+        "md:static md:z-auto md:max-w-none md:bg-transparent md:shadow-none md:translate-x-0 md:transition-none",
         isCollapsed ? "md:w-14" : "md:w-52",
       ].join(" ")}
     >
@@ -456,31 +458,40 @@ export default function ShareSidebar({
           {showLabels && t.nav.help}
         </button>
 
-        {/* Settings — hide in client mode (no name needed) */}
-        {!clientProjectId && (
-          <button
-            onClick={() => { setNameInput(authorName); setSettingsOpen(true); }}
-            title={isCollapsed ? t.nav.settings : undefined}
-            className="flex items-center gap-3 px-2.5 py-2.5 rounded-lg text-sm font-medium transition-colors w-full text-gray-400 hover:bg-muted hover:text-foreground"
-          >
-            <span className="flex-shrink-0 w-5 flex items-center justify-center">
-              <Settings size={18} />
-            </span>
-            {showLabels && t.nav.settings}
-          </button>
-        )}
+        {/* Settings */}
+        <button
+          onClick={() => {
+            if (clientProjectId && onSettingsClick) {
+              onSettingsClick();
+              setMobileSidebarOpen(false);
+            } else {
+              setNameInput(authorName);
+              setSettingsOpen(true);
+            }
+          }}
+          title={isCollapsed ? t.nav.settings : undefined}
+          className={`flex items-center gap-3 px-2.5 py-2.5 rounded-lg text-sm font-medium transition-colors w-full ${
+            clientProjectId && activeView === "settings"
+              ? "bg-primary/10 text-primary"
+              : "text-gray-400 hover:bg-muted hover:text-foreground"
+          }`}
+        >
+          <span className="flex-shrink-0 w-5 flex items-center justify-center">
+            <Settings size={18} />
+          </span>
+          {showLabels && t.nav.settings}
+        </button>
 
-        {/* Logout — client mode only */}
+        {/* Logout — mobile only, client mode */}
         {clientProjectId && (
           <button
             onClick={() => signOut({ callbackUrl: "/login" })}
-            title={isCollapsed ? "Wyloguj" : undefined}
-            className="flex items-center gap-3 px-2.5 py-2.5 rounded-lg text-sm font-medium transition-colors w-full text-gray-400 hover:bg-muted hover:text-foreground"
+            className="md:hidden flex items-center gap-3 px-2.5 py-2.5 rounded-lg text-sm font-medium transition-colors w-full text-gray-400 hover:bg-muted hover:text-foreground"
           >
             <span className="flex-shrink-0 w-5 flex items-center justify-center">
               <LogOut size={18} />
             </span>
-            {showLabels && "Wyloguj"}
+            Wyloguj
           </button>
         )}
 

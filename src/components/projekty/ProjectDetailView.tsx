@@ -368,6 +368,8 @@ export default function ProjectDetailView({ project }: { project: ProjectData })
   }
 
   function getModuleLink(slug: string) {
+    const hasClientAccounts = project.clients.some((c) => c.userId);
+    if (hasClientAccounts) return `${window.location.origin}/client/${project.id}`;
     if (slug === "renderflow") return `${window.location.origin}/share/${project.shareToken}`;
     if (slug === "listy") return `${window.location.origin}/share/${project.shareToken}/dashboard`;
     return "";

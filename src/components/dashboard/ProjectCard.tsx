@@ -21,6 +21,7 @@ interface ProjectCardProps {
   shareToken: string;
   pinned?: boolean;
   hiddenModules?: string[];
+  hasClientAccounts?: boolean;
 }
 
 export default function ProjectCard({
@@ -34,21 +35,27 @@ export default function ProjectCard({
   shareToken,
   pinned,
   hiddenModules = [],
+  hasClientAccounts = false,
 }: ProjectCardProps) {
   const [warningOpen, setWarningOpen] = useState(false);
 
+  function getShareUrl() {
+    return hasClientAccounts
+      ? `${window.location.origin}/client/${id}`
+      : `${window.location.origin}/share/${shareToken}`;
+  }
+
   function copyShareLink() {
-    const url = `${window.location.origin}/share/${shareToken}`;
-    if (hiddenModules.includes("renderflow")) {
+    if (!hasClientAccounts && hiddenModules.includes("renderflow")) {
       setWarningOpen(true);
       return;
     }
-    navigator.clipboard.writeText(url);
+    navigator.clipboard.writeText(getShareUrl());
     toast.success("Link skopiowany do schowka");
   }
 
   function forceCopy() {
-    navigator.clipboard.writeText(`${window.location.origin}/share/${shareToken}`);
+    navigator.clipboard.writeText(getShareUrl());
     setWarningOpen(false);
     toast.success("Link skopiowany do schowka");
   }

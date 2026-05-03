@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
+import { auth, signOut } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
+import { LogOut } from "lucide-react";
 
 export default async function ClientIndexPage() {
   const session = await auth();
@@ -28,10 +29,26 @@ export default async function ClientIndexPage() {
     redirect(`/client/${active[0].project.id}`);
   }
 
+  const logoutForm = (
+    <form action={async () => {
+      "use server";
+      await signOut({ redirectTo: "/login" });
+    }}>
+      <button
+        type="submit"
+        className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+      >
+        <LogOut size={16} />
+        Wyloguj
+      </button>
+    </form>
+  );
+
   if (active.length === 0) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-background">
+      <div className="flex flex-col items-center justify-center min-h-screen bg-background gap-4">
         <p className="text-muted-foreground text-sm">Nie masz jeszcze przypisanych projektów.</p>
+        {logoutForm}
       </div>
     );
   }
@@ -40,7 +57,10 @@ export default async function ClientIndexPage() {
   return (
     <div className="flex items-center justify-center min-h-screen bg-background px-4">
       <div className="w-full max-w-md space-y-4">
-        <h1 className="text-xl font-bold text-center mb-6">Twoje projekty</h1>
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-xl font-bold">Twoje projekty</h1>
+          {logoutForm}
+        </div>
         {active.map((l) => (
           <Link
             key={l.project.id}

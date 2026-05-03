@@ -9,8 +9,13 @@ import ShareNavbar from "@/components/share/ShareNavbar";
 import ShareSidebar from "@/components/share/ShareSidebar";
 import ClientDiscussionView from "@/components/dyskusje/ClientDiscussionView";
 import { getRoomIcon } from "@/lib/roomIcons";
-import { ChevronLeft, ChevronRight, MessageSquare, FileText, Folder } from "lucide-react";
+import { ChevronLeft, ChevronRight, MessageSquare, FileText, Folder, User, Mail, Lock, Info } from "lucide-react";
+import Image from "next/image";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { useTheme } from "@/lib/theme";
+import { SectionHeader } from "@/components/settings/SettingsShared";
 
 type RenderStatus = "REVIEW" | "ACCEPTED";
 
@@ -37,24 +42,73 @@ export default function ClientProjectPage() {
   const { data: session, status } = useSession();
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState<"home" | "rooms" | "room" | "render" | "discussion">("home");
+  const [view, setView] = useState<"home" | "rooms" | "room" | "render" | "discussion" | "settings">("home");
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
   const [selectedFolder, setSelectedFolder] = useState<{ id: string; name: string } | null>(null);
   const [selectedRender, setSelectedRender] = useState<Render | null>(null);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   const authorName = (session?.user as any)?.name || session?.user?.name || "Klient";
   const currentUserId = session?.user?.id;
+  const userEmail = session?.user?.email ?? "";
+
+  // Settings state
+  const { theme, setTheme } = useTheme();
+  const [settingsName, setSettingsName] = useState("");
+  const [settingsEmail, setSettingsEmail] = useState("");
+  const [nameLoading, setNameLoading] = useState(false);
+  const [emailLoading, setEmailLoading] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordLoading, setPasswordLoading] = useState(false);
 
   useEffect(() => {
     if (status === "unauthenticated") { router.push("/login"); return; }
     if (status !== "authenticated") return;
     if ((session?.user as any)?.role !== "client") { router.push("/dashboard"); return; }
 
+    setSettingsName((session.user as any)?.name ?? "");
+    setSettingsEmail(session.user?.email ?? "");
+
     fetch(`/api/client/${projectId}`)
       .then((r) => { if (!r.ok) throw new Error(); return r.json(); })
       .then((data) => { setProject(data); setLoading(false); })
       .catch(() => { toast.error("Nie udało się załadować projektu"); setLoading(false); });
   }, [projectId, status, session, router]);
+
+  async function handleNameSave() {
+    if (!settingsName.trim()) return;
+    setNameLoading(true);
+    try {
+      const res = await fetch("/api/user", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: settingsName.trim() }) });
+      if (!res.ok) { const d = await res.json(); toast.error(d.error || "Nie udało się zapisać nazwy"); return; }
+      toast.success("Nazwa zaktualizowana");
+    } finally { setNameLoading(false); }
+  }
+
+  async function handleEmailSave() {
+    if (!settingsEmail.trim()) return;
+    setEmailLoading(true);
+    try {
+      const res = await fetch("/api/user", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: settingsEmail.trim() }) });
+      if (!res.ok) { const d = await res.json(); toast.error(d.error || "Nie udało się zapisać emaila"); return; }
+      toast.success("Email zaktualizowany");
+    } finally { setEmailLoading(false); }
+  }
+
+  async function handlePasswordSave() {
+    if (newPassword !== confirmPassword) { toast.error("Hasła nie są identyczne"); return; }
+    if (newPassword.length < 8) { toast.error("Nowe hasło musi mieć co najmniej 8 znaków"); return; }
+    setPasswordLoading(true);
+    try {
+      const res = await fetch("/api/user/password", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ currentPassword, newPassword }) });
+      const data = await res.json();
+      if (!res.ok) { toast.error(data.error || "Nie udało się zmienić hasła"); return; }
+      toast.success("Hasło zostało zmienione");
+      setCurrentPassword(""); setNewPassword(""); setConfirmPassword("");
+    } finally { setPasswordLoading(false); }
+  }
 
   useEffect(() => {
     if (project?.accentColor) {
@@ -117,7 +171,7 @@ export default function ClientProjectPage() {
     return (
       <div className="h-dvh flex flex-col bg-muted/60">
         {themeApplier}
-        <ShareNavbar clientLogoUrl={project.clientLogoUrl} designerName={project.designerName ?? undefined} clientName={authorName} />
+        <ShareNavbar clientLogoUrl={project.clientLogoUrl} designerName={project.designerName ?? undefined} clientName={authorName} onLogoClick={() => { setView("home"); setSelectedRoom(null); setSelectedFolder(null); }} onMobileMenuOpen={() => setMobileSidebarOpen(true)} />
         <div className="flex flex-1 min-h-0">
           <ShareSidebar
             token=""
@@ -129,6 +183,7 @@ export default function ClientProjectPage() {
             onHomeClick={() => { setView("home"); setSelectedRoom(null); setSelectedFolder(null); }}
             onRenderFlowClick={() => setView("rooms")}
             onDiscussionClick={() => setView("discussion")}
+            onSettingsClick={() => setView("settings")}
             onListClick={project.shoppingLists.length === 1 ? () => router.push(`/share/list/${project.shoppingLists[0].shareToken}`) : () => { setView("home"); setSelectedRoom(null); setSelectedFolder(null); }}
             clientProjectId={projectId}
             activeView={view}
@@ -181,7 +236,7 @@ export default function ClientProjectPage() {
     return (
       <div className="h-dvh flex flex-col bg-muted/60">
         {themeApplier}
-        <ShareNavbar clientLogoUrl={project.clientLogoUrl} designerName={project.designerName ?? undefined} clientName={authorName} />
+        <ShareNavbar clientLogoUrl={project.clientLogoUrl} designerName={project.designerName ?? undefined} clientName={authorName} onLogoClick={() => { setView("home"); setSelectedRoom(null); setSelectedFolder(null); }} onMobileMenuOpen={() => setMobileSidebarOpen(true)} />
         <div className="flex flex-1 min-h-0">
           <ShareSidebar
             token=""
@@ -193,6 +248,7 @@ export default function ClientProjectPage() {
             onHomeClick={() => { setView("home"); setSelectedRoom(null); setSelectedFolder(null); }}
             onRenderFlowClick={() => setView("rooms")}
             onDiscussionClick={() => setView("discussion")}
+            onSettingsClick={() => setView("settings")}
             onListClick={project.shoppingLists.length === 1 ? () => router.push(`/share/list/${project.shoppingLists[0].shareToken}`) : () => { setView("home"); setSelectedRoom(null); setSelectedFolder(null); }}
             clientProjectId={projectId}
             activeView={view}
@@ -223,7 +279,7 @@ export default function ClientProjectPage() {
           {project.rooms.length === 0 ? (
             <p className="text-gray-400 text-center py-16">Brak pomieszczeń w tym projekcie.</p>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-4">
               {project.rooms.map((room) => {
                 const Icon = getRoomIcon(room.type, room.icon);
                 return (
@@ -281,7 +337,7 @@ export default function ClientProjectPage() {
               folderRenders.length === 0 ? (
                 <p className="text-gray-400 text-center py-16">Brak plików w tym folderze.</p>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2 sm:gap-3">
                   {folderRenders.map((render) => (
                     <RenderCard key={render.id} render={render} hideCommentCount={project.hideCommentCount} onClick={() => { setSelectedRender(render); setView("render"); fetch(`/api/client/${projectId}/renders/${render.id}/view`, { method: "POST" }); }} />
                   ))}
@@ -290,7 +346,7 @@ export default function ClientProjectPage() {
             ) : (
               <div className="space-y-8">
                 {sortedFolders.length > 0 && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-4">
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-4">
                     {sortedFolders.map((folder) => {
                       const count = selectedRoom.renders.filter((r) => r.folder?.id === folder.id).length;
                       return (
@@ -308,7 +364,7 @@ export default function ClientProjectPage() {
                 {ungrouped.length > 0 && (
                   <div>
                     {sortedFolders.length > 0 && <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Pozostałe pliki</p>}
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-4">
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2 sm:gap-3">
                       {ungrouped.map((render) => (
                         <RenderCard key={render.id} render={render} hideCommentCount={project.hideCommentCount} onClick={() => { setSelectedRender(render); setView("render"); fetch(`/api/client/${projectId}/renders/${render.id}/view`, { method: "POST" }); }} />
                       ))}
@@ -320,13 +376,102 @@ export default function ClientProjectPage() {
           </>
         );
       })()}
+
+      {view === "settings" && (
+        <div className="max-w-3xl space-y-10">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Ustawienia</h1>
+            <p className="text-sm text-gray-500 mt-1">Zarządzaj swoim kontem i wyglądem aplikacji.</p>
+          </div>
+
+          <section className="space-y-4">
+            <SectionHeader title="Konto" />
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="bg-card border border-border rounded-2xl p-6 space-y-4">
+                <div className="flex items-center gap-2">
+                  <User size={16} className="text-gray-400" />
+                  <h3 className="font-semibold text-gray-800 dark:text-gray-200">Profil</h3>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm text-gray-600 dark:text-gray-400">Nazwa wyświetlana</label>
+                  <Input value={settingsName} onChange={(e) => setSettingsName(e.target.value)} placeholder="Twoja nazwa" onKeyDown={(e) => e.key === "Enter" && handleNameSave()} />
+                </div>
+                <Button onClick={handleNameSave} disabled={nameLoading || !settingsName.trim()} size="sm">
+                  {nameLoading ? "Zapisywanie…" : "Zapisz"}
+                </Button>
+              </div>
+
+              <div className="bg-card border border-border rounded-2xl p-6 space-y-4">
+                <div className="flex items-center gap-2">
+                  <Mail size={16} className="text-gray-400" />
+                  <h3 className="font-semibold text-gray-800 dark:text-gray-200">Email</h3>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm text-gray-600 dark:text-gray-400">Adres email</label>
+                  <Input type="email" value={settingsEmail} onChange={(e) => setSettingsEmail(e.target.value)} placeholder="email@example.com" onKeyDown={(e) => e.key === "Enter" && handleEmailSave()} />
+                </div>
+                <div className="flex items-start gap-2 text-xs text-gray-400 bg-muted rounded-lg px-3 py-2">
+                  <Info size={13} className="mt-0.5 flex-shrink-0" />
+                  <span>Zmiana emaila wpłynie na dane logowania.</span>
+                </div>
+                <Button onClick={handleEmailSave} disabled={emailLoading || !settingsEmail.trim() || settingsEmail.trim() === userEmail} size="sm">
+                  {emailLoading ? "Zapisywanie…" : "Zapisz"}
+                </Button>
+              </div>
+            </div>
+
+            <div className="bg-card border border-border rounded-2xl p-6 space-y-4">
+              <div className="flex items-center gap-2">
+                <Lock size={16} className="text-gray-400" />
+                <h3 className="font-semibold text-gray-800 dark:text-gray-200">Zmiana hasła</h3>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm text-gray-600 dark:text-gray-400">Aktualne hasło</label>
+                  <Input type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} placeholder="••••••••" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm text-gray-600 dark:text-gray-400">Nowe hasło</label>
+                  <Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="min. 8 znaków" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm text-gray-600 dark:text-gray-400">Powtórz nowe hasło</label>
+                  <Input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="••••••••" onKeyDown={(e) => e.key === "Enter" && handlePasswordSave()} />
+                </div>
+              </div>
+              <Button onClick={handlePasswordSave} disabled={passwordLoading || !currentPassword || !newPassword || !confirmPassword} size="sm">
+                {passwordLoading ? "Zmienianie…" : "Zmień hasło"}
+              </Button>
+            </div>
+          </section>
+
+          <section className="space-y-4">
+            <SectionHeader title="Wygląd" />
+            <div className="bg-card border border-border rounded-2xl p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-semibold text-gray-800 dark:text-gray-200">Motyw</p>
+                  <p className="text-sm text-muted-foreground mt-0.5">{theme === "dark" ? "Ciemny" : "Jasny"}</p>
+                </div>
+                <button
+                  onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                  className={`relative w-11 h-6 rounded-full transition-colors focus:outline-none ${theme === "dark" ? "bg-primary" : "bg-muted-foreground/30"}`}
+                >
+                  <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${theme === "dark" ? "left-5" : "left-0.5"}`} />
+                </button>
+              </div>
+            </div>
+          </section>
+        </div>
+      )}
     </>
   );
 
   return (
     <div className="h-dvh flex flex-col bg-muted/60">
       {themeApplier}
-      <ShareNavbar clientLogoUrl={project.clientLogoUrl} designerName={project.designerName ?? undefined} clientName={authorName} />
+      <ShareNavbar clientLogoUrl={project.clientLogoUrl} designerName={project.designerName ?? undefined} clientName={authorName} onLogoClick={() => { setView("home"); setSelectedRoom(null); setSelectedFolder(null); }} onMobileMenuOpen={() => setMobileSidebarOpen(true)} />
       <div className="flex flex-1 min-h-0">
         <ShareSidebar
           token=""
@@ -338,12 +483,22 @@ export default function ClientProjectPage() {
           onHomeClick={() => { setView("home"); setSelectedRoom(null); setSelectedFolder(null); }}
           onRenderFlowClick={() => setView("rooms")}
           onDiscussionClick={() => setView("discussion")}
+          onSettingsClick={() => setView("settings")}
           onListClick={project.shoppingLists.length === 1 ? () => router.push(`/share/list/${project.shoppingLists[0].shareToken}`) : () => { setView("home"); setSelectedRoom(null); setSelectedFolder(null); }}
           clientProjectId={projectId}
           activeView={view}
           currentUserId={currentUserId}
+          mobileOpen={mobileSidebarOpen}
+          onMobileOpenChange={setMobileSidebarOpen}
         />
-        <main className="flex-1 overflow-y-auto px-6 py-6 bg-background rounded-tl-2xl">{pageContent}</main>
+        <main className="flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-6 bg-background rounded-tl-2xl flex flex-col">
+          <div className="flex-1">{pageContent}</div>
+          <div className="pt-10 pb-2 flex items-center justify-center gap-1.5 opacity-40 select-none">
+            <span className="text-xs text-muted-foreground">Powered by</span>
+            <Image src="/veedeck_ikona.png" alt="veedeck" width={16} height={16} className="object-contain" />
+            <span className="text-xs text-muted-foreground">veedeck</span>
+          </div>
+        </main>
       </div>
     </div>
   );
