@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { MoreHorizontal, Pencil, Archive, Trash2, Pin, PinOff } from "lucide-react";
+import { MoreHorizontal, Pencil, Archive, Trash2, Pin, PinOff, Download } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -79,6 +79,11 @@ export default function RoomMenu({ room }: RoomMenuProps) {
           <DropdownMenuItem onClick={handlePin}>
             {room.pinned ? <PinOff size={14} /> : <Pin size={14} />}
             {room.pinned ? "Odepnij" : "Przypnij"}
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={() => { window.location.href = `/api/rooms/${room.id}/download`; }}>
+            <Download size={14} />
+            Pobierz
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={() => setEditOpen(true)}>

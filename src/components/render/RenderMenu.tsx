@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { MoreHorizontal, Archive, Trash2, Pencil, Pin, PinOff, FolderInput } from "lucide-react";
+import { MoreHorizontal, Archive, Trash2, Pencil, Pin, PinOff, FolderInput, Download } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -28,6 +28,10 @@ interface RenderMenuProps {
   projectId: string;
   currentRoomId: string;
   currentFolderId?: string | null;
+}
+
+function handleDownload(renderId: string) {
+  window.location.href = `/api/renders/${renderId}/download`;
 }
 
 export default function RenderMenu({ render, projectId, currentRoomId, currentFolderId = null }: RenderMenuProps) {
@@ -107,6 +111,10 @@ export default function RenderMenu({ render, projectId, currentRoomId, currentFo
           <DropdownMenuItem onClick={(e) => { e.preventDefault(); handlePin(); }}>
             {render.pinned ? <PinOff size={14} /> : <Pin size={14} />}
             {render.pinned ? "Odepnij" : "Przypnij"}
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={(e) => { e.preventDefault(); handleDownload(render.id); }}>
+            <Download size={14} />
+            Pobierz
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem

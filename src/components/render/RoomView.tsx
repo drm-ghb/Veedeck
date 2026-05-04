@@ -1,8 +1,25 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { ArchiveRestore, CopyCheck, Eye, FileText, Folder, LayoutGrid, List, Pin, Trash2 } from "lucide-react";
+import { useViewPreference } from "@/hooks/useViewPreference";
+import { ArchiveRestore, CopyCheck, Eye, FileText, Folder, LayoutGrid, List, Pin, Trash2, GripVertical, Upload } from "lucide-react";
+import { useUploadThing } from "@/lib/uploadthing-client";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  rectSortingStrategy,
+  arrayMove,
+  useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
@@ -50,12 +67,78 @@ interface RoomViewProps {
 
 export default function RoomView({ projectId, roomId, renders, archivedRenders, folders, archivedFolders }: RoomViewProps) {
   const [tab, setTab] = useState<"active" | "archived">("active");
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [viewMode, setViewMode] = useViewPreference("renderflow-room", "grid");
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkLoading, setBulkLoading] = useState(false);
   const [moveOpen, setMoveOpen] = useState(false);
+  const [localFolders, setLocalFolders] = useState(folders);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const dragCounterRef = useRef(0);
   const router = useRouter();
+
+  const { startUpload } = useUploadThing("renderUploader");
+
+  const handleDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    dragCounterRef.current += 1;
+    if (dragCounterRef.current === 1) setIsDragOver(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    dragCounterRef.current -= 1;
+    if (dragCounterRef.current === 0) setIsDragOver(false);
+  }, []);
+
+  const handleDrop = useCallback(async (e: React.DragEvent) => {
+    e.preventDefault();
+    dragCounterRef.current = 0;
+    setIsDragOver(false);
+    const files = Array.from(e.dataTransfer.files).filter(
+      (f) => f.type.startsWith("image/") || f.type === "application/pdf"
+    );
+    if (files.length === 0) return;
+    setIsUploading(true);
+    try {
+      const results = await startUpload(files);
+      if (!results) throw new Error();
+      for (let i = 0; i < results.length; i++) {
+        const file = files[i];
+        const r = results[i];
+        const name = file.name.replace(/\.[^.]+$/, "");
+        const fileType = file.type === "application/pdf" ? "pdf" : "image";
+        await fetch("/api/renders", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ projectId, name, fileUrl: r.url, fileKey: r.key, roomId, folderId: null, fileType }),
+        });
+      }
+      toast.success(`Dodano ${results.length} plik${results.length === 1 ? "" : results.length < 5 ? "i" : "ów"}`);
+      router.refresh();
+    } catch {
+      toast.error("Nie udało się przesłać plików");
+    } finally {
+      setIsUploading(false);
+    }
+  }, [startUpload, projectId, roomId, router]);
+
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+
+  function handleFolderDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = localFolders.findIndex((f) => f.id === active.id);
+    const newIndex = localFolders.findIndex((f) => f.id === over.id);
+    const reordered = arrayMove(localFolders, oldIndex, newIndex);
+    setLocalFolders(reordered);
+    fetch("/api/folders/reorder", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ roomId, ids: reordered.map((f) => f.id) }),
+    }).catch(() => {});
+  }
 
   function toggleSelect(id: string) {
     setSelectedIds((prev) => {
@@ -94,11 +177,7 @@ export default function RoomView({ projectId, roomId, renders, archivedRenders, 
     if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
     return 0;
   });
-  const sortedFolders = [...folders].sort((a, b) => {
-    if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
-    return 0;
-  });
-  const hasContent = folders.length > 0 || renders.length > 0;
+  const hasContent = localFolders.length > 0 || renders.length > 0;
 
   async function handleRestore(renderId: string) {
     const res = await fetch(`/api/renders/${renderId}`, {
@@ -151,7 +230,26 @@ export default function RoomView({ projectId, roomId, renders, archivedRenders, 
   }
 
   return (
-    <>
+    <div
+      className="relative"
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+      onDragOver={(e) => e.preventDefault()}
+      onDrop={handleDrop}
+    >
+      {(isDragOver || isUploading) && (
+        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-primary/10 backdrop-blur-[1px] pointer-events-none rounded-xl">
+          <div className="flex flex-col items-center gap-3 px-10 py-8 rounded-2xl border-2 border-dashed border-primary bg-background/80 shadow-lg">
+            <div className="w-14 h-14 rounded-full bg-primary/15 flex items-center justify-center">
+              <Upload size={28} className="text-primary" />
+            </div>
+            <p className="text-base font-semibold text-primary">
+              {isUploading ? "Wgrywanie plików..." : "Upuść pliki, aby dodać do pomieszczenia"}
+            </p>
+            <p className="text-xs text-muted-foreground">Obrazy i pliki PDF</p>
+          </div>
+        </div>
+      )}
       {/* Tabs + view toggle */}
       <div className="flex items-center justify-between border-b border-border mb-6">
         <div className="flex items-center gap-1">
@@ -227,18 +325,22 @@ export default function RoomView({ projectId, roomId, renders, archivedRenders, 
         ) : (
           <div className="space-y-8">
             {/* Folder tiles */}
-            {sortedFolders.length > 0 && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-4">
-                {sortedFolders.map((folder) => (
-                  <FolderCard key={folder.id} folder={folder} projectId={projectId} roomId={roomId} />
-                ))}
-              </div>
+            {localFolders.length > 0 && (
+              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleFolderDragEnd}>
+                <SortableContext items={localFolders.map((f) => f.id)} strategy={rectSortingStrategy}>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-4">
+                    {localFolders.map((folder) => (
+                      <SortableFolderCard key={folder.id} folder={folder} projectId={projectId} roomId={roomId} />
+                    ))}
+                  </div>
+                </SortableContext>
+              </DndContext>
             )}
 
             {/* Ungrouped renders */}
             {ungrouped.length > 0 && (
               <div>
-                {folders.length > 0 && (
+                {localFolders.length > 0 && (
                   <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">
                     Pozostałe pliki
                   </p>
@@ -443,6 +545,29 @@ export default function RoomView({ projectId, roomId, renders, archivedRenders, 
         projectId={projectId}
         onSuccess={exitSelection}
       />
-    </>
+    </div>
+  );
+}
+
+function SortableFolderCard({ folder, projectId, roomId }: { folder: Folder; projectId: string; roomId: string }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: folder.id });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 10 : undefined,
+  };
+  return (
+    <div ref={setNodeRef} style={style} className="relative">
+      <div
+        {...attributes}
+        {...listeners}
+        className="absolute top-1/2 -translate-y-1/2 right-2 z-20 p-1 rounded text-muted-foreground/40 hover:text-foreground cursor-grab active:cursor-grabbing transition-colors"
+        title="Przeciągnij, aby zmienić kolejność"
+      >
+        <GripVertical size={14} />
+      </div>
+      <FolderCard folder={folder} projectId={projectId} roomId={roomId} />
+    </div>
   );
 }

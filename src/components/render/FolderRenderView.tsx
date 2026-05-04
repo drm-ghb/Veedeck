@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { CopyCheck, Eye, FileText, LayoutGrid, List, Pin } from "lucide-react";
+import { useState, useRef, useCallback } from "react";
+import { useViewPreference } from "@/hooks/useViewPreference";
+import { CopyCheck, Eye, FileText, LayoutGrid, List, Pin, Upload } from "lucide-react";
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import RenderMenu from "./RenderMenu";
@@ -9,6 +10,7 @@ import BulkActionBar from "./BulkActionBar";
 import BulkMoveDialog from "./BulkMoveDialog";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { useUploadThing } from "@/lib/uploadthing-client";
 
 type RenderStatus = "REVIEW" | "ACCEPTED";
 
@@ -31,12 +33,61 @@ interface FolderRenderViewProps {
 }
 
 export default function FolderRenderView({ projectId, roomId, folderId, renders }: FolderRenderViewProps) {
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [viewMode, setViewMode] = useViewPreference("renderflow-room", "grid");
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkLoading, setBulkLoading] = useState(false);
   const [moveOpen, setMoveOpen] = useState(false);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const dragCounterRef = useRef(0);
   const router = useRouter();
+
+  const { startUpload } = useUploadThing("renderUploader");
+
+  const handleDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    dragCounterRef.current += 1;
+    if (dragCounterRef.current === 1) setIsDragOver(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    dragCounterRef.current -= 1;
+    if (dragCounterRef.current === 0) setIsDragOver(false);
+  }, []);
+
+  const handleDrop = useCallback(async (e: React.DragEvent) => {
+    e.preventDefault();
+    dragCounterRef.current = 0;
+    setIsDragOver(false);
+    const files = Array.from(e.dataTransfer.files).filter(
+      (f) => f.type.startsWith("image/") || f.type === "application/pdf"
+    );
+    if (files.length === 0) return;
+    setIsUploading(true);
+    try {
+      const results = await startUpload(files);
+      if (!results) throw new Error();
+      for (let i = 0; i < results.length; i++) {
+        const file = files[i];
+        const r = results[i];
+        const name = file.name.replace(/\.[^.]+$/, "");
+        const fileType = file.type === "application/pdf" ? "pdf" : "image";
+        await fetch("/api/renders", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ projectId, name, fileUrl: r.url, fileKey: r.key, roomId, folderId, fileType }),
+        });
+      }
+      toast.success(`Dodano ${results.length} plik${results.length === 1 ? "" : results.length < 5 ? "i" : "ów"}`);
+      router.refresh();
+    } catch {
+      toast.error("Nie udało się przesłać plików");
+    } finally {
+      setIsUploading(false);
+    }
+  }, [startUpload, projectId, roomId, folderId, router]);
 
   function toggleSelect(id: string) {
     setSelectedIds((prev) => {
@@ -76,17 +127,40 @@ export default function FolderRenderView({ projectId, roomId, folderId, renders 
     return 0;
   });
 
+  const dragProps = {
+    onDragEnter: handleDragEnter,
+    onDragLeave: handleDragLeave,
+    onDragOver: (e: React.DragEvent) => e.preventDefault(),
+    onDrop: handleDrop,
+  };
+
+  const dropOverlay = (isDragOver || isUploading) && (
+    <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-primary/10 backdrop-blur-[1px] pointer-events-none rounded-xl">
+      <div className="flex flex-col items-center gap-3 px-10 py-8 rounded-2xl border-2 border-dashed border-primary bg-background/80 shadow-lg">
+        <div className="w-14 h-14 rounded-full bg-primary/15 flex items-center justify-center">
+          <Upload size={28} className="text-primary" />
+        </div>
+        <p className="text-base font-semibold text-primary">
+          {isUploading ? "Wgrywanie plików..." : "Upuść pliki, aby dodać do folderu"}
+        </p>
+        <p className="text-xs text-muted-foreground">Obrazy i pliki PDF</p>
+      </div>
+    </div>
+  );
+
   if (renders.length === 0) {
     return (
-      <div className="text-center py-16 text-muted-foreground">
+      <div className="relative min-h-[200px] text-center py-16 text-muted-foreground" {...dragProps}>
+        {dropOverlay}
         <p className="text-lg font-medium">Brak plików</p>
-        <p className="text-sm mt-1">Dodaj pierwszy plik klikając przycisk powyżej.</p>
+        <p className="text-sm mt-1">Dodaj pierwszy plik klikając przycisk powyżej lub przeciągnij tutaj.</p>
       </div>
     );
   }
 
   return (
-    <>
+    <div className="relative" {...dragProps}>
+      {dropOverlay}
       <div className="flex justify-end items-center gap-2 mb-4">
         <button
           onClick={() => { setSelectionMode((v) => !v); setSelectedIds(new Set()); }}
@@ -236,6 +310,6 @@ export default function FolderRenderView({ projectId, roomId, folderId, renders 
         projectId={projectId}
         onSuccess={exitSelection}
       />
-    </>
+    </div>
   );
 }

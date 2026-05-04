@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { MoreHorizontal, Pencil, Trash2, Pin, PinOff, Archive, FolderInput } from "lucide-react";
+import { MoreHorizontal, Pencil, Trash2, Pin, PinOff, Archive, FolderInput, Download } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -104,6 +104,11 @@ export default function FolderMenu({ folder, projectId, currentRoomId }: FolderM
           <DropdownMenuItem onClick={handlePin}>
             {folder.pinned ? <PinOff size={14} /> : <Pin size={14} />}
             {folder.pinned ? "Odepnij" : "Przypnij"}
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={() => { window.location.href = `/api/folders/${folder.id}/download`; }}>
+            <Download size={14} />
+            Pobierz
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={() => { setName(folder.name); setRenameOpen(true); }}>
