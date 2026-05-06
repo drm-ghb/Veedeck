@@ -4,9 +4,10 @@ import { prisma } from "@/lib/prisma";
 import { pusherServer } from "@/lib/pusher";
 import { getClientProject } from "@/lib/client-access";
 
-async function verifyAccess(session: Parameters<typeof auth>[0] extends undefined ? never : Awaited<ReturnType<typeof auth>>, projectId: string, id: string) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function verifyAccess(session: any, projectId: string, id: string) {
   if (!session?.user?.id) return null;
-  const project = await getClientProject(session as Parameters<typeof getClientProject>[0], projectId);
+  const project = await getClientProject(session as any, projectId);
   if (!project) return null;
   return prisma.discussion.findFirst({ where: { id, projectId } });
 }
