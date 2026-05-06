@@ -1,12 +1,13 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { MessageSquare, Plus, Trash2, Edit2, Check, X, ExternalLink, ChevronDown, ChevronLeft, Paperclip, FileText, FileSpreadsheet, File as FileIcon, Loader2, FolderOpen, Mic, Square, Search, Archive, ArchiveRestore } from "lucide-react";
+import { MessageSquare, Plus, Trash2, Edit2, Check, X, ExternalLink, ChevronDown, ChevronLeft, Paperclip, FileText, FileSpreadsheet, File as FileIcon, Loader2, FolderOpen, Mic, Square, Search, Archive, ArchiveRestore, CornerDownLeft, MoreVertical } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import Pusher from "pusher-js";
 import { useUploadThing } from "@/lib/uploadthing-client";
 import ImageAnnotationModal from "./ImageAnnotationModal";
+import { SwipeableMessage } from "@/components/ui/swipeable-message";
 import { playMessageSound } from "@/lib/notification-sound";
 
 interface ReadReceipt {
@@ -42,6 +43,9 @@ interface DiscussionMessage {
   attachmentUrl: string | null;
   attachmentName: string | null;
   attachmentType: string | null;
+  replyToId?: string | null;
+  replyToContent?: string | null;
+  replyToAuthor?: string | null;
   createdAt: string;
   editedAt?: string | null;
 }
@@ -65,6 +69,14 @@ interface PendingAttachment {
   type: AttachmentType;
 }
 
+function dedupeReceipts(recs: ReadReceipt[]): ReadReceipt[] {
+  const seen = new Map<string, ReadReceipt>();
+  for (const r of recs) {
+    seen.set(r.readerName.toLowerCase(), r);
+  }
+  return Array.from(seen.values());
+}
+
 function formatTime(iso: string) {
   const d = new Date(iso);
   const now = new Date();
@@ -73,6 +85,14 @@ function formatTime(iso: string) {
   if (diffDays === 1) return "wczoraj";
   if (diffDays < 7) return d.toLocaleDateString("pl-PL", { weekday: "short" });
   return d.toLocaleDateString("pl-PL", { day: "numeric", month: "short" });
+}
+
+function formatTimeOnly(iso: string) {
+  return new Date(iso).toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit" });
+}
+
+function dayLabel(iso: string) {
+  return new Date(iso).toLocaleDateString("pl-PL", { day: "2-digit", month: "long", year: "numeric" });
 }
 
 export default function DyskusjeView({ currentUserId, initialDiscussions, projects }: Props) {
@@ -84,6 +104,7 @@ export default function DyskusjeView({ currentUserId, initialDiscussions, projec
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
+  const [replyingToMsg, setReplyingToMsg] = useState<{ id: string; content: string; author: string } | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [showNewForm, setShowNewForm] = useState(false);
@@ -191,7 +212,7 @@ export default function DyskusjeView({ currentUserId, initialDiscussions, projec
         const msgs: DiscussionMessage[] = Array.isArray(data) ? data : (data.messages ?? []);
         const recs: ReadReceipt[] = data.receipts ?? [];
         setMessages(msgs);
-        setReceipts(recs);
+        setReceipts(dedupeReceipts(recs));
         setLoadingMessages(false);
         markAsRead(selectedId);
         if (msgs.length > 0) {
@@ -206,8 +227,10 @@ export default function DyskusjeView({ currentUserId, initialDiscussions, projec
   }, [selectedId]);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "instant" });
-  }, [messages]);
+    if (!showResources) {
+      bottomRef.current?.scrollIntoView({ behavior: "instant" });
+    }
+  }, [messages, showResources]);
 
   useEffect(() => {
     if (!selectedId) return;
@@ -244,13 +267,10 @@ export default function DyskusjeView({ currentUserId, initialDiscussions, projec
 
     channel.bind("read-receipt", (receipt: ReadReceipt) => {
       setReceipts((prev) => {
-        const idx = prev.findIndex((r) => r.readerId === receipt.readerId);
-        if (idx >= 0) {
-          const next = [...prev];
-          next[idx] = receipt;
-          return next;
-        }
-        return [...prev, receipt];
+        const filtered = prev.filter(
+          (r) => r.readerId !== receipt.readerId && r.readerName.toLowerCase() !== receipt.readerName.toLowerCase()
+        );
+        return [...filtered, receipt];
       });
     });
 
@@ -427,6 +447,7 @@ export default function DyskusjeView({ currentUserId, initialDiscussions, projec
     setSending(true);
     const attachmentsToSend = [...pendingAttachments];
     const textToSend = input.trim();
+    const reply = replyingToMsg;
     try {
       const firstAtt = attachmentsToSend[0] ?? null;
       const res = await fetch(`/api/discussions/${selectedId}/messages`, {
@@ -437,6 +458,9 @@ export default function DyskusjeView({ currentUserId, initialDiscussions, projec
           attachmentUrl: firstAtt?.url ?? null,
           attachmentName: firstAtt?.name ?? null,
           attachmentType: firstAtt?.type ?? null,
+          replyToId: reply?.id ?? null,
+          replyToContent: reply?.content ?? null,
+          replyToAuthor: reply?.author ?? null,
         }),
       });
       if (!res.ok) throw new Error();
@@ -457,12 +481,13 @@ export default function DyskusjeView({ currentUserId, initialDiscussions, projec
 
       setInput("");
       setPendingAttachments([]);
+      setReplyingToMsg(null);
     } catch {
       toast.error("Nie udało się wysłać wiadomości");
     } finally {
       setSending(false);
     }
-  }, [selectedId, input, pendingAttachments, sending]);
+  }, [selectedId, input, pendingAttachments, sending, replyingToMsg]);
 
   const handleAnnotationSend = useCallback(async (blob: Blob) => {
     if (!selectedId) return;
@@ -585,6 +610,17 @@ export default function DyskusjeView({ currentUserId, initialDiscussions, projec
   }
 
   const selectedProjectLabel = projects.find((p) => p.id === headerProjectId)?.title ?? "Brak przypisania";
+
+  const messageGroups = useMemo(() => {
+    const groups: { label: string; msgs: DiscussionMessage[] }[] = [];
+    messages.forEach(msg => {
+      const label = dayLabel(msg.createdAt);
+      const last = groups[groups.length - 1];
+      if (!last || last.label !== label) groups.push({ label, msgs: [msg] });
+      else last.msgs.push(msg);
+    });
+    return groups;
+  }, [messages]);
 
   return (
     <>
@@ -1009,22 +1045,32 @@ export default function DyskusjeView({ currentUserId, initialDiscussions, projec
                     <p className="text-xs">Zacznij pisać aby rozpocząć dyskusję</p>
                   </div>
                 ) : (
-                  messages.map((msg) => {
-                    const isOwn = msg.userId === currentUserId;
-                    return (
-                      <MessageBubble
-                        key={msg.id}
-                        msg={msg}
-                        isOwn={isOwn}
-                        onImageClick={setAnnotatingImage}
-                        receipts={isOwn
-                          ? receipts.filter((r) => r.lastMessageId === msg.id && r.readerId !== currentUserId)
-                          : undefined}
-                        onEdit={isOwn ? (content) => handleEditMsg(msg.id, content) : undefined}
-                        onDelete={isOwn ? () => handleDeleteMsg(msg.id) : undefined}
-                      />
-                    );
-                  })
+                  messageGroups.map(group => (
+                    <div key={group.label}>
+                      <div className="flex items-center gap-2 my-3">
+                        <div className="flex-1 h-px bg-border" />
+                        <span className="text-[10px] text-muted-foreground flex-shrink-0 select-none">{group.label}</span>
+                        <div className="flex-1 h-px bg-border" />
+                      </div>
+                      {group.msgs.map((msg) => {
+                        const isOwn = msg.userId === currentUserId;
+                        return (
+                          <MessageBubble
+                            key={msg.id}
+                            msg={msg}
+                            isOwn={isOwn}
+                            onImageClick={setAnnotatingImage}
+                            receipts={isOwn
+                              ? receipts.filter((r) => r.lastMessageId === msg.id && r.readerId !== currentUserId)
+                              : undefined}
+                            onEdit={isOwn ? (content) => handleEditMsg(msg.id, content) : undefined}
+                            onDelete={isOwn ? () => handleDeleteMsg(msg.id) : undefined}
+                            onReply={() => setReplyingToMsg({ id: msg.id, content: msg.content || "[załącznik]", author: msg.authorName })}
+                          />
+                        );
+                      })}
+                    </div>
+                  ))
                 )}
 
                 <div ref={bottomRef} />
@@ -1033,6 +1079,18 @@ export default function DyskusjeView({ currentUserId, initialDiscussions, projec
 
             {/* Input */}
             <div className="px-4 py-3 border-t border-border flex flex-col gap-2">
+              {replyingToMsg && (
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-muted/60 rounded-lg border-l-2 border-primary/50">
+                  <CornerDownLeft size={11} className="text-primary flex-shrink-0" />
+                  <span className="flex-1 text-xs text-muted-foreground truncate">
+                    <span className="font-medium text-foreground">{replyingToMsg.author}:</span>{" "}
+                    {replyingToMsg.content.slice(0, 80)}{replyingToMsg.content.length > 80 ? "…" : ""}
+                  </span>
+                  <button onClick={() => setReplyingToMsg(null)} className="text-muted-foreground hover:text-foreground flex-shrink-0">
+                    <X size={12} />
+                  </button>
+                </div>
+              )}
               {pendingAttachments.length > 0 && (
                 <div className="flex flex-wrap gap-2">
                   {pendingAttachments.map((att, i) => (
@@ -1161,6 +1219,15 @@ function PillDropdown({ value, onChange, options }: {
   );
 }
 
+function Avatar({ name }: { name: string }) {
+  const initials = name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
+  return (
+    <div title={name} className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-xs font-semibold text-primary shrink-0 self-end mb-0.5 cursor-default">
+      {initials}
+    </div>
+  );
+}
+
 function DocumentIcon({ name }: { name: string }) {
   const ext = name.split(".").pop()?.toLowerCase() ?? "";
   if (ext === "pdf") return <FileText size={20} className="text-red-500 flex-shrink-0" />;
@@ -1257,16 +1324,28 @@ function ChatSearchResults({ messages, query, onImageClick }: {
   );
 }
 
-function MessageBubble({ msg, isOwn, onImageClick, receipts, onEdit, onDelete }: {
+function MessageBubble({ msg, isOwn, onImageClick, receipts, onEdit, onDelete, onReply }: {
   msg: DiscussionMessage;
   isOwn: boolean;
   onImageClick: (url: string) => void;
   receipts?: ReadReceipt[];
   onEdit?: (content: string) => void;
   onDelete?: () => void;
+  onReply?: () => void;
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(msg.content);
+  const [showMenu, setShowMenu] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!showMenu) return;
+    function handle(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setShowMenu(false);
+    }
+    document.addEventListener("mousedown", handle);
+    return () => document.removeEventListener("mousedown", handle);
+  }, [showMenu]);
 
   function saveEdit() {
     const trimmed = editContent.trim();
@@ -1275,33 +1354,58 @@ function MessageBubble({ msg, isOwn, onImageClick, receipts, onEdit, onDelete }:
     setIsEditing(false);
   }
 
-  return (
-    <div className={`flex items-end gap-1 ${isOwn ? "justify-end" : "justify-start"} group`}>
-      {isOwn && !isEditing && (
-        <div className="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 mb-5 transition-opacity flex-shrink-0">
+  const actionBar = !isEditing && (
+    <div className={`absolute top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5 ${isOwn ? "right-full pr-1 flex-row-reverse" : "left-full pl-1"}`}>
+      <button
+        onClick={onReply}
+        title="Odpowiedz"
+        className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+      >
+        <CornerDownLeft size={14} />
+      </button>
+      {(onEdit || onDelete) && (
+        <div className="relative" ref={menuRef}>
           <button
-            onClick={() => { setEditContent(msg.content); setIsEditing(true); }}
-            className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-            title="Edytuj wiadomość"
+            onClick={() => setShowMenu(v => !v)}
+            className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
           >
-            <Edit2 size={12} />
+            <MoreVertical size={14} />
           </button>
-          <button
-            onClick={onDelete}
-            className="p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-            title="Usuń wiadomość"
-          >
-            <Trash2 size={12} />
-          </button>
+          {showMenu && (
+            <div className={`absolute bottom-full mb-1 ${isOwn ? "right-0" : "left-0"} bg-popover border border-border rounded-xl shadow-lg z-50 py-1 min-w-[120px]`}>
+              {onEdit && (
+                <button
+                  onClick={() => { setEditContent(msg.content); setIsEditing(true); setShowMenu(false); }}
+                  className="w-full text-left px-3 py-2 text-sm hover:bg-muted flex items-center gap-2 transition-colors"
+                >
+                  <Edit2 size={13} className="text-muted-foreground" /> Edytuj
+                </button>
+              )}
+              {onDelete && (
+                <button
+                  onClick={() => { onDelete(); setShowMenu(false); }}
+                  className="w-full text-left px-3 py-2 text-sm text-destructive hover:bg-destructive/10 flex items-center gap-2 transition-colors"
+                >
+                  <Trash2 size={13} /> Usuń
+                </button>
+              )}
+            </div>
+          )}
         </div>
       )}
-      <div className={`max-w-[75%] flex flex-col gap-0.5 ${isOwn ? "items-end" : "items-start"}`}>
-        {!isOwn && (
-          <div className="flex items-center gap-2 px-1">
-            <span className="text-xs font-medium text-foreground">{msg.authorName}</span>
-            <span className="text-xs text-muted-foreground">{formatTime(msg.createdAt)}</span>
-          </div>
-        )}
+    </div>
+  );
+
+  return (
+    <div className={`flex items-end gap-2 ${isOwn ? "justify-end" : "justify-start"} group`}>
+      {!isOwn && <Avatar name={msg.authorName} />}
+      <div className="max-w-[75%]">
+      <SwipeableMessage
+        isOwn={isOwn}
+        onReply={onReply}
+        onLongPress={(onEdit || onDelete) ? () => setShowMenu(true) : undefined}
+      >
+      <div className={`flex flex-col gap-0.5 ${isOwn ? "items-end" : "items-start"}`}>
         {isEditing ? (
           <div className="flex flex-col gap-1 min-w-[220px]">
             <textarea
@@ -1319,57 +1423,68 @@ function MessageBubble({ msg, isOwn, onImageClick, receipts, onEdit, onDelete }:
           </div>
         ) : (
           <>
-            {msg.content && (
-              <div className={`rounded-2xl px-3 py-2 text-sm ${isOwn ? "bg-primary text-primary-foreground" : "bg-background border border-border"}`}>
-                {msg.content}
-                {msg.editedAt && <span className="text-[10px] opacity-50 ml-1.5">(edytowano)</span>}
+            {msg.replyToContent && (
+              <div className={`max-w-full px-2.5 py-1.5 rounded-xl text-[11px] border-l-2 border-primary/40 bg-muted/60 mb-0.5 ${isOwn ? "opacity-80" : ""}`}>
+                <span className="font-semibold text-foreground/70">{msg.replyToAuthor}: </span>
+                <span className="text-muted-foreground">{msg.replyToContent.length > 100 ? msg.replyToContent.slice(0, 100) + "…" : msg.replyToContent}</span>
               </div>
             )}
+            <div className="relative">
+              <div className={`flex flex-col gap-0.5 ${isOwn ? "items-end" : "items-start"}`}>
+                {msg.content && (
+                  <div className={`rounded-2xl px-3 py-2 text-sm ${isOwn ? "bg-primary text-primary-foreground" : "bg-background border border-border"}`}>
+                    {msg.content}
+                    {msg.editedAt && <span className="text-[10px] opacity-50 ml-1.5">(edytowano)</span>}
+                  </div>
+                )}
+                {msg.attachmentType === "image" && msg.attachmentUrl && (
+                  <button
+                    onClick={() => onImageClick(msg.attachmentUrl!)}
+                    className="block rounded-2xl overflow-hidden border border-border hover:opacity-90 transition-opacity focus:outline-none focus:ring-2 focus:ring-primary/40"
+                    title="Kliknij aby zaznaczyć"
+                  >
+                    <img src={msg.attachmentUrl} alt={msg.attachmentName || ""} className="max-w-[260px] max-h-[200px] object-cover" />
+                  </button>
+                )}
+                {msg.attachmentType === "pdf" && msg.attachmentUrl && (
+                  <div className="max-w-[280px] w-[280px] rounded-xl overflow-hidden border border-border">
+                    <a
+                      href={msg.attachmentUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 px-3 py-2 bg-muted/60 hover:bg-muted transition-colors border-b border-border"
+                    >
+                      <FileText size={15} className="text-red-500 flex-shrink-0" />
+                      <span className="text-xs font-medium truncate flex-1">{msg.attachmentName || "Dokument PDF"}</span>
+                      <ExternalLink size={11} className="text-muted-foreground flex-shrink-0" />
+                    </a>
+                    <iframe
+                      src={msg.attachmentUrl}
+                      className="w-full block"
+                      style={{ height: "200px", border: "none" }}
+                      title={msg.attachmentName || "PDF"}
+                    />
+                  </div>
+                )}
+                {msg.attachmentType === "document" && msg.attachmentUrl && (
+                  <a
+                    href={msg.attachmentUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`flex items-center gap-2 px-3 py-2 rounded-2xl border text-sm ${isOwn ? "bg-primary/10 border-primary/20 text-foreground" : "bg-background border-border"} hover:opacity-80 transition-opacity`}
+                  >
+                    <DocumentIcon name={msg.attachmentName || ""} />
+                    <span className="truncate max-w-[180px]">{msg.attachmentName}</span>
+                    <ExternalLink size={12} className="flex-shrink-0 text-muted-foreground" />
+                  </a>
+                )}
+                {msg.attachmentType === "audio" && msg.attachmentUrl && (
+                  <audio src={msg.attachmentUrl} controls className="max-w-[260px] rounded-xl" />
+                )}
+              </div>
+              {actionBar}
+            </div>
           </>
-        )}
-        {msg.attachmentType === "image" && msg.attachmentUrl && (
-          <button
-            onClick={() => onImageClick(msg.attachmentUrl!)}
-            className="block rounded-2xl overflow-hidden border border-border hover:opacity-90 transition-opacity focus:outline-none focus:ring-2 focus:ring-primary/40"
-            title="Kliknij aby zaznaczyć"
-          >
-            <img src={msg.attachmentUrl} alt={msg.attachmentName || ""} className="max-w-[260px] max-h-[200px] object-cover" />
-          </button>
-        )}
-        {msg.attachmentType === "pdf" && msg.attachmentUrl && (
-          <div className="max-w-[280px] w-[280px] rounded-xl overflow-hidden border border-border">
-            <a
-              href={msg.attachmentUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-2 px-3 py-2 bg-muted/60 hover:bg-muted transition-colors border-b border-border"
-            >
-              <FileText size={15} className="text-red-500 flex-shrink-0" />
-              <span className="text-xs font-medium truncate flex-1">{msg.attachmentName || "Dokument PDF"}</span>
-              <ExternalLink size={11} className="text-muted-foreground flex-shrink-0" />
-            </a>
-            <iframe
-              src={msg.attachmentUrl}
-              className="w-full block"
-              style={{ height: "200px", border: "none" }}
-              title={msg.attachmentName || "PDF"}
-            />
-          </div>
-        )}
-        {msg.attachmentType === "document" && msg.attachmentUrl && (
-          <a
-            href={msg.attachmentUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={`flex items-center gap-2 px-3 py-2 rounded-2xl border text-sm ${isOwn ? "bg-primary/10 border-primary/20 text-foreground" : "bg-background border-border"} hover:opacity-80 transition-opacity`}
-          >
-            <DocumentIcon name={msg.attachmentName || ""} />
-            <span className="truncate max-w-[180px]">{msg.attachmentName}</span>
-            <ExternalLink size={12} className="flex-shrink-0 text-muted-foreground" />
-          </a>
-        )}
-        {msg.attachmentType === "audio" && msg.attachmentUrl && (
-          <audio src={msg.attachmentUrl} controls className="max-w-[260px] rounded-xl" />
         )}
         {receipts && receipts.length > 0 && (
           <div className="flex items-center gap-1 px-1 mt-0.5">
@@ -1384,7 +1499,9 @@ function MessageBubble({ msg, isOwn, onImageClick, receipts, onEdit, onDelete }:
             ))}
           </div>
         )}
-        <span className="text-xs text-muted-foreground px-1">{formatTime(msg.createdAt)}</span>
+        <span className="text-xs text-muted-foreground px-1 whitespace-nowrap">{formatTimeOnly(msg.createdAt)}</span>
+      </div>
+      </SwipeableMessage>
       </div>
     </div>
   );

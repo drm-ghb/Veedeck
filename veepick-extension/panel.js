@@ -1,7 +1,7 @@
 // Veepick Panel — injected into the page on extension icon click
 (function () {
   const PANEL_ID = "veepick-panel";
-  const PANEL_VERSION = "2.2";
+  const PANEL_VERSION = "2.3";
 
   // Toggle if already exists and version matches; replace if outdated
   const existing = document.getElementById(PANEL_ID);
@@ -16,6 +16,7 @@
     }
     existing.remove();
     document.getElementById("veepick-panel-styles")?.remove();
+    document.getElementById("veepick-mat-icons")?.remove();
     document.getElementById("veepick-sidebar")?.remove();
   }
 
@@ -46,8 +47,19 @@
     #veepick-panel .vp-header { display: flex; align-items: center; gap: 8px; padding: 12px 14px; border-bottom: 1px solid #f0f0f0; flex-shrink: 0; }
     #veepick-panel .vp-header img { width: 24px; height: 24px; border-radius: 4px; object-fit: contain; }
     #veepick-panel .vp-header h1 { font-size: 15px; font-weight: 700; letter-spacing: -0.3px; flex: 1; margin: 0; }
-    #veepick-panel .vp-icon-btn { background: none; border: none; cursor: pointer; color: #999; padding: 4px; border-radius: 4px; font-size: 16px; line-height: 1; }
+    #veepick-panel .vp-icon-btn { background: none; border: none; cursor: pointer; color: #999; padding: 4px; border-radius: 4px; font-size: 16px; line-height: 1; display: flex; align-items: center; justify-content: center; }
     #veepick-panel .vp-icon-btn:hover { color: #333; background: #f4f4f4; }
+    #veepick-panel.vp-collapsed { width: 44px !important; }
+    #veepick-panel.vp-collapsed .vp-screen,
+    #veepick-panel.vp-collapsed .vp-tabs,
+    #veepick-panel.vp-collapsed .vp-scroll,
+    #veepick-panel.vp-collapsed .vp-footer,
+    #veepick-panel.vp-collapsed .vp-history { display: none !important; }
+    #veepick-panel.vp-collapsed .vp-header h1,
+    #veepick-panel.vp-collapsed #vp-settingsBtn,
+    #veepick-panel.vp-collapsed #vp-refreshBtn,
+    #veepick-panel.vp-collapsed #vp-close { display: none !important; }
+    #veepick-panel.vp-collapsed .vp-header { flex-direction: column; justify-content: center; align-items: center; gap: 8px; padding: 12px 6px; }
     #veepick-panel .vp-screen { padding: clamp(8px, 1.5vh, 14px); overflow-y: auto; flex: 1; }
     #vp-screenMain { padding: 0 !important; display: flex !important; flex-direction: column !important; overflow: hidden !important; }
     #veepick-panel .vp-scroll { flex: 1; overflow-y: auto; padding: clamp(8px, 1.5vh, 14px); }
@@ -160,6 +172,7 @@
   `;
   document.head.appendChild(styleEl);
 
+
   // ── HTML ──────────────────────────────────────────────────────────────────
   const panel = document.createElement("div");
   panel.id = PANEL_ID;
@@ -170,6 +183,7 @@
       <h1>Veepick</h1>
       <button class="vp-icon-btn vp-hidden" id="vp-settingsBtn" title="Ustawienia">⚙</button>
       <button class="vp-icon-btn vp-hidden" id="vp-refreshBtn" title="Odśwież dane strony">↺</button>
+      <button class="vp-icon-btn vp-hidden" id="vp-collapseBtn" title="Zwiń panel"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
       <button class="vp-icon-btn" id="vp-close" title="Zamknij">✕</button>
     </div>
 
@@ -267,6 +281,7 @@
   let productData = {};
   let activeTab = "add"; // "add" | "history"
   let sidebarOpen = false;
+  let collapsed = false;
 
   // ── Helpers ───────────────────────────────────────────────────────────────
   const vp = (id) => document.getElementById(id);
@@ -277,7 +292,23 @@
     });
     vp("vp-settingsBtn").classList.toggle("vp-hidden", name !== "vp-screenMain");
     vp("vp-refreshBtn").classList.toggle("vp-hidden", name !== "vp-screenMain");
+    vp("vp-collapseBtn").classList.toggle("vp-hidden", name !== "vp-screenMain");
     if (name !== "vp-screenMain") closeSidebar();
+    // Reset collapsed state when switching screens
+    if (name !== "vp-screenMain" && collapsed) {
+      collapsed = false;
+      panel.classList.remove("vp-collapsed");
+    }
+  }
+
+  function toggleCollapse() {
+    collapsed = !collapsed;
+    panel.classList.toggle("vp-collapsed", collapsed);
+    vp("vp-collapseBtn").innerHTML = collapsed
+      ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>'
+      : '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>';
+    vp("vp-collapseBtn").title = collapsed ? "Rozwiń panel" : "Zwiń panel";
+    if (collapsed) closeSidebar();
   }
 
   function setStatus(id, msg, type) {
@@ -863,6 +894,7 @@
     panel.style.setProperty("display", "none", "important");
   });
 
+  vp("vp-collapseBtn").addEventListener("click", toggleCollapse);
   vp("vp-sb-close").addEventListener("click", closeSidebar);
   vp("vp-sidebarToggle").addEventListener("click", toggleSidebar);
 

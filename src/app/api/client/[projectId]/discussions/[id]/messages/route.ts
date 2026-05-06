@@ -50,7 +50,7 @@ export async function POST(
   const clientUser = await prisma.user.findUnique({ where: { id: session.user.id } });
   const authorName = clientUser?.name || "Klient";
 
-  const { content, attachmentUrl, attachmentName, attachmentType } = await req.json();
+  const { content, attachmentUrl, attachmentName, attachmentType, replyToId, replyToContent, replyToAuthor } = await req.json();
   if (!content?.trim() && !attachmentUrl) {
     return NextResponse.json({ error: "Treść lub załącznik jest wymagany" }, { status: 400 });
   }
@@ -65,6 +65,9 @@ export async function POST(
       attachmentUrl: attachmentUrl ?? null,
       attachmentName: attachmentName ?? null,
       attachmentType: attachmentType ?? null,
+      replyToId: replyToId ?? null,
+      replyToContent: replyToContent ?? null,
+      replyToAuthor: replyToAuthor ?? null,
     },
   });
 

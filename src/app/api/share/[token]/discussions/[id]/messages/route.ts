@@ -52,7 +52,7 @@ export async function POST(
     return NextResponse.json({ error: "Nie znaleziono dyskusji" }, { status: 404 });
   }
 
-  const { content, authorName, clientEmail, attachmentUrl, attachmentName, attachmentType } = await req.json();
+  const { content, authorName, clientEmail, attachmentUrl, attachmentName, attachmentType, replyToId, replyToContent, replyToAuthor } = await req.json();
   if ((!content?.trim() && !attachmentUrl) || !authorName?.trim()) {
     return NextResponse.json({ error: "Brakujące pola" }, { status: 400 });
   }
@@ -67,6 +67,9 @@ export async function POST(
       attachmentUrl: attachmentUrl ?? null,
       attachmentName: attachmentName ?? null,
       attachmentType: attachmentType ?? null,
+      replyToId: replyToId ?? null,
+      replyToContent: replyToContent ?? null,
+      replyToAuthor: replyToAuthor ?? null,
     },
   });
 

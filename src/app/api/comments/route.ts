@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const session = await auth();
-  const { renderId, title, content, posX, posY, author, isInternal, voiceUrl } = await req.json();
+  const { renderId, title, content, posX, posY, author, isInternal, voiceUrl, replyToId, replyToContent, replyToAuthor } = await req.json();
 
   const isPin = posX !== null && posX !== undefined && posY !== null && posY !== undefined;
 
@@ -63,6 +63,9 @@ export async function POST(req: NextRequest) {
       author,
       isInternal: isInternal ?? false,
       voiceUrl: voiceUrl ?? null,
+      replyToId: replyToId ?? null,
+      replyToContent: replyToContent ?? null,
+      replyToAuthor: replyToAuthor ?? null,
     },
   });
 

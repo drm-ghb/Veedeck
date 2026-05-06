@@ -8,9 +8,10 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { ChevronLeft, ChevronRight, ChevronDown, Eye, EyeOff, Pin, X, Send, ZoomIn, ZoomOut, History, Upload, Maximize2, RotateCcw, Lock, LockOpen, SplitSquareHorizontal, ChevronsLeftRight, MessageSquare, Sparkles, Package, Trash2, ExternalLink, Mic, StopCircle, CheckCircle2, Armchair, Loader2, FileText } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronDown, Eye, EyeOff, Pin, X, Send, ZoomIn, ZoomOut, History, Upload, Maximize2, RotateCcw, Lock, LockOpen, SplitSquareHorizontal, ChevronsLeftRight, MessageSquare, Sparkles, Package, Trash2, Edit2, ExternalLink, Mic, StopCircle, CheckCircle2, Armchair, Loader2, FileText, MoreVertical, CornerDownLeft } from "lucide-react";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import RenderUploader from "./RenderUploader";
+import { SwipeableMessage } from "@/components/ui/swipeable-message";
 import SearchProductDialog from "./SearchProductDialog";
 import { useUploadThing } from "@/lib/uploadthing-client";
 
@@ -21,6 +22,9 @@ interface Reply {
   content: string;
   author: string;
   voiceUrl?: string | null;
+  replyToId?: string | null;
+  replyToContent?: string | null;
+  replyToAuthor?: string | null;
   createdAt: string;
 }
 
@@ -37,6 +41,9 @@ interface Comment {
   createdAt: string;
   replies: Reply[];
   voiceUrl?: string | null;
+  replyToId?: string | null;
+  replyToContent?: string | null;
+  replyToAuthor?: string | null;
 }
 
 interface CommentWithMeta extends Comment {
@@ -124,6 +131,15 @@ const STATUS_LABEL: Record<CommentStatus, string> = {
   DONE: "Gotowe",
 };
 
+function Avatar({ name }: { name: string }) {
+  const initials = name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
+  return (
+    <div title={name} className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-[10px] font-semibold text-primary shrink-0 cursor-default">
+      {initials}
+    </div>
+  );
+}
+
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("pl-PL", {
     day: "2-digit",
@@ -131,6 +147,16 @@ function formatDate(iso: string) {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+function formatChatTime(iso: string) {
+  const d = new Date(iso);
+  const now = new Date();
+  const diffDays = Math.floor((now.getTime() - d.getTime()) / 86400000);
+  if (diffDays === 0) return d.toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit" });
+  if (diffDays === 1) return "wczoraj";
+  if (diffDays < 7) return d.toLocaleDateString("pl-PL", { weekday: "short" });
+  return d.toLocaleDateString("pl-PL", { day: "numeric", month: "short" });
 }
 
 function getPopupStyle(
@@ -207,14 +233,19 @@ export default function RenderViewer({
   const [replyContent, setReplyContent] = useState("");
   const [adding, setAdding] = useState(false);
   const [replying, setReplying] = useState(false);
+  const [editingCommentMode, setEditingCommentMode] = useState(false);
+  const [editingCommentText, setEditingCommentText] = useState("");
+  const [editingReplyId, setEditingReplyId] = useState<string | null>(null);
+  const [editingReplyText, setEditingReplyText] = useState("");
+  const [openCommentMenu, setOpenCommentMenu] = useState(false);
+  const [openReplyMenuId, setOpenReplyMenuId] = useState<string | null>(null);
+  const [chatOpenMenuId, setChatOpenMenuId] = useState<string | null>(null);
+  const [editingChatId, setEditingChatId] = useState<string | null>(null);
+  const [editingChatText, setEditingChatText] = useState("");
+  const [replyingToMsg, setReplyingToMsg] = useState<{ id: string; content: string; author: string } | null>(null);
   const [renderStatus, setRenderStatus] = useState<RenderStatus>(initialRenderStatus);
   const [mode, setMode] = useState<"view" | "pin">("view");
-  const [showComments, setShowComments] = useState(() => {
-    if (typeof window !== "undefined") {
-      return sessionStorage.getItem("renderflow_showComments") === "true";
-    }
-    return false;
-  });
+  const [showComments, setShowComments] = useState(false);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [lightboxComments, setLightboxComments] = useState<Comment[]>([]);
@@ -281,6 +312,12 @@ export default function RenderViewer({
   const replyRecordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const [visualVP, setVisualVP] = useState({ height: 0, offsetTop: 0 });
+  useEffect(() => {
+    if (sessionStorage.getItem("renderflow_showComments") === "true") {
+      setShowComments(true);
+    }
+  }, []);
+
   useEffect(() => {
     const vv = window.visualViewport;
     if (!vv) return;
@@ -464,6 +501,13 @@ export default function RenderViewer({
           if (c.replies.some((r) => r.id === reply.id)) return c;
           return { ...c, replies: [...c.replies, reply] };
         })
+      );
+    });
+    channel.bind("reply-updated", ({ commentId, reply }: { commentId: string; reply: Reply }) => {
+      setComments((prev) =>
+        prev.map((c) =>
+          c.id !== commentId ? c : { ...c, replies: c.replies.map((r) => r.id === reply.id ? reply : r) }
+        )
       );
     });
     channel.bind("reply-deleted", ({ commentId, replyId }: { commentId: string; replyId: string }) => {
@@ -719,6 +763,9 @@ export default function RenderViewer({
           posY: null,
           author: authorName,
           voiceUrl: chatPendingVoiceUrl ?? null,
+          replyToId: replyingToMsg?.id ?? null,
+          replyToContent: replyingToMsg?.content ?? null,
+          replyToAuthor: replyingToMsg?.author ?? null,
         }),
       });
       if (!res.ok) {
@@ -728,6 +775,7 @@ export default function RenderViewer({
       }
       setChatMessage("");
       setChatPendingVoiceUrl(null);
+      setReplyingToMsg(null);
     } catch {
       toast.error("Błąd wysyłania wiadomości");
     } finally {
@@ -785,11 +833,19 @@ export default function RenderViewer({
       const res = await fetch(`/api/comments/${selectedId}/replies`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: replyContent.trim(), author: authorName, voiceUrl: replyPendingVoiceUrl ?? null }),
+        body: JSON.stringify({
+          content: replyContent.trim(),
+          author: authorName,
+          voiceUrl: replyPendingVoiceUrl ?? null,
+          replyToId: replyingToMsg?.id ?? null,
+          replyToContent: replyingToMsg?.content ?? null,
+          replyToAuthor: replyingToMsg?.author ?? null,
+        }),
       });
       if (!res.ok) throw new Error();
       setReplyContent("");
       setReplyPendingVoiceUrl(null);
+      setReplyingToMsg(null);
     } catch {
       toast.error("Błąd dodawania odpowiedzi");
     } finally {
@@ -825,8 +881,44 @@ export default function RenderViewer({
     });
   }
 
+  async function handleEditComment(id: string, content: string) {
+    const res = await fetch(`/api/comments/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content, authorName }),
+    });
+    if (res.ok) {
+      setComments((prev) => prev.map((c) => c.id === id ? { ...c, content } : c));
+      setEditingCommentMode(false);
+    } else {
+      toast.error("Nie udało się edytować komentarza");
+    }
+  }
+
+  async function handleEditReply(commentId: string, replyId: string, content: string) {
+    const res = await fetch(`/api/comments/${commentId}/replies/${replyId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content }),
+    });
+    if (res.ok) {
+      setComments((prev) =>
+        prev.map((c) =>
+          c.id !== commentId ? c : { ...c, replies: c.replies.map((r) => r.id === replyId ? { ...r, content } : r) }
+        )
+      );
+      setEditingReplyId(null);
+    } else {
+      toast.error("Nie udało się edytować odpowiedzi");
+    }
+  }
+
   async function deleteComment(id: string) {
-    await fetch(`/api/comments/${id}`, { method: "DELETE" });
+    await fetch(`/api/comments/${id}`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ authorName }),
+    });
     setSelectedId(null);
     toast.success("Komentarz usunięty");
   }
@@ -1696,92 +1788,208 @@ export default function RenderViewer({
                 {/* Thread messages */}
                 <div className="flex-1 overflow-y-auto divide-y divide-gray-100 min-h-0">
                   {/* Original comment */}
-                  <div className="px-4 py-3">
-                    <div className="flex items-center justify-between mb-1">
+                  <div className="px-4 py-3 group">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Avatar name={selectedComment.author} />
                       <span className="text-xs font-semibold text-gray-800 dark:text-gray-200">{selectedComment.author}</span>
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-[10px] text-gray-400">{formatDate(selectedComment.createdAt)}</span>
-                        {(isDesigner || selectedComment.author === authorName) && (
-                          <button
-                            onClick={() => deleteComment(selectedComment.id)}
-                            className="text-gray-300 hover:text-red-400 transition-colors"
-                            title="Usuń"
-                          >
-                            <X size={11} />
-                          </button>
-                        )}
-                      </div>
+                      <span className="text-[10px] text-gray-400">{formatDate(selectedComment.createdAt)}</span>
                     </div>
-                    {selectedComment.content !== "[wiadomość głosowa]" && (
-                      <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{selectedComment.content}</p>
-                    )}
-                    {selectedComment.voiceUrl && (
-                      <audio src={selectedComment.voiceUrl} controls className="w-full h-8 mt-1" />
+                    {editingCommentMode && selectedComment.content !== "[wiadomość głosowa]" ? (
+                      <div className="flex flex-col gap-1">
+                        <textarea
+                          autoFocus
+                          value={editingCommentText}
+                          onChange={(e) => setEditingCommentText(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleEditComment(selectedComment.id, editingCommentText); } if (e.key === "Escape") setEditingCommentMode(false); }}
+                          className="w-full px-2 py-1.5 text-sm rounded-lg border border-primary bg-background focus:outline-none focus:ring-1 focus:ring-primary/30 resize-none"
+                          rows={2}
+                        />
+                        <div className="flex gap-1 justify-end">
+                          <button onClick={() => setEditingCommentMode(false)} className="px-2 py-1 text-xs text-gray-400 hover:text-gray-700 transition-colors">Anuluj</button>
+                          <button onClick={() => handleEditComment(selectedComment.id, editingCommentText)} className="px-2 py-1 text-xs bg-primary text-primary-foreground rounded-lg hover:opacity-90">Zapisz</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <SwipeableMessage
+                        isOwn={selectedComment.author === authorName}
+                        onReply={() => setReplyingToMsg({ id: selectedComment.id, content: selectedComment.content, author: selectedComment.author })}
+                        onLongPress={(isDesigner || selectedComment.author === authorName) ? () => setOpenCommentMenu(true) : undefined}
+                      >
+                      <div className="flex items-center gap-1">
+                        <div className="flex-1">
+                          {selectedComment.content !== "[wiadomość głosowa]" && (
+                            <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{selectedComment.content}</p>
+                          )}
+                          {selectedComment.voiceUrl && (
+                            <audio src={selectedComment.voiceUrl} controls className="w-full h-8 mt-1" />
+                          )}
+                        </div>
+                        <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5 flex-shrink-0 self-start mt-0.5">
+                          <button
+                            onClick={() => setReplyingToMsg({ id: selectedComment.id, content: selectedComment.content, author: selectedComment.author })}
+                            title="Odpowiedz"
+                            className="p-1 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-muted transition-colors"
+                          >
+                            <CornerDownLeft size={13} />
+                          </button>
+                          {(isDesigner || selectedComment.author === authorName) && (
+                            <div className="relative">
+                              <button
+                                onClick={() => setOpenCommentMenu(v => !v)}
+                                className="p-1 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-muted transition-colors"
+                              >
+                                <MoreVertical size={13} />
+                              </button>
+                              {openCommentMenu && (
+                                <div className="absolute right-0 top-full mt-1 bg-popover border border-border rounded-xl shadow-lg z-50 py-1 min-w-[110px]">
+                                  {selectedComment.content !== "[wiadomość głosowa]" && (
+                                    <button
+                                      onClick={() => { setEditingCommentText(selectedComment.content); setEditingCommentMode(true); setOpenCommentMenu(false); }}
+                                      className="w-full text-left px-3 py-2 text-xs hover:bg-muted flex items-center gap-2 transition-colors"
+                                    >
+                                      <Edit2 size={12} className="text-muted-foreground" /> Edytuj
+                                    </button>
+                                  )}
+                                  <button
+                                    onClick={() => { deleteComment(selectedComment.id); setOpenCommentMenu(false); }}
+                                    className="w-full text-left px-3 py-2 text-xs text-destructive hover:bg-destructive/10 flex items-center gap-2 transition-colors"
+                                  >
+                                    <Trash2 size={12} /> Usuń
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      </SwipeableMessage>
                     )}
                   </div>
 
                   {/* Replies */}
                   {selectedComment.replies.map((r) => (
-                    <div key={r.id} className="px-4 py-3 bg-muted/50">
-                      <div className="flex items-center justify-between mb-1">
+                    <div key={r.id} className="px-4 py-3 bg-muted/50 group">
+                      <div className="flex items-center gap-2 mb-1">
                         <span className="text-xs font-semibold text-gray-800 dark:text-gray-200">{r.author}</span>
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-[10px] text-gray-400">{formatDate(r.createdAt)}</span>
-                          {(isDesigner || r.author === authorName) && (
-                            <button
-                              onClick={() => deleteReply(selectedComment.id, r.id)}
-                              className="text-gray-300 hover:text-red-400 transition-colors"
-                              title="Usuń"
-                            >
-                              <X size={11} />
-                            </button>
-                          )}
-                        </div>
+                        <span className="text-[10px] text-gray-400">{formatDate(r.createdAt)}</span>
                       </div>
-                      {r.content !== "[wiadomość głosowa]" && (
-                        <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{r.content}</p>
+                      {r.replyToContent && (
+                        <div className="px-2 py-1 rounded-lg text-[11px] border-l-2 border-primary/40 bg-muted/60 mb-1">
+                          <span className="font-semibold text-foreground/70">{r.replyToAuthor}: </span>
+                          <span className="text-muted-foreground">{r.replyToContent.length > 80 ? r.replyToContent.slice(0, 80) + "…" : r.replyToContent}</span>
+                        </div>
                       )}
-                      {r.voiceUrl && (
-                        <audio src={r.voiceUrl} controls className="w-full h-8 mt-1" />
+                      {editingReplyId === r.id ? (
+                        <div className="flex flex-col gap-1">
+                          <textarea
+                            autoFocus
+                            value={editingReplyText}
+                            onChange={(e) => setEditingReplyText(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleEditReply(selectedComment.id, r.id, editingReplyText); } if (e.key === "Escape") setEditingReplyId(null); }}
+                            className="w-full px-2 py-1.5 text-sm rounded-lg border border-primary bg-background focus:outline-none focus:ring-1 focus:ring-primary/30 resize-none"
+                            rows={2}
+                          />
+                          <div className="flex gap-1 justify-end">
+                            <button onClick={() => setEditingReplyId(null)} className="px-2 py-1 text-xs text-gray-400 hover:text-gray-700 transition-colors">Anuluj</button>
+                            <button onClick={() => handleEditReply(selectedComment.id, r.id, editingReplyText)} className="px-2 py-1 text-xs bg-primary text-primary-foreground rounded-lg hover:opacity-90">Zapisz</button>
+                          </div>
+                        </div>
+                      ) : (
+                        <SwipeableMessage
+                          isOwn={r.author === authorName}
+                          onReply={() => setReplyingToMsg({ id: r.id, content: r.content, author: r.author })}
+                          onLongPress={(isDesigner || r.author === authorName) ? () => setOpenReplyMenuId(r.id) : undefined}
+                        >
+                        <div className="flex items-center gap-1">
+                          <div className="flex-1">
+                            {r.content !== "[wiadomość głosowa]" && (
+                              <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{r.content}</p>
+                            )}
+                            {r.voiceUrl && (
+                              <audio src={r.voiceUrl} controls className="w-full h-8 mt-1" />
+                            )}
+                          </div>
+                          <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5 flex-shrink-0 self-start mt-0.5">
+                            <button
+                              onClick={() => setReplyingToMsg({ id: r.id, content: r.content, author: r.author })}
+                              title="Odpowiedz"
+                              className="p-1 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-muted transition-colors"
+                            >
+                              <CornerDownLeft size={13} />
+                            </button>
+                            {(isDesigner || r.author === authorName) && (
+                              <div className="relative">
+                                <button
+                                  onClick={() => setOpenReplyMenuId(openReplyMenuId === r.id ? null : r.id)}
+                                  className="p-1 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-muted transition-colors"
+                                >
+                                  <MoreVertical size={13} />
+                                </button>
+                                {openReplyMenuId === r.id && (
+                                  <div className="absolute right-0 top-full mt-1 bg-popover border border-border rounded-xl shadow-lg z-50 py-1 min-w-[110px]">
+                                    {r.content !== "[wiadomość głosowa]" && (
+                                      <button
+                                        onClick={() => { setEditingReplyText(r.content); setEditingReplyId(r.id); setOpenReplyMenuId(null); }}
+                                        className="w-full text-left px-3 py-2 text-xs hover:bg-muted flex items-center gap-2 transition-colors"
+                                      >
+                                        <Edit2 size={12} className="text-muted-foreground" /> Edytuj
+                                      </button>
+                                    )}
+                                    <button
+                                      onClick={() => { deleteReply(selectedComment.id, r.id); setOpenReplyMenuId(null); }}
+                                      className="w-full text-left px-3 py-2 text-xs text-destructive hover:bg-destructive/10 flex items-center gap-2 transition-colors"
+                                    >
+                                      <Trash2 size={12} /> Usuń
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        </SwipeableMessage>
                       )}
                     </div>
                   ))}
                 </div>
 
                 {/* Status dropdown + delete */}
-                {(isDesigner || selectedComment.author === authorName) && (
+                {isDesigner && (
                   <div className="px-4 py-2 border-t flex items-center gap-2 flex-shrink-0">
-                    {isDesigner && (
-                      <DropdownMenu>
-                        <DropdownMenuTrigger className={`flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-lg border transition-colors ${STATUS_BADGE[selectedComment.status]}`}>
-                          {STATUS_LABEL[selectedComment.status]}
-                          <ChevronDown size={11} />
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="start">
-                          {(["NEW", "IN_PROGRESS", "DONE"] as CommentStatus[]).map((s) => (
-                            <DropdownMenuItem
-                              key={s}
-                              onClick={() => updateStatus(selectedComment.id, s)}
-                              className={selectedComment.status === s ? "font-semibold" : ""}
-                            >
-                              {STATUS_LABEL[s]}
-                            </DropdownMenuItem>
-                          ))}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    )}
-                    <button
-                      onClick={() => deleteComment(selectedComment.id)}
-                      className="ml-auto text-red-500 hover:text-red-700 transition-colors p-1"
-                      title="Usuń pin"
-                    >
-                      <Trash2 size={14} />
-                    </button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger className={`flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-lg border transition-colors ${STATUS_BADGE[selectedComment.status]}`}>
+                        {STATUS_LABEL[selectedComment.status]}
+                        <ChevronDown size={11} />
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start">
+                        {(["NEW", "IN_PROGRESS", "DONE"] as CommentStatus[]).map((s) => (
+                          <DropdownMenuItem
+                            key={s}
+                            onClick={() => updateStatus(selectedComment.id, s)}
+                            className={selectedComment.status === s ? "font-semibold" : ""}
+                          >
+                            {STATUS_LABEL[s]}
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 )}
 
                 {/* Reply input */}
                 <div className="px-4 py-3 border-t flex-shrink-0">
+                  {replyingToMsg && (
+                    <div className="flex items-center gap-2 px-2 py-1.5 mb-2 bg-muted/60 rounded-lg border-l-2 border-primary/50">
+                      <CornerDownLeft size={11} className="text-primary flex-shrink-0" />
+                      <span className="flex-1 text-xs text-muted-foreground truncate">
+                        <span className="font-medium text-foreground">{replyingToMsg.author}:</span>{" "}
+                        {replyingToMsg.content.slice(0, 80)}{replyingToMsg.content.length > 80 ? "…" : ""}
+                      </span>
+                      <button onClick={() => setReplyingToMsg(null)} className="text-muted-foreground hover:text-foreground flex-shrink-0">
+                        <X size={12} />
+                      </button>
+                    </div>
+                  )}
                   {replyPendingVoiceUrl && (
                     <div className="flex items-center gap-2 mb-2 px-2 py-1.5 rounded-lg bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800">
                       <CheckCircle2 size={12} className="text-green-600 dark:text-green-400 flex-shrink-0" />
@@ -1816,7 +2024,7 @@ export default function RenderViewer({
                         rows={2}
                         onKeyDown={(e) => {
                           if (e.key === "Enter" && e.ctrlKey) submitReply();
-                          if (e.key === "Escape") { setSelectedId(null); setReplyContent(""); setReplyPendingVoiceUrl(null); }
+                          if (e.key === "Escape") { setSelectedId(null); setReplyContent(""); setReplyPendingVoiceUrl(null); setReplyingToMsg(null); }
                         }}
                       />
                       <button
@@ -2109,34 +2317,91 @@ export default function RenderViewer({
                               <div
                                 key={item.id}
                                 ref={(el) => { if (el) chatMessageRefs.current.set(item.id, el); else chatMessageRefs.current.delete(item.id); }}
-                                className={`flex mb-2 rounded-xl transition-colors duration-300 ${isOwn ? "justify-end" : "justify-start"} ${isHighlighted ? "bg-yellow-100 dark:bg-yellow-900/30" : ""}`}
+                                className={`flex mb-2 items-end gap-1.5 group transition-colors duration-300 ${isOwn ? "justify-end" : "justify-start"} ${isHighlighted ? "bg-yellow-100 dark:bg-yellow-900/30 rounded-xl" : ""}`}
                               >
-                                <div className={`max-w-[85%] flex flex-col ${isOwn ? "items-end" : "items-start"}`}>
-                                  {!isOwn && (
-                                    <span className="text-[10px] text-gray-500 dark:text-gray-400 mb-1 ml-1 font-medium">{item.author}</span>
+                                {!isOwn && <Avatar name={item.author} />}
+                                <div className="max-w-[75%]">
+                                <SwipeableMessage
+                                  isOwn={isOwn}
+                                  onReply={() => setReplyingToMsg({ id: item.id, content: item.content, author: item.author })}
+                                  onLongPress={(isDesigner || item.author === authorName) ? () => setChatOpenMenuId(item.id) : undefined}
+                                >
+                                {editingChatId === item.id ? (
+                                  <div className="flex flex-col gap-1">
+                                    <textarea
+                                      autoFocus
+                                      value={editingChatText}
+                                      onChange={(e) => setEditingChatText(e.target.value)}
+                                      onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleEditComment(item.id, editingChatText); setEditingChatId(null); } if (e.key === "Escape") setEditingChatId(null); }}
+                                      className="w-full px-2 py-1.5 text-sm rounded-lg border border-primary bg-background focus:outline-none resize-none"
+                                      rows={2}
+                                    />
+                                    <div className="flex gap-1 justify-end">
+                                      <button onClick={() => setEditingChatId(null)} className="px-2 py-1 text-xs text-muted-foreground hover:text-foreground rounded-lg border">Anuluj</button>
+                                      <button onClick={() => { handleEditComment(item.id, editingChatText); setEditingChatId(null); }} className="px-2 py-1 text-xs bg-primary text-primary-foreground rounded-lg hover:opacity-90">Zapisz</button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                <div className={`flex flex-col ${isOwn ? "items-end" : "items-start"}`}>
+                                  {item.replyToContent && (
+                                    <div className="px-2 py-1 rounded-lg text-[11px] border-l-2 border-primary/40 bg-muted/60 mb-1 max-w-full">
+                                      <span className="font-semibold text-foreground/70">{item.replyToAuthor}: </span>
+                                      <span className="text-muted-foreground">{item.replyToContent.length > 60 ? item.replyToContent.slice(0, 60) + "…" : item.replyToContent}</span>
+                                    </div>
                                   )}
-                                  <div className={`px-3 py-2 text-sm leading-relaxed break-words ${
-                                    isOwn
-                                      ? "bg-violet-600 text-white rounded-2xl rounded-tr-sm"
-                                      : "bg-gray-100 dark:bg-muted text-gray-800 dark:text-gray-200 rounded-2xl rounded-tl-sm"
-                                  }`}>
-                                    {item.content !== "[wiadomość głosowa]" && item.content}
-                                    {item.voiceUrl && (
-                                      <audio src={item.voiceUrl} controls className="mt-1 h-8 w-48 max-w-full" />
-                                    )}
-                                  </div>
-                                  <div className={`flex items-center gap-1.5 mt-1 ${isOwn ? "flex-row-reverse" : "flex-row"}`}>
-                                    <span className="text-[10px] text-gray-400">{formatDate(item.createdAt)}</span>
-                                    {(isDesigner || item.author === authorName) && (
+                                  <div className="relative">
+                                    <div className={`px-3 py-2 text-sm leading-relaxed break-words ${
+                                      isOwn
+                                        ? "bg-violet-600 text-white rounded-2xl rounded-tr-sm"
+                                        : "bg-gray-100 dark:bg-muted text-gray-800 dark:text-gray-200 rounded-2xl rounded-tl-sm"
+                                    }`}>
+                                      {item.content !== "[wiadomość głosowa]" && item.content}
+                                      {item.voiceUrl && (
+                                        <audio src={item.voiceUrl} controls className="mt-1 h-8 w-48 max-w-full" />
+                                      )}
+                                    </div>
+                                    <div className={`absolute top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5 ${isOwn ? "right-full pr-1 flex-row-reverse" : "left-full pl-1"}`}>
                                       <button
-                                        onClick={() => deleteComment(item.id)}
-                                        className="text-gray-300 hover:text-red-400 transition-colors"
-                                        title="Usuń"
+                                        onClick={() => setReplyingToMsg({ id: item.id, content: item.content, author: item.author })}
+                                        title="Odpowiedz"
+                                        className="p-1 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-muted transition-colors"
                                       >
-                                        <X size={10} />
+                                        <CornerDownLeft size={13} />
                                       </button>
-                                    )}
+                                      {(isDesigner || item.author === authorName) && (
+                                        <div className="relative">
+                                          <button
+                                            onClick={() => setChatOpenMenuId(chatOpenMenuId === item.id ? null : item.id)}
+                                            className="p-1 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-muted transition-colors"
+                                          >
+                                            <MoreVertical size={13} />
+                                          </button>
+                                          {chatOpenMenuId === item.id && (
+                                            <div className={`absolute ${isOwn ? "right-0" : "left-0"} top-full mt-1 bg-popover border border-border rounded-xl shadow-lg z-50 py-1 min-w-[110px]`}>
+                                              {item.content !== "[wiadomość głosowa]" && (
+                                                <button
+                                                  onClick={() => { setEditingChatText(item.content); setEditingChatId(item.id); setChatOpenMenuId(null); }}
+                                                  className="w-full text-left px-3 py-2 text-xs hover:bg-muted flex items-center gap-2 transition-colors"
+                                                >
+                                                  <Edit2 size={12} className="text-muted-foreground" /> Edytuj
+                                                </button>
+                                              )}
+                                              <button
+                                                onClick={() => { deleteComment(item.id); setChatOpenMenuId(null); }}
+                                                className="w-full text-left px-3 py-2 text-xs text-destructive hover:bg-destructive/10 flex items-center gap-2 transition-colors"
+                                              >
+                                                <Trash2 size={12} /> Usuń
+                                              </button>
+                                            </div>
+                                          )}
+                                        </div>
+                                      )}
+                                    </div>
                                   </div>
+                                  <span className="text-[10px] text-gray-400 mt-1 whitespace-nowrap">{formatChatTime(item.createdAt)}</span>
+                                </div>
+                                )}
+                                </SwipeableMessage>
                                 </div>
                               </div>
                             );
@@ -2150,6 +2415,19 @@ export default function RenderViewer({
                   {/* Message input */}
                   {(isDesigner || allowClientComments) && (
                     <div className="px-3 py-3 border-t flex-shrink-0">
+                      {/* Reply quote preview */}
+                      {replyingToMsg && (
+                        <div className="flex items-center gap-2 px-2 py-1.5 mb-2 bg-muted/60 rounded-lg border-l-2 border-primary/50">
+                          <CornerDownLeft size={11} className="text-primary flex-shrink-0" />
+                          <span className="flex-1 text-xs text-muted-foreground truncate">
+                            <span className="font-medium text-foreground">{replyingToMsg.author}:</span>{" "}
+                            {replyingToMsg.content.slice(0, 80)}{replyingToMsg.content.length > 80 ? "…" : ""}
+                          </span>
+                          <button onClick={() => setReplyingToMsg(null)} className="text-muted-foreground hover:text-foreground flex-shrink-0">
+                            <X size={12} />
+                          </button>
+                        </div>
+                      )}
                       {/* Pending voice preview */}
                       {chatPendingVoiceUrl && (
                         <div className="flex items-center gap-2 mb-2 px-2 py-1.5 rounded-lg bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800">
@@ -2560,75 +2838,188 @@ export default function RenderViewer({
                   </div>
 
                   <div className="flex-1 overflow-y-auto divide-y divide-gray-100 min-h-0">
-                    <div className="px-4 py-3">
-                      <div className="flex items-center justify-between mb-1">
+                    <div className="px-4 py-3 group">
+                      <div className="flex items-center gap-2 mb-1">
                         <span className="text-xs font-semibold text-gray-800 dark:text-gray-200">{selectedComment.author}</span>
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-[10px] text-gray-400">{formatDate(selectedComment.createdAt)}</span>
-                          {(isDesigner || selectedComment.author === authorName) && (
-                            <button onClick={() => deleteComment(selectedComment.id)} className="text-gray-300 hover:text-red-400 transition-colors">
-                              <X size={11} />
-                            </button>
-                          )}
-                        </div>
+                        <span className="text-[10px] text-gray-400">{formatDate(selectedComment.createdAt)}</span>
                       </div>
-                      {selectedComment.content !== "[wiadomość głosowa]" && (
-                        <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{selectedComment.content}</p>
-                      )}
-                      {selectedComment.voiceUrl && (
-                        <audio src={selectedComment.voiceUrl} controls className="w-full h-8 mt-1" />
-                      )}
-                    </div>
-                    {selectedComment.replies.map((r) => (
-                      <div key={r.id} className="px-4 py-3 bg-gray-50 dark:bg-gray-800/50">
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-xs font-semibold text-gray-800 dark:text-gray-200">{r.author}</span>
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-[10px] text-gray-400">{formatDate(r.createdAt)}</span>
-                            {(isDesigner || r.author === authorName) && (
-                              <button onClick={() => deleteReply(selectedComment.id, r.id)} className="text-gray-300 hover:text-red-400 transition-colors">
-                                <X size={11} />
-                              </button>
+                      {editingCommentMode ? (
+                        <div className="flex flex-col gap-1">
+                          <textarea autoFocus value={editingCommentText} onChange={(e) => setEditingCommentText(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleEditComment(selectedComment.id, editingCommentText); } if (e.key === "Escape") setEditingCommentMode(false); }}
+                            className="w-full px-2 py-1.5 text-sm border border-border rounded-lg bg-background focus:outline-none resize-none" rows={2} />
+                          <div className="flex gap-1 justify-end">
+                            <button onClick={() => setEditingCommentMode(false)} className="px-2 py-1 text-xs text-muted-foreground hover:text-foreground rounded-lg border">Anuluj</button>
+                            <button onClick={() => handleEditComment(selectedComment.id, editingCommentText)} className="px-2 py-1 text-xs bg-primary text-primary-foreground rounded-lg hover:opacity-90">Zapisz</button>
+                          </div>
+                        </div>
+                      ) : (
+                        <SwipeableMessage
+                          isOwn={selectedComment.author === authorName}
+                          onReply={() => setReplyingToMsg({ id: selectedComment.id, content: selectedComment.content, author: selectedComment.author })}
+                          onLongPress={(isDesigner || selectedComment.author === authorName) ? () => setOpenCommentMenu(true) : undefined}
+                        >
+                        <div className="flex items-center gap-1">
+                          <div className="flex-1">
+                            {selectedComment.content !== "[wiadomość głosowa]" && (
+                              <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{selectedComment.content}</p>
+                            )}
+                            {selectedComment.voiceUrl && (
+                              <audio src={selectedComment.voiceUrl} controls className="w-full h-8 mt-1" />
+                            )}
+                          </div>
+                          <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5 flex-shrink-0 self-start mt-0.5">
+                            <button
+                              onClick={() => setReplyingToMsg({ id: selectedComment.id, content: selectedComment.content, author: selectedComment.author })}
+                              title="Odpowiedz"
+                              className="p-1 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-muted transition-colors"
+                            >
+                              <CornerDownLeft size={13} />
+                            </button>
+                            {(isDesigner || selectedComment.author === authorName) && (
+                              <div className="relative">
+                                <button onClick={() => setOpenCommentMenu(v => !v)} className="p-1 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-muted transition-colors">
+                                  <MoreVertical size={13} />
+                                </button>
+                                {openCommentMenu && (
+                                  <div className="absolute right-0 top-full mt-1 bg-popover border border-border rounded-xl shadow-lg z-50 py-1 min-w-[110px]">
+                                    {selectedComment.content !== "[wiadomość głosowa]" && (
+                                      <button
+                                        onClick={() => { setEditingCommentMode(true); setEditingCommentText(selectedComment.content); setOpenCommentMenu(false); }}
+                                        className="w-full text-left px-3 py-2 text-xs hover:bg-muted flex items-center gap-2 transition-colors"
+                                      >
+                                        <Edit2 size={12} className="text-muted-foreground" /> Edytuj
+                                      </button>
+                                    )}
+                                    <button
+                                      onClick={() => { deleteComment(selectedComment.id); setOpenCommentMenu(false); }}
+                                      className="w-full text-left px-3 py-2 text-xs text-destructive hover:bg-destructive/10 flex items-center gap-2 transition-colors"
+                                    >
+                                      <Trash2 size={12} /> Usuń
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
                             )}
                           </div>
                         </div>
-                        <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{r.content}</p>
+                        </SwipeableMessage>
+                      )}
+                    </div>
+                    {selectedComment.replies.map((r) => (
+                      <div key={r.id} className="px-4 py-3 bg-gray-50 dark:bg-gray-800/50 group">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Avatar name={r.author} />
+                          <span className="text-xs font-semibold text-gray-800 dark:text-gray-200">{r.author}</span>
+                          <span className="text-[10px] text-gray-400">{formatDate(r.createdAt)}</span>
+                        </div>
+                        {r.replyToContent && (
+                          <div className="px-2 py-1 rounded-lg text-[11px] border-l-2 border-primary/40 bg-muted/60 mb-1">
+                            <span className="font-semibold text-foreground/70">{r.replyToAuthor}: </span>
+                            <span className="text-muted-foreground">{r.replyToContent.length > 80 ? r.replyToContent.slice(0, 80) + "…" : r.replyToContent}</span>
+                          </div>
+                        )}
+                        {editingReplyId === r.id ? (
+                          <div className="flex flex-col gap-1">
+                            <textarea autoFocus value={editingReplyText} onChange={(e) => setEditingReplyText(e.target.value)}
+                              onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleEditReply(selectedComment.id, r.id, editingReplyText); } if (e.key === "Escape") setEditingReplyId(null); }}
+                              className="w-full px-2 py-1.5 text-sm border border-border rounded-lg bg-background focus:outline-none resize-none" rows={2} />
+                            <div className="flex gap-1 justify-end">
+                              <button onClick={() => setEditingReplyId(null)} className="px-2 py-1 text-xs text-muted-foreground hover:text-foreground rounded-lg border">Anuluj</button>
+                              <button onClick={() => handleEditReply(selectedComment.id, r.id, editingReplyText)} className="px-2 py-1 text-xs bg-primary text-primary-foreground rounded-lg hover:opacity-90">Zapisz</button>
+                            </div>
+                          </div>
+                        ) : (
+                          <SwipeableMessage
+                            isOwn={r.author === authorName}
+                            onReply={() => setReplyingToMsg({ id: r.id, content: r.content, author: r.author })}
+                            onLongPress={(isDesigner || r.author === authorName) ? () => setOpenReplyMenuId(r.id) : undefined}
+                          >
+                          <div className="flex items-center gap-1">
+                            <div className="flex-1">
+                              {r.content !== "[wiadomość głosowa]" && (
+                                <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{r.content}</p>
+                              )}
+                              {r.voiceUrl && (
+                                <audio src={r.voiceUrl} controls className="w-full h-8 mt-1" />
+                              )}
+                            </div>
+                            <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5 flex-shrink-0 self-start mt-0.5">
+                              <button
+                                onClick={() => setReplyingToMsg({ id: r.id, content: r.content, author: r.author })}
+                                title="Odpowiedz"
+                                className="p-1 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-muted transition-colors"
+                              >
+                                <CornerDownLeft size={13} />
+                              </button>
+                              {(isDesigner || r.author === authorName) && (
+                                <div className="relative">
+                                  <button onClick={() => setOpenReplyMenuId(openReplyMenuId === r.id ? null : r.id)} className="p-1 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-muted transition-colors">
+                                    <MoreVertical size={13} />
+                                  </button>
+                                  {openReplyMenuId === r.id && (
+                                    <div className="absolute right-0 top-full mt-1 bg-popover border border-border rounded-xl shadow-lg z-50 py-1 min-w-[110px]">
+                                      {r.content !== "[wiadomość głosowa]" && (
+                                        <button
+                                          onClick={() => { setEditingReplyId(r.id); setEditingReplyText(r.content); setOpenReplyMenuId(null); }}
+                                          className="w-full text-left px-3 py-2 text-xs hover:bg-muted flex items-center gap-2 transition-colors"
+                                        >
+                                          <Edit2 size={12} className="text-muted-foreground" /> Edytuj
+                                        </button>
+                                      )}
+                                      <button
+                                        onClick={() => { deleteReply(selectedComment.id, r.id); setOpenReplyMenuId(null); }}
+                                        className="w-full text-left px-3 py-2 text-xs text-destructive hover:bg-destructive/10 flex items-center gap-2 transition-colors"
+                                      >
+                                        <Trash2 size={12} /> Usuń
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          </SwipeableMessage>
+                        )}
                       </div>
                     ))}
                   </div>
 
-                  {(isDesigner || selectedComment.author === authorName) && (
+                  {isDesigner && (
                     <div className="px-4 py-2 border-t flex items-center gap-2 flex-shrink-0">
-                      {isDesigner && (
-                        <DropdownMenu>
-                          <DropdownMenuTrigger className={`flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-lg border transition-colors ${STATUS_BADGE[selectedComment.status]}`}>
-                            {STATUS_LABEL[selectedComment.status]}
-                            <ChevronDown size={11} />
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="start">
-                            {(["NEW", "IN_PROGRESS", "DONE"] as CommentStatus[]).map((s) => (
-                              <DropdownMenuItem
-                                key={s}
-                                onClick={() => updateStatus(selectedComment.id, s)}
-                                className={selectedComment.status === s ? "font-semibold" : ""}
-                              >
-                                {STATUS_LABEL[s]}
-                              </DropdownMenuItem>
-                            ))}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      )}
-                      <button
-                        onClick={() => deleteComment(selectedComment.id)}
-                        className="ml-auto text-red-500 hover:text-red-700 transition-colors p-1"
-                        title="Usuń pin"
-                      >
-                        <Trash2 size={14} />
-                      </button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger className={`flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-lg border transition-colors ${STATUS_BADGE[selectedComment.status]}`}>
+                          {STATUS_LABEL[selectedComment.status]}
+                          <ChevronDown size={11} />
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start">
+                          {(["NEW", "IN_PROGRESS", "DONE"] as CommentStatus[]).map((s) => (
+                            <DropdownMenuItem
+                              key={s}
+                              onClick={() => updateStatus(selectedComment.id, s)}
+                              className={selectedComment.status === s ? "font-semibold" : ""}
+                            >
+                              {STATUS_LABEL[s]}
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   )}
 
                   <div className="px-4 py-3 border-t flex-shrink-0">
+                    {replyingToMsg && (
+                      <div className="flex items-center gap-2 px-2 py-1.5 mb-2 bg-muted/60 rounded-lg border-l-2 border-primary/50">
+                        <CornerDownLeft size={11} className="text-primary flex-shrink-0" />
+                        <span className="flex-1 text-xs text-muted-foreground truncate">
+                          <span className="font-medium text-foreground">{replyingToMsg.author}:</span>{" "}
+                          {replyingToMsg.content.slice(0, 80)}{replyingToMsg.content.length > 80 ? "…" : ""}
+                        </span>
+                        <button onClick={() => setReplyingToMsg(null)} className="text-muted-foreground hover:text-foreground flex-shrink-0">
+                          <X size={12} />
+                        </button>
+                      </div>
+                    )}
                     {replyPendingVoiceUrl && (
                       <div className="flex items-center gap-2 mb-2 px-2 py-1.5 rounded-lg bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800">
                         <CheckCircle2 size={12} className="text-green-600 dark:text-green-400 flex-shrink-0" />
@@ -2663,7 +3054,7 @@ export default function RenderViewer({
                           rows={2}
                           onKeyDown={(e) => {
                             if (e.key === "Enter" && e.ctrlKey) submitReply();
-                            if (e.key === "Escape") { setSelectedId(null); setReplyContent(""); setReplyPendingVoiceUrl(null); }
+                            if (e.key === "Escape") { setSelectedId(null); setReplyContent(""); setReplyPendingVoiceUrl(null); setReplyingToMsg(null); }
                           }}
                         />
                         <button

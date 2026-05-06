@@ -591,10 +591,10 @@ export default function ClientProjectPage() {
           showDyskusje={!project.hiddenModules.includes("dyskusje")}
           shoppingLists={project.shoppingLists}
           onHomeClick={() => { setView("home"); setSelectedRoom(null); setSelectedFolder(null); }}
-          onRenderFlowClick={() => setView("rooms")}
+          onRenderFlowClick={() => { if (project.rooms.length === 1) { setSelectedRoom(project.rooms[0]); setSelectedFolder(null); setView("room"); } else { setView("rooms"); } }}
           onDiscussionClick={() => setView("discussion")}
           onSettingsClick={() => setView("settings")}
-          onListClick={project.shoppingLists.length === 1 ? () => router.push(`/share/list/${project.shoppingLists[0].shareToken}`) : () => { setView("home"); setSelectedRoom(null); setSelectedFolder(null); }}
+          onListClick={() => { if (project.shoppingLists.length === 1) { openList(project.shoppingLists[0].id); } else { setView("lists"); } }}
           clientProjectId={projectId}
           activeView={view}
           currentUserId={currentUserId}

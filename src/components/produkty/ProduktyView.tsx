@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { Search, Package, ChevronLeft, ArrowUpDown, Pencil, Trash2, ExternalLink, Plus, Check, X, SlidersHorizontal } from "lucide-react";
+import { Search, Package, ChevronLeft, ArrowUpDown, Pencil, Trash2, ExternalLink, Plus, Check, X, SlidersHorizontal, Layers } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -10,8 +10,6 @@ import {
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { useT } from "@/lib/i18n";
@@ -188,7 +186,7 @@ export default function ProduktyView({ initialProducts }: Props) {
       </div>
 
       {/* Toolbar */}
-      <div className="flex flex-col sm:flex-row gap-2">
+      <div className="flex items-center gap-2">
         <div className="relative flex-1">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -206,25 +204,28 @@ export default function ProduktyView({ initialProducts }: Props) {
             <SlidersHorizontal size={15} />
           </button>
         </div>
-        <select
-          value={groupBy}
-          onChange={(e) => handleGroupChange(e.target.value as GroupBy)}
-          className="h-9 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
-        >
-          <option value="none">Wszystkie</option>
-          <option value="category">Grupuj: Kategoria</option>
-          <option value="manufacturer">Grupuj: Producent</option>
-        </select>
         <DropdownMenu>
           <DropdownMenuTrigger render={
-            <Button variant="outline" size="sm" className="gap-2 h-9">
-              <ArrowUpDown size={14} />
-              {sortOption === "default" ? "Sortuj" : SORT_LABELS[sortOption]}
-            </Button>
+            <button className={`w-9 h-9 flex-shrink-0 flex items-center justify-center rounded-md border transition-colors ${groupBy !== "none" ? "border-primary bg-primary text-white" : "border-input bg-background text-muted-foreground hover:text-foreground"}`}>
+              <Layers size={14} />
+            </button>
           } />
           <DropdownMenuContent align="end">
-            <DropdownMenuLabel>Sortowanie</DropdownMenuLabel>
-            <DropdownMenuSeparator />
+            {([["none", "Wszystkie"], ["category", "Kategoria"], ["manufacturer", "Producent"]] as [GroupBy, string][]).map(([val, label]) => (
+              <DropdownMenuItem key={val} onClick={() => handleGroupChange(val)} className="justify-between">
+                {label}
+                {groupBy === val && <Check size={14} className="text-primary" />}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <DropdownMenu>
+          <DropdownMenuTrigger render={
+            <button className={`w-9 h-9 flex-shrink-0 flex items-center justify-center rounded-md border transition-colors ${sortOption !== "default" ? "border-primary bg-primary text-white" : "border-input bg-background text-muted-foreground hover:text-foreground"}`}>
+              <ArrowUpDown size={14} />
+            </button>
+          } />
+          <DropdownMenuContent align="end">
             {(["default", "name-asc", "name-desc", "price-asc", "price-desc"] as SortOption[]).map((opt) => (
               <DropdownMenuItem key={opt} onClick={() => setSortOption(opt)} className="justify-between">
                 {SORT_LABELS[opt]}

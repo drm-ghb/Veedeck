@@ -13,24 +13,45 @@ export async function PATCH(
   }
 
   const { id } = await params;
-  const { viewedByDesigner } = await req.json();
+  const body = await req.json();
+  const { viewedByDesigner, content, authorName } = body;
 
   const comment = await prisma.listProductComment.findUnique({
     where: { id },
-    select: { product: { select: { section: { select: { list: { select: { userId: true } } } } } } },
+    select: {
+      author: true,
+      productId: true,
+      product: { select: { section: { select: { list: { select: { userId: true, id: true } } } } } },
+    },
   });
 
   if (!comment) {
     return NextResponse.json({ error: "Nie znaleziono" }, { status: 404 });
   }
 
-  if (comment.product.section.list.userId !== session.user.id) {
+  const isOwner = comment.product.section.list.userId === session.user.id;
+  const isAuthor = content !== undefined && comment.author === authorName;
+
+  if (!isOwner && !isAuthor) {
     return NextResponse.json({ error: "Brak dostępu" }, { status: 403 });
   }
 
-  await prisma.listProductComment.update({ where: { id }, data: { viewedByDesigner } });
+  const updated = await prisma.listProductComment.update({
+    where: { id },
+    data: {
+      ...(isOwner && viewedByDesigner !== undefined ? { viewedByDesigner } : {}),
+      ...(content !== undefined ? { content: content.trim() } : {}),
+    },
+  });
 
-  return NextResponse.json({ ok: true });
+  if (content !== undefined) {
+    await pusherServer.trigger(`list-product-${comment.productId}`, "comment-edited", {
+      id,
+      content: content.trim(),
+    });
+  }
+
+  return NextResponse.json(updated);
 }
 
 export async function DELETE(

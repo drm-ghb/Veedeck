@@ -7,7 +7,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const { content, author, voiceUrl } = await req.json();
+  const { content, author, voiceUrl, replyToId, replyToContent, replyToAuthor } = await req.json();
   const finalContent = content?.trim() || (voiceUrl ? "[wiadomość głosowa]" : "");
 
   if (!finalContent || !author) {
@@ -20,7 +20,15 @@ export async function POST(
   }
 
   const reply = await prisma.reply.create({
-    data: { commentId: id, content: finalContent, author, voiceUrl: voiceUrl ?? null },
+    data: {
+      commentId: id,
+      content: finalContent,
+      author,
+      voiceUrl: voiceUrl ?? null,
+      replyToId: replyToId ?? null,
+      replyToContent: replyToContent ?? null,
+      replyToAuthor: replyToAuthor ?? null,
+    },
   });
 
   await pusherServer.trigger(`render-${comment.renderId}`, "comment-reply", {

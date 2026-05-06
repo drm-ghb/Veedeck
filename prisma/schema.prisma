@@ -390,19 +390,25 @@ model Comment {
   viewedByDesigner  Boolean       @default(false)
   voiceUrl          String?
   archivedVersionId String?
+  replyToId         String?
+  replyToContent    String?
+  replyToAuthor     String?
   render          Render         @relation(fields: [renderId], references: [id], onDelete: Cascade)
   archivedVersion RenderVersion? @relation("CommentArchivedVersion", fields: [archivedVersionId], references: [id])
   replies    Reply[]
 }
 
 model Reply {
-  id        String   @id @default(cuid())
-  content   String
-  author    String
-  voiceUrl  String?
-  createdAt DateTime @default(now())
-  commentId String
-  comment   Comment  @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  id             String   @id @default(cuid())
+  content        String
+  author         String
+  voiceUrl       String?
+  replyToId      String?
+  replyToContent String?
+  replyToAuthor  String?
+  createdAt      DateTime @default(now())
+  commentId      String
+  comment        Comment  @relation(fields: [commentId], references: [id], onDelete: Cascade)
 }
 
 model Notification {
@@ -502,6 +508,9 @@ model DiscussionMessage {
   attachmentUrl  String?
   attachmentName String?
   attachmentType String? // "image" | "document"
+  replyToId      String?
+  replyToContent String?
+  replyToAuthor  String?
   createdAt      DateTime @default(now())
   editedAt       DateTime?
 

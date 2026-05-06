@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import { X, Send, Trash2, CornerDownRight, ChevronLeft, ChevronRight } from "lucide-react";
+import { X, Send, Trash2, Edit2, MoreHorizontal, CornerDownLeft, ChevronLeft, ChevronRight } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import { pusherClient } from "@/lib/pusher";
 import { toast } from "sonner";
@@ -48,7 +48,7 @@ function Avatar({ name, logoUrl }: { name: string; logoUrl?: string }) {
   if (logoUrl) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
-      <img src={logoUrl} alt={name} className="w-7 h-7 rounded-full object-cover shrink-0" />
+      <img src={logoUrl} alt={name} title={name} className="w-7 h-7 rounded-full object-cover shrink-0 cursor-default" />
     );
   }
   const initials = name
@@ -58,7 +58,7 @@ function Avatar({ name, logoUrl }: { name: string; logoUrl?: string }) {
     .toUpperCase()
     .slice(0, 2);
   return (
-    <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-xs font-semibold text-primary shrink-0">
+    <div title={name} className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-xs font-semibold text-primary shrink-0 cursor-default">
       {initials}
     </div>
   );
@@ -82,9 +82,12 @@ export default function ProductCommentPanel({
   const [expanded, setExpanded] = useState(false);
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
-  const [replyingTo, setReplyingTo] = useState<string | null>(null);
-  const [replyText, setReplyText] = useState("");
-  const [sendingReply, setSendingReply] = useState(false);
+  const [replyingToComment, setReplyingToComment] = useState<{ id: string; content: string; author: string } | null>(null);
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+  const [editingCommentText, setEditingCommentText] = useState("");
+  const [editingReplyId, setEditingReplyId] = useState<string | null>(null);
+  const [editingReplyText, setEditingReplyText] = useState("");
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [showHighlights, setShowHighlights] = useState(true);
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -149,6 +152,22 @@ export default function ProductCommentPanel({
       );
     });
 
+    channel.bind("comment-edited", ({ id, content }: { id: string; content: string }) => {
+      setComments((prev) =>
+        prev.map((c) => c.id === id ? { ...c, content } : c)
+      );
+    });
+
+    channel.bind("reply-updated", ({ commentId, replyId, content }: { commentId: string; replyId: string; content: string }) => {
+      setComments((prev) =>
+        prev.map((c) =>
+          c.id === commentId
+            ? { ...c, replies: c.replies.map((r) => r.id === replyId ? { ...r, content } : r) }
+            : c
+        )
+      );
+    });
+
     return () => {
       channel.unbind_all();
       pusherClient.unsubscribe(`list-product-${productId}`);
@@ -167,21 +186,61 @@ export default function ProductCommentPanel({
     if (!content || sending) return;
     setSending(true);
     try {
-      const res = await fetch("/api/list-comments", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ productId, content, author: authorName, listShareToken }),
-      });
-      if (!res.ok) throw new Error();
+      if (replyingToComment) {
+        const res = await fetch(`/api/list-comments/${replyingToComment.id}/replies`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ content, author: authorName }),
+        });
+        if (!res.ok) throw new Error();
+        setReplyingToComment(null);
+      } else {
+        const res = await fetch("/api/list-comments", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ productId, content, author: authorName, listShareToken }),
+        });
+        if (!res.ok) throw new Error();
+        onCountChange?.(productId, comments.length + 1);
+      }
       setText("");
-      // Optimistically update count so parent's lc_seen_ stays in sync
-      // even if the user closes the panel before Pusher delivers the new-comment event
-      onCountChange?.(productId, comments.length + 1);
       setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
     } catch {
       toast.error(t.share.sendError);
     } finally {
       setSending(false);
+    }
+  }
+
+  async function handleEditComment(commentId: string, content: string) {
+    const trimmed = content.trim();
+    if (!trimmed) return;
+    try {
+      const res = await fetch(`/api/list-comments/${commentId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: trimmed, authorName }),
+      });
+      if (!res.ok) throw new Error();
+      setEditingCommentId(null);
+    } catch {
+      toast.error(t.share.sendError);
+    }
+  }
+
+  async function handleEditReply(commentId: string, replyId: string, content: string) {
+    const trimmed = content.trim();
+    if (!trimmed) return;
+    try {
+      const res = await fetch(`/api/list-comments/${commentId}/replies/${replyId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: trimmed }),
+      });
+      if (!res.ok) throw new Error();
+      setEditingReplyId(null);
+    } catch {
+      toast.error(t.share.sendError);
     }
   }
 
@@ -200,26 +259,6 @@ export default function ProductCommentPanel({
       if (!res.ok) throw new Error();
     } catch {
       toast.error(t.share.deleteReplyError);
-    }
-  }
-
-  async function handleSendReply(commentId: string) {
-    const content = replyText.trim();
-    if (!content || sendingReply) return;
-    setSendingReply(true);
-    try {
-      const res = await fetch(`/api/list-comments/${commentId}/replies`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content, author: authorName }),
-      });
-      if (!res.ok) throw new Error();
-      setReplyText("");
-      setReplyingTo(null);
-    } catch {
-      toast.error(t.share.sendReplyError);
-    } finally {
-      setSendingReply(false);
     }
   }
 
@@ -265,107 +304,145 @@ export default function ProductCommentPanel({
           </p>
         )}
 
-        {comments.map((comment) => {
-          const unread = isUnread(comment);
-          const isMine = comment.author === authorName;
+        {(() => {
+          type FlatItem =
+            | { type: "comment"; id: string; content: string; author: string; createdAt: string }
+            | { type: "reply"; id: string; content: string; author: string; createdAt: string; commentId: string; parentContent: string; parentAuthor: string };
+
+          const flatItems: FlatItem[] = comments.flatMap((comment) => [
+            { type: "comment" as const, id: comment.id, content: comment.content, author: comment.author, createdAt: comment.createdAt },
+            ...comment.replies.map((reply) => ({
+              type: "reply" as const,
+              id: reply.id,
+              content: reply.content,
+              author: reply.author,
+              createdAt: reply.createdAt,
+              commentId: comment.id,
+              parentContent: comment.content,
+              parentAuthor: comment.author,
+            })),
+          ]).sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+
+          return flatItems.map((item) => {
+          const isMine = item.author === authorName;
+          const unread = item.type === "comment" && isUnread(item as unknown as Comment);
+          const isEditing = item.type === "comment" ? editingCommentId === item.id : editingReplyId === item.id;
           return (
-            <div key={comment.id} className={`flex flex-col gap-0.5 ${isMine ? "items-end" : "items-start"}`}>
-              {/* Bubble */}
-              <div className={`flex gap-2 items-end max-w-[80%] ${isMine ? "flex-row-reverse" : "flex-row"}`}>
-                {!isMine && <Avatar name={comment.author} logoUrl={comment.author === designerName ? designerLogoUrl : undefined} />}
-                <div className="flex flex-col gap-0.5">
-                  {!isMine && <span className="text-[10px] font-semibold text-muted-foreground px-1">{comment.author}</span>}
-                  <div className={`group relative px-3 py-2 text-sm break-words leading-snug ${
-                    isMine
-                      ? "bg-primary text-primary-foreground rounded-2xl rounded-br-sm"
-                      : "bg-muted text-foreground rounded-2xl rounded-bl-sm"
-                  } ${showHighlights && unread ? "ring-2 ring-offset-1 ring-primary/40" : ""}`}>
-                    {comment.content}
-                    {showHighlights && unread && (
-                      <span className="ml-1.5 text-[9px] font-semibold opacity-70">{t.share.newBadge}</span>
-                    )}
-                    {/* Hover actions */}
-                    <div className={`absolute ${isMine ? "right-0" : "left-0"} -top-6 hidden group-hover:flex items-center gap-1.5 bg-popover border border-border rounded-md shadow-sm px-2 py-1 whitespace-nowrap`}>
+            <div key={`${item.type}-${item.id}`} className={`flex mb-2 items-end gap-1.5 group ${isMine ? "justify-end" : "justify-start"}`}>
+              {!isMine && <Avatar name={item.author} logoUrl={item.author === designerName ? designerLogoUrl : undefined} />}
+              <div className={`max-w-[75%] flex flex-col ${isMine ? "items-end" : "items-start"}`}>
+                {item.type === "reply" && (
+                  <div className="px-2 py-1 rounded-lg text-[11px] border-l-2 border-primary/40 bg-muted/60 mb-1 max-w-full">
+                    <span className="font-semibold text-foreground/70">{item.parentAuthor}: </span>
+                    <span className="text-muted-foreground">{item.parentContent.length > 60 ? item.parentContent.slice(0, 60) + "…" : item.parentContent}</span>
+                  </div>
+                )}
+                {isEditing ? (
+                  <div className="flex flex-col gap-1 w-48">
+                    <textarea autoFocus
+                      value={item.type === "comment" ? editingCommentText : editingReplyText}
+                      onChange={(e) => item.type === "comment" ? setEditingCommentText(e.target.value) : setEditingReplyText(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && e.ctrlKey) {
+                          if (item.type === "comment") handleEditComment(item.id, editingCommentText);
+                          else handleEditReply(item.commentId, item.id, editingReplyText);
+                        }
+                        if (e.key === "Escape") {
+                          if (item.type === "comment") setEditingCommentId(null);
+                          else setEditingReplyId(null);
+                        }
+                      }}
+                      className="px-2 py-1.5 text-sm border border-border rounded-lg bg-background focus:outline-none resize-none" rows={2}
+                    />
+                    <div className="flex gap-1 justify-end">
+                      <button onClick={() => item.type === "comment" ? setEditingCommentId(null) : setEditingReplyId(null)} className="px-2 py-1 text-xs text-muted-foreground hover:text-foreground rounded-lg border">Anuluj</button>
+                      <button onClick={() => item.type === "comment" ? handleEditComment(item.id, editingCommentText) : handleEditReply(item.commentId, item.id, editingReplyText)} className="px-2 py-1 text-xs bg-primary text-primary-foreground rounded-lg hover:opacity-90">Zapisz</button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="relative">
+                    <div className={`px-3 py-2 text-sm break-words leading-snug ${
+                      isMine
+                        ? "bg-primary text-primary-foreground rounded-2xl rounded-br-sm"
+                        : "bg-muted text-foreground rounded-2xl rounded-bl-sm"
+                    } ${showHighlights && unread ? "ring-2 ring-offset-1 ring-primary/40" : ""}`}>
+                      {item.content}
+                      {showHighlights && unread && (
+                        <span className="ml-1.5 text-[9px] font-semibold opacity-70">{t.share.newBadge}</span>
+                      )}
+                    </div>
+                    <div className={`absolute top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5 ${isMine ? "right-full pr-1 flex-row-reverse" : "left-full pl-1"}`}>
                       <button
-                        onClick={() => { setReplyingTo(replyingTo === comment.id ? null : comment.id); setReplyText(""); }}
-                        className="text-[10px] text-muted-foreground hover:text-foreground transition-colors"
-                      >{t.share.reply}</button>
-                      {canDelete(comment.author) && (
-                        <button onClick={() => handleDelete(comment.id)} className="text-muted-foreground hover:text-destructive transition-colors">
-                          <Trash2 size={10} />
-                        </button>
+                        onClick={() => {
+                          const replyToId = item.type === "comment" ? item.id : item.commentId;
+                          setReplyingToComment({ id: replyToId, content: item.content, author: item.author });
+                          textareaRef.current?.focus();
+                        }}
+                        title="Odpowiedz"
+                        className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                      >
+                        <CornerDownLeft size={13} />
+                      </button>
+                      {canDelete(item.author) && (
+                        <div className="relative">
+                          <button
+                            onClick={() => setOpenMenuId(openMenuId === item.id ? null : item.id)}
+                            className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                          >
+                            <MoreHorizontal size={13} />
+                          </button>
+                          {openMenuId === item.id && (
+                            <div className={`absolute bottom-full mb-1 ${isMine ? "right-0" : "left-0"} bg-popover border border-border rounded-xl shadow-lg z-50 py-1 min-w-[110px]`}>
+                              <button
+                                onClick={() => {
+                                  if (item.type === "comment") { setEditingCommentId(item.id); setEditingCommentText(item.content); }
+                                  else { setEditingReplyId(item.id); setEditingReplyText(item.content); }
+                                  setOpenMenuId(null);
+                                }}
+                                className="w-full text-left px-3 py-2 text-xs hover:bg-muted flex items-center gap-2 transition-colors"
+                              >
+                                <Edit2 size={12} className="text-muted-foreground" /> Edytuj
+                              </button>
+                              <button
+                                onClick={() => {
+                                  if (item.type === "comment") handleDelete(item.id);
+                                  else handleDeleteReply(item.commentId, item.id);
+                                  setOpenMenuId(null);
+                                }}
+                                className="w-full text-left px-3 py-2 text-xs text-destructive hover:bg-destructive/10 flex items-center gap-2 transition-colors"
+                              >
+                                <Trash2 size={12} /> Usuń
+                              </button>
+                            </div>
+                          )}
+                        </div>
                       )}
                     </div>
                   </div>
-                  <span className={`text-[9px] text-muted-foreground px-1 ${isMine ? "text-right" : "text-left"}`}>{formatDate(comment.createdAt)}</span>
-                </div>
+                )}
+                <span className={`text-[9px] text-muted-foreground px-1 mt-0.5 ${isMine ? "text-right" : "text-left"}`}>{formatDate(item.createdAt)}</span>
               </div>
-
-              {/* Replies */}
-              {comment.replies.length > 0 && (
-                <div className={`flex flex-col gap-1 mt-0.5 w-full ${isMine ? "items-end pr-9" : "items-start pl-9"}`}>
-                  {comment.replies.map((reply) => {
-                    const isReplyMine = reply.author === authorName;
-                    return (
-                      <div key={reply.id} className={`flex gap-1.5 items-end max-w-[75%] ${isReplyMine ? "flex-row-reverse" : "flex-row"}`}>
-                        {!isReplyMine && <Avatar name={reply.author} logoUrl={reply.author === designerName ? designerLogoUrl : undefined} />}
-                        <div className="flex flex-col gap-0.5">
-                          {!isReplyMine && <span className="text-[10px] font-semibold text-muted-foreground px-1">{reply.author}</span>}
-                          <div className={`group relative px-2.5 py-1.5 text-xs break-words leading-snug ${
-                            isReplyMine
-                              ? "bg-primary/80 text-primary-foreground rounded-xl rounded-br-sm"
-                              : "bg-muted/80 text-foreground rounded-xl rounded-bl-sm"
-                          }`}>
-                            {reply.content}
-                            {canDelete(reply.author) && (
-                              <button
-                                onClick={() => handleDeleteReply(comment.id, reply.id)}
-                                className={`absolute ${isReplyMine ? "left-0 -translate-x-5" : "right-0 translate-x-5"} top-1 hidden group-hover:block text-muted-foreground hover:text-destructive transition-colors`}
-                              >
-                                <Trash2 size={10} />
-                              </button>
-                            )}
-                          </div>
-                          <span className={`text-[9px] text-muted-foreground px-1 ${isReplyMine ? "text-right" : "text-left"}`}>{formatDate(reply.createdAt)}</span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-
-              {/* Reply input */}
-              {replyingTo === comment.id && (
-                <div className={`flex gap-1 mt-1 w-[85%] ${isMine ? "self-end flex-row-reverse" : "self-start pl-9"}`}>
-                  <textarea
-                    value={replyText}
-                    onChange={(e) => setReplyText(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && e.ctrlKey) handleSendReply(comment.id);
-                      if (e.key === "Escape") { setReplyingTo(null); setReplyText(""); }
-                    }}
-                    placeholder={t.share.replyPlaceholder}
-                    rows={1}
-                    className="flex-1 px-2 py-1.5 text-xs border border-border rounded-lg bg-background focus:outline-none focus:ring-1 focus:ring-primary/30 resize-none"
-                    autoFocus
-                  />
-                  <button
-                    onClick={() => handleSendReply(comment.id)}
-                    disabled={!replyText.trim() || sendingReply}
-                    className="w-7 h-7 rounded-lg bg-primary text-white flex items-center justify-center disabled:opacity-40 hover:bg-primary/80 transition-colors shrink-0 self-end"
-                  >
-                    <Send size={11} />
-                  </button>
-                </div>
-              )}
             </div>
           );
-        })}
+        });
+        })()}
         <div ref={bottomRef} />
       </div>
 
       {/* Input */}
       <div className="px-4 py-3 border-t border-border shrink-0">
+        {replyingToComment && (
+          <div className="flex items-center gap-2 px-2 py-1.5 mb-2 bg-muted/60 rounded-lg border-l-2 border-primary/50">
+            <CornerDownLeft size={11} className="text-primary flex-shrink-0" />
+            <span className="flex-1 text-xs text-muted-foreground truncate">
+              <span className="font-medium text-foreground">{replyingToComment.author}:</span>{" "}
+              {replyingToComment.content.slice(0, 80)}{replyingToComment.content.length > 80 ? "…" : ""}
+            </span>
+            <button onClick={() => setReplyingToComment(null)} className="text-muted-foreground hover:text-foreground flex-shrink-0">
+              <X size={12} />
+            </button>
+          </div>
+        )}
         <div className="flex gap-2">
           <textarea
             ref={textareaRef}
@@ -373,8 +450,9 @@ export default function ProductCommentPanel({
             onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter" && e.ctrlKey) handleSend();
+              if (e.key === "Escape") setReplyingToComment(null);
             }}
-            placeholder={t.share.messagePlaceholder}
+            placeholder={replyingToComment ? t.share.replyPlaceholder : t.share.messagePlaceholder}
             rows={2}
             className="flex-1 px-3 py-2 text-sm border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 resize-none"
           />
