@@ -208,6 +208,8 @@ model ProjectClient {
   user          User?          @relation("ProjectClientUser", fields: [userId], references: [id], onDelete: SetNull)
   paymentGroups PaymentGroup[]
   payments      Payment[]
+  docFolders    ClientDocFolder[]
+  docs          ClientDoc[]
 }
 
 model PaymentGroup {
@@ -587,4 +589,32 @@ enum CommentStatus {
   NEW
   IN_PROGRESS
   DONE
+}
+
+model ClientDocFolder {
+  id        String         @id @default(cuid())
+  clientId  String
+  name      String
+  order     Int            @default(0)
+  pinned    Boolean        @default(false)
+  archived  Boolean        @default(false)
+  createdAt DateTime       @default(now())
+  client    ProjectClient  @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  docs      ClientDoc[]
+}
+
+model ClientDoc {
+  id        String           @id @default(cuid())
+  clientId  String
+  folderId  String?
+  name      String
+  fileUrl   String
+  fileKey   String
+  fileType  String           @default("file")
+  order     Int              @default(0)
+  pinned    Boolean          @default(false)
+  archived  Boolean          @default(false)
+  createdAt DateTime         @default(now())
+  client    ProjectClient    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  folder    ClientDocFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
 }

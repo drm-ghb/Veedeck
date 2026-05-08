@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { PaymentsTab } from "@/components/projekty/PaymentsTab";
+import DocumentsTab from "@/components/projekty/DocumentsTab";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -116,7 +117,7 @@ export default function ProjectDetailView({ project }: { project: ProjectData })
   const [savingInfo, setSavingInfo] = useState(false);
 
   // Tab state
-  const [activeTab, setActiveTab] = useState<"info" | "contacts" | "payments">("info");
+  const [activeTab, setActiveTab] = useState<"info" | "contacts" | "payments" | "documents">("info");
 
   // Clients state
   const [clients, setClients] = useState<ProjectClient[]>(project.clients);
@@ -484,6 +485,16 @@ export default function ProjectDetailView({ project }: { project: ProjectData })
         >
           Płatności
         </button>
+        <button
+          onClick={() => setActiveTab("documents")}
+          className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
+            activeTab === "documents"
+              ? "border-primary text-foreground"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          Dokumenty
+        </button>
       </div>
 
       {activeTab === "contacts" && (
@@ -744,6 +755,12 @@ export default function ProjectDetailView({ project }: { project: ProjectData })
           clientId={clients[0]?.id ?? ""}
           projectId={project.id}
         />
+      )}
+
+      {activeTab === "documents" && (
+        <section className="bg-card border border-border rounded-xl p-5">
+          <DocumentsTab clientId={clients[0]?.id ?? ""} />
+        </section>
       )}
 
       {activeTab === "info" && <div className="space-y-6">

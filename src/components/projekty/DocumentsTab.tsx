@@ -1,0 +1,738 @@
+"use client";
+
+import { useState, useEffect, useCallback, useRef } from "react";
+import {
+  DndContext,
+  DragEndEvent,
+  DragOverlay,
+  DragStartEvent,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  closestCenter,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+  arrayMove,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import {
+  FolderIcon,
+  FolderOpenIcon,
+  FileIcon,
+  PlusIcon,
+  Trash2Icon,
+  PencilIcon,
+  GripVerticalIcon,
+  UploadIcon,
+  ChevronRightIcon,
+  ChevronDownIcon,
+  SearchIcon,
+  XIcon,
+  ExternalLinkIcon,
+} from "lucide-react";
+import { toast } from "sonner";
+import { useUploadThing } from "@/lib/uploadthing-client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+
+interface ClientDoc {
+  id: string;
+  clientId: string;
+  folderId: string | null;
+  name: string;
+  fileUrl: string;
+  fileKey: string;
+  fileType: string;
+  order: number;
+  createdAt: string;
+}
+
+interface ClientDocFolder {
+  id: string;
+  clientId: string;
+  name: string;
+  order: number;
+  docs: ClientDoc[];
+}
+
+interface DocumentsTabProps {
+  clientId: string;
+}
+
+// ---- Upload button isolated to prevent slow init ----
+function DocUploadButton({
+  onUpload,
+  folderId,
+}: {
+  onUpload: (files: { url: string; key: string; name: string }[], folderId: string | null) => void;
+  folderId: string | null;
+}) {
+  const { startUpload, isUploading } = useUploadThing("clientDocUploader");
+
+  const handleChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    if (!files.length) return;
+    const res = await startUpload(files);
+    if (res) {
+      onUpload(
+        res.map((f: { url: string; key: string; name: string }) => ({ url: f.url, key: f.key, name: f.name ?? files[0]?.name ?? "plik" })),
+        folderId
+      );
+    }
+    e.target.value = "";
+  };
+
+  return (
+    <label
+      className={`flex items-center gap-1 text-xs px-2 py-1 rounded border border-dashed border-gray-300 cursor-pointer hover:bg-gray-50 transition-colors ${isUploading ? "opacity-50 pointer-events-none" : ""}`}
+    >
+      <UploadIcon className="w-3 h-3" />
+      {isUploading ? "Wgrywanie..." : "Dodaj plik"}
+      <input type="file" multiple className="hidden" onChange={handleChange} />
+    </label>
+  );
+}
+
+// ---- Sortable doc row ----
+function DocRow({
+  doc,
+  onRename,
+  onDelete,
+}: {
+  doc: ClientDoc;
+  onRename: (id: string, name: string) => void;
+  onDelete: (id: string) => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: doc.id });
+  const [editing, setEditing] = useState(false);
+  const [editName, setEditName] = useState(doc.name);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,
+  };
+
+  const commitRename = () => {
+    const trimmed = editName.trim();
+    if (trimmed && trimmed !== doc.name) onRename(doc.id, trimmed);
+    setEditing(false);
+  };
+
+  const ext = doc.name.split(".").pop()?.toLowerCase() ?? "";
+  const isImage = ["jpg", "jpeg", "png", "gif", "webp", "svg"].includes(ext);
+  const isPdf = ext === "pdf";
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-50 group"
+    >
+      <button className="cursor-grab text-gray-300 hover:text-gray-500 touch-none" {...attributes} {...listeners}>
+        <GripVerticalIcon className="w-3.5 h-3.5" />
+      </button>
+      {isImage ? (
+        <img src={doc.fileUrl} alt="" className="w-5 h-5 rounded object-cover flex-shrink-0" />
+      ) : (
+        <FileIcon className="w-4 h-4 text-gray-400 flex-shrink-0" />
+      )}
+      {editing ? (
+        <input
+          ref={inputRef}
+          value={editName}
+          onChange={(e) => setEditName(e.target.value)}
+          onBlur={commitRename}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") commitRename();
+            if (e.key === "Escape") { setEditName(doc.name); setEditing(false); }
+          }}
+          className="flex-1 text-sm border-b border-blue-400 outline-none bg-transparent"
+          autoFocus
+        />
+      ) : (
+        <span className="flex-1 text-sm truncate">{doc.name}</span>
+      )}
+      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        {(isImage || isPdf) && (
+          <a href={doc.fileUrl} target="_blank" rel="noopener noreferrer" className="p-1 rounded hover:bg-gray-200">
+            <ExternalLinkIcon className="w-3.5 h-3.5 text-gray-500" />
+          </a>
+        )}
+        {!isImage && !isPdf && (
+          <a href={doc.fileUrl} download={doc.name} className="p-1 rounded hover:bg-gray-200">
+            <ExternalLinkIcon className="w-3.5 h-3.5 text-gray-500" />
+          </a>
+        )}
+        <button
+          onClick={() => { setEditing(true); setEditName(doc.name); }}
+          className="p-1 rounded hover:bg-gray-200"
+        >
+          <PencilIcon className="w-3.5 h-3.5 text-gray-500" />
+        </button>
+        <button onClick={() => onDelete(doc.id)} className="p-1 rounded hover:bg-red-100">
+          <Trash2Icon className="w-3.5 h-3.5 text-red-400" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ---- Sortable folder row ----
+function FolderRow({
+  folder,
+  isOpen,
+  onToggle,
+  onRename,
+  onDelete,
+  onUpload,
+  onDocRename,
+  onDocDelete,
+}: {
+  folder: ClientDocFolder;
+  isOpen: boolean;
+  onToggle: () => void;
+  onRename: (id: string, name: string) => void;
+  onDelete: (id: string) => void;
+  onUpload: (files: { url: string; key: string; name: string }[], folderId: string | null) => void;
+  onDocRename: (id: string, name: string) => void;
+  onDocDelete: (id: string) => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: folder.id });
+  const [editing, setEditing] = useState(false);
+  const [editName, setEditName] = useState(folder.name);
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,
+  };
+
+  const commitRename = () => {
+    const trimmed = editName.trim();
+    if (trimmed && trimmed !== folder.name) onRename(folder.id, trimmed);
+    setEditing(false);
+  };
+
+  const docIds = folder.docs.map((d) => d.id);
+
+  return (
+    <div ref={setNodeRef} style={style} className="mb-1">
+      <div className="flex items-center gap-2 px-2 py-2 rounded hover:bg-gray-50 group cursor-pointer" onClick={onToggle}>
+        <button
+          className="cursor-grab text-gray-300 hover:text-gray-500 touch-none"
+          onClick={(e) => e.stopPropagation()}
+          {...attributes}
+          {...listeners}
+        >
+          <GripVerticalIcon className="w-3.5 h-3.5" />
+        </button>
+        <span className="text-gray-400 flex-shrink-0">
+          {isOpen ? <ChevronDownIcon className="w-4 h-4" /> : <ChevronRightIcon className="w-4 h-4" />}
+        </span>
+        {isOpen ? (
+          <FolderOpenIcon className="w-4 h-4 text-yellow-500 flex-shrink-0" />
+        ) : (
+          <FolderIcon className="w-4 h-4 text-yellow-500 flex-shrink-0" />
+        )}
+        {editing ? (
+          <input
+            value={editName}
+            onChange={(e) => setEditName(e.target.value)}
+            onBlur={commitRename}
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => {
+              e.stopPropagation();
+              if (e.key === "Enter") commitRename();
+              if (e.key === "Escape") { setEditName(folder.name); setEditing(false); }
+            }}
+            className="flex-1 text-sm font-medium border-b border-blue-400 outline-none bg-transparent"
+            autoFocus
+          />
+        ) : (
+          <span className="flex-1 text-sm font-medium">{folder.name}</span>
+        )}
+        <span className="text-xs text-gray-400 mr-1">{folder.docs.length}</span>
+        <div
+          className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <DocUploadButton onUpload={onUpload} folderId={folder.id} />
+          <button
+            onClick={(e) => { e.stopPropagation(); setEditing(true); setEditName(folder.name); }}
+            className="p-1 rounded hover:bg-gray-200"
+          >
+            <PencilIcon className="w-3.5 h-3.5 text-gray-500" />
+          </button>
+          <button onClick={() => onDelete(folder.id)} className="p-1 rounded hover:bg-red-100">
+            <Trash2Icon className="w-3.5 h-3.5 text-red-400" />
+          </button>
+        </div>
+      </div>
+      {isOpen && (
+        <div className="ml-6 border-l border-gray-100 pl-2">
+          <SortableContext items={docIds} strategy={verticalListSortingStrategy}>
+            {folder.docs.map((doc) => (
+              <DocRow key={doc.id} doc={doc} onRename={onDocRename} onDelete={onDocDelete} />
+            ))}
+          </SortableContext>
+          {folder.docs.length === 0 && (
+            <div className="text-xs text-gray-400 px-3 py-2">Brak plików w folderze</div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---- Main component ----
+export default function DocumentsTab({ clientId }: DocumentsTabProps) {
+  const [folders, setFolders] = useState<ClientDocFolder[]>([]);
+  const [looseDocs, setLooseDocs] = useState<ClientDoc[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [openFolders, setOpenFolders] = useState<Set<string>>(new Set());
+  const [search, setSearch] = useState("");
+  const [newFolderName, setNewFolderName] = useState("");
+  const [addingFolder, setAddingFolder] = useState(false);
+  const [activeId, setActiveId] = useState<string | null>(null);
+
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+
+  const load = useCallback(async () => {
+    if (!clientId) { setLoading(false); return; }
+    try {
+      const res = await fetch(`/api/client-docs/folders?clientId=${clientId}`);
+      if (!res.ok) throw new Error();
+      const data: ClientDocFolder[] = await res.json();
+      setFolders(data);
+
+      const docsRes = await fetch(`/api/client-docs/files?clientId=${clientId}`);
+      if (!docsRes.ok) throw new Error();
+      const allDocs: ClientDoc[] = await docsRes.json();
+      setLooseDocs(allDocs.filter((d) => d.folderId === null));
+    } catch {
+      toast.error("Błąd ładowania dokumentów");
+    } finally {
+      setLoading(false);
+    }
+  }, [clientId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const handleAddFolder = async () => {
+    const name = newFolderName.trim();
+    if (!name) return;
+    try {
+      const res = await fetch("/api/client-docs/folders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clientId, name }),
+      });
+      if (!res.ok) throw new Error();
+      const folder: ClientDocFolder = await res.json();
+      setFolders((prev) => [...prev, folder]);
+      setOpenFolders((prev) => new Set([...prev, folder.id]));
+      setNewFolderName("");
+      setAddingFolder(false);
+    } catch {
+      toast.error("Błąd tworzenia folderu");
+    }
+  };
+
+  const handleRenameFolder = async (id: string, name: string) => {
+    try {
+      const res = await fetch(`/api/client-docs/folders/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      if (!res.ok) throw new Error();
+      const updated: ClientDocFolder = await res.json();
+      setFolders((prev) => prev.map((f) => (f.id === id ? { ...f, name: updated.name } : f)));
+    } catch {
+      toast.error("Błąd zmiany nazwy folderu");
+    }
+  };
+
+  const handleDeleteFolder = async (id: string) => {
+    try {
+      const res = await fetch(`/api/client-docs/folders/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error();
+      // Move folder docs to loose docs
+      const folder = folders.find((f) => f.id === id);
+      if (folder) {
+        setLooseDocs((prev) => [...prev, ...folder.docs.map((d) => ({ ...d, folderId: null }))]);
+      }
+      setFolders((prev) => prev.filter((f) => f.id !== id));
+    } catch {
+      toast.error("Błąd usuwania folderu");
+    }
+  };
+
+  const handleUpload = async (
+    files: { url: string; key: string; name: string }[],
+    folderId: string | null
+  ) => {
+    const created: ClientDoc[] = [];
+    for (const file of files) {
+      try {
+        const res = await fetch("/api/client-docs/files", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            clientId,
+            folderId,
+            name: file.name,
+            fileUrl: file.url,
+            fileKey: file.key,
+          }),
+        });
+        if (!res.ok) throw new Error();
+        created.push(await res.json());
+      } catch {
+        toast.error(`Błąd zapisu pliku ${file.name}`);
+      }
+    }
+    if (folderId) {
+      setFolders((prev) =>
+        prev.map((f) =>
+          f.id === folderId ? { ...f, docs: [...f.docs, ...created] } : f
+        )
+      );
+    } else {
+      setLooseDocs((prev) => [...prev, ...created]);
+    }
+  };
+
+  const handleRenameDoc = async (id: string, name: string) => {
+    try {
+      const res = await fetch(`/api/client-docs/files/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      if (!res.ok) throw new Error();
+      const updated: ClientDoc = await res.json();
+      setFolders((prev) =>
+        prev.map((f) => ({
+          ...f,
+          docs: f.docs.map((d) => (d.id === id ? { ...d, name: updated.name } : d)),
+        }))
+      );
+      setLooseDocs((prev) => prev.map((d) => (d.id === id ? { ...d, name: updated.name } : d)));
+    } catch {
+      toast.error("Błąd zmiany nazwy pliku");
+    }
+  };
+
+  const handleDeleteDoc = async (id: string) => {
+    try {
+      const res = await fetch(`/api/client-docs/files/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error();
+      setFolders((prev) =>
+        prev.map((f) => ({ ...f, docs: f.docs.filter((d) => d.id !== id) }))
+      );
+      setLooseDocs((prev) => prev.filter((d) => d.id !== id));
+    } catch {
+      toast.error("Błąd usuwania pliku");
+    }
+  };
+
+  const findDoc = (id: string): ClientDoc | undefined => {
+    for (const f of folders) {
+      const d = f.docs.find((d) => d.id === id);
+      if (d) return d;
+    }
+    return looseDocs.find((d) => d.id === id);
+  };
+
+  const findFolder = (id: string) => folders.find((f) => f.id === id);
+
+  const handleDragStart = (e: DragStartEvent) => {
+    setActiveId(e.active.id as string);
+  };
+
+  const handleDragEnd = async (e: DragEndEvent) => {
+    setActiveId(null);
+    const { active, over } = e;
+    if (!over || active.id === over.id) return;
+
+    const activeIsFolder = !!findFolder(active.id as string);
+    const overIsFolder = !!findFolder(over.id as string);
+
+    if (activeIsFolder && overIsFolder) {
+      // Reorder folders
+      const oldIdx = folders.findIndex((f) => f.id === active.id);
+      const newIdx = folders.findIndex((f) => f.id === over.id);
+      const reordered = arrayMove(folders, oldIdx, newIdx);
+      setFolders(reordered);
+      await fetch("/api/client-docs/folders/reorder", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderedIds: reordered.map((f) => f.id) }),
+      });
+      return;
+    }
+
+    if (!activeIsFolder && !overIsFolder) {
+      const activeDoc = findDoc(active.id as string);
+      const overDoc = findDoc(over.id as string);
+      if (!activeDoc || !overDoc) return;
+
+      if (activeDoc.folderId === overDoc.folderId) {
+        // Reorder within same context
+        if (activeDoc.folderId === null) {
+          const oldIdx = looseDocs.findIndex((d) => d.id === active.id);
+          const newIdx = looseDocs.findIndex((d) => d.id === over.id);
+          const reordered = arrayMove(looseDocs, oldIdx, newIdx);
+          setLooseDocs(reordered);
+          await fetch("/api/client-docs/files/reorder", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ orderedIds: reordered.map((d) => d.id) }),
+          });
+        } else {
+          setFolders((prev) =>
+            prev.map((f) => {
+              if (f.id !== activeDoc.folderId) return f;
+              const oldIdx = f.docs.findIndex((d) => d.id === active.id);
+              const newIdx = f.docs.findIndex((d) => d.id === over.id);
+              return { ...f, docs: arrayMove(f.docs, oldIdx, newIdx) };
+            })
+          );
+          // Persist reorder
+          const folder = folders.find((f) => f.id === activeDoc.folderId);
+          if (folder) {
+            const oldIdx = folder.docs.findIndex((d) => d.id === active.id);
+            const newIdx = folder.docs.findIndex((d) => d.id === over.id);
+            const reordered = arrayMove(folder.docs, oldIdx, newIdx);
+            await fetch("/api/client-docs/files/reorder", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ orderedIds: reordered.map((d) => d.id) }),
+            });
+          }
+        }
+      } else {
+        // Move doc to different folder context
+        const newFolderId = overDoc.folderId;
+        await fetch(`/api/client-docs/files/${activeDoc.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ folderId: newFolderId }),
+        });
+        const movedDoc = { ...activeDoc, folderId: newFolderId };
+        setFolders((prev) =>
+          prev.map((f) => ({
+            ...f,
+            docs:
+              f.id === activeDoc.folderId
+                ? f.docs.filter((d) => d.id !== activeDoc.id)
+                : f.id === newFolderId
+                  ? [...f.docs, movedDoc]
+                  : f.docs,
+          }))
+        );
+        if (activeDoc.folderId === null) {
+          setLooseDocs((prev) => prev.filter((d) => d.id !== activeDoc.id));
+        }
+        if (newFolderId === null) {
+          setLooseDocs((prev) => [...prev, movedDoc]);
+        }
+      }
+    }
+
+    // Drop doc onto folder header → move into folder
+    if (!activeIsFolder && overIsFolder) {
+      const activeDoc = findDoc(active.id as string);
+      if (!activeDoc || activeDoc.folderId === (over.id as string)) return;
+      const newFolderId = over.id as string;
+      await fetch(`/api/client-docs/files/${activeDoc.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ folderId: newFolderId }),
+      });
+      const movedDoc = { ...activeDoc, folderId: newFolderId };
+      setFolders((prev) =>
+        prev.map((f) => ({
+          ...f,
+          docs:
+            f.id === activeDoc.folderId
+              ? f.docs.filter((d) => d.id !== activeDoc.id)
+              : f.id === newFolderId
+                ? [...f.docs, movedDoc]
+                : f.docs,
+        }))
+      );
+      if (activeDoc.folderId === null) {
+        setLooseDocs((prev) => prev.filter((d) => d.id !== activeDoc.id));
+      }
+      setOpenFolders((prev) => new Set([...prev, newFolderId]));
+    }
+  };
+
+  const toggleFolder = (id: string) => {
+    setOpenFolders((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  // Search filter
+  const filterDoc = (doc: ClientDoc) =>
+    !search || doc.name.toLowerCase().includes(search.toLowerCase());
+  const filterFolder = (folder: ClientDocFolder) =>
+    !search ||
+    folder.name.toLowerCase().includes(search.toLowerCase()) ||
+    folder.docs.some((d) => filterDoc(d));
+
+  const visibleFolders = folders.filter(filterFolder);
+  const visibleLoose = looseDocs.filter(filterDoc);
+
+  const folderIds = folders.map((f) => f.id);
+  const looseDocIds = looseDocs.map((d) => d.id);
+
+  const activeDoc = activeId ? findDoc(activeId) : null;
+  const activeFolder = activeId ? findFolder(activeId) : null;
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-16 text-sm text-gray-400">
+        Ładowanie...
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <div className="relative flex-1 min-w-[160px]">
+          <SearchIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Szukaj dokumentów..."
+            className="w-full pl-8 pr-7 py-1.5 text-sm border rounded-md outline-none focus:ring-1 focus:ring-blue-400"
+          />
+          {search && (
+            <button
+              onClick={() => setSearch("")}
+              className="absolute right-2 top-1/2 -translate-y-1/2"
+            >
+              <XIcon className="w-3.5 h-3.5 text-gray-400" />
+            </button>
+          )}
+        </div>
+        <button
+          onClick={() => setAddingFolder(true)}
+          className="flex items-center gap-1 text-sm px-3 py-1.5 rounded-md border hover:bg-gray-50 transition-colors"
+        >
+          <PlusIcon className="w-3.5 h-3.5" />
+          Nowy folder
+        </button>
+        <DocUploadButton onUpload={handleUpload} folderId={null} />
+      </div>
+
+      {/* Add folder input */}
+      {addingFolder && (
+        <div className="flex items-center gap-2">
+          <FolderIcon className="w-4 h-4 text-yellow-500 flex-shrink-0" />
+          <input
+            value={newFolderName}
+            onChange={(e) => setNewFolderName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleAddFolder();
+              if (e.key === "Escape") { setAddingFolder(false); setNewFolderName(""); }
+            }}
+            placeholder="Nazwa folderu..."
+            className="flex-1 text-sm border-b border-blue-400 outline-none py-0.5"
+            autoFocus
+          />
+          <button onClick={handleAddFolder} className="text-sm text-blue-600 hover:underline">
+            Zapisz
+          </button>
+          <button
+            onClick={() => { setAddingFolder(false); setNewFolderName(""); }}
+            className="text-sm text-gray-400 hover:text-gray-600"
+          >
+            Anuluj
+          </button>
+        </div>
+      )}
+
+      {/* Content */}
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+      >
+        {/* Folders */}
+        <SortableContext items={folderIds} strategy={verticalListSortingStrategy}>
+          {visibleFolders.map((folder) => (
+            <FolderRow
+              key={folder.id}
+              folder={
+                search
+                  ? { ...folder, docs: folder.docs.filter(filterDoc) }
+                  : folder
+              }
+              isOpen={openFolders.has(folder.id) || !!search}
+              onToggle={() => toggleFolder(folder.id)}
+              onRename={handleRenameFolder}
+              onDelete={handleDeleteFolder}
+              onUpload={handleUpload}
+              onDocRename={handleRenameDoc}
+              onDocDelete={handleDeleteDoc}
+            />
+          ))}
+        </SortableContext>
+
+        {/* Loose docs */}
+        {visibleLoose.length > 0 && (
+          <div className={folders.length > 0 ? "mt-3 border-t pt-3" : ""}>
+            {folders.length > 0 && (
+              <div className="text-xs text-gray-400 px-3 mb-1">Pliki bez folderu</div>
+            )}
+            <SortableContext items={looseDocIds} strategy={verticalListSortingStrategy}>
+              {visibleLoose.map((doc) => (
+                <DocRow key={doc.id} doc={doc} onRename={handleRenameDoc} onDelete={handleDeleteDoc} />
+              ))}
+            </SortableContext>
+          </div>
+        )}
+
+        <DragOverlay>
+          {activeDoc && (
+            <div className="flex items-center gap-2 px-3 py-2 rounded bg-white shadow-lg border text-sm">
+              <FileIcon className="w-4 h-4 text-gray-400" />
+              <span>{activeDoc.name}</span>
+            </div>
+          )}
+          {activeFolder && (
+            <div className="flex items-center gap-2 px-3 py-2 rounded bg-white shadow-lg border text-sm font-medium">
+              <FolderIcon className="w-4 h-4 text-yellow-500" />
+              <span>{activeFolder.name}</span>
+            </div>
+          )}
+        </DragOverlay>
+      </DndContext>
+
+      {/* Empty state */}
+      {folders.length === 0 && looseDocs.length === 0 && !addingFolder && (
+        <div className="text-center py-12 text-gray-400">
+          <FolderIcon className="w-10 h-10 mx-auto mb-3 text-gray-200" />
+          <p className="text-sm">Brak dokumentów</p>
+          <p className="text-xs mt-1">Dodaj folder lub wgraj pliki bezpośrednio</p>
+        </div>
+      )}
+    </div>
+  );
+}
