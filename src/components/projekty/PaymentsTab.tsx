@@ -90,6 +90,7 @@ export function PaymentsTab({ clientId, projectId }: Props) {
     const data = await res.json();
     setGroups(data.groups);
     setPayments(data.payments);
+    if (data.totalAmount != null) setTotalAmount(data.totalAmount);
     setLoading(false);
   }, [clientId]);
 
@@ -204,16 +205,14 @@ export function PaymentsTab({ clientId, projectId }: Props) {
   async function handleSaveTotal() {
     const val = parseFloat(totalInput.replace(",", "."));
     if (isNaN(val)) return;
-    // Store in localStorage per client (simple approach, no DB change needed for now)
-    localStorage.setItem(`payment-total-${clientId}`, String(val));
+    await fetch(`/api/payments?clientId=${clientId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ totalAmount: val }),
+    });
     setTotalAmount(val);
     setEditingTotal(false);
   }
-
-  useEffect(() => {
-    const stored = localStorage.getItem(`payment-total-${clientId}`);
-    if (stored) setTotalAmount(parseFloat(stored));
-  }, [clientId]);
 
   function handleExportCSV() {
     const rows = [["Nazwa", "Kwota", "Status", "Grupa"]];

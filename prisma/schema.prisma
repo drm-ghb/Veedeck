@@ -203,6 +203,7 @@ model ProjectClient {
   startDate     DateTime?
   endDate       DateTime?
   userId        String?
+  totalAmount   Float?
   project       Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
   user          User?          @relation("ProjectClientUser", fields: [userId], references: [id], onDelete: SetNull)
   paymentGroups PaymentGroup[]
