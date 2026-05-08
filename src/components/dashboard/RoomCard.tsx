@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Pin } from "lucide-react";
+import { Pin } from "@/components/ui/icons";
 import { getRoomIcon } from "@/lib/roomIcons";
 import RoomMenu from "./RoomMenu";
 

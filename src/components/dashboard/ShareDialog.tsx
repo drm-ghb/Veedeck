@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Share2, Copy, Check, AlertTriangle } from "lucide-react";
+import { Share2, Copy, Check, AlertTriangle } from "@/components/ui/icons";
 import {
   Dialog,
   DialogContent,
@@ -51,7 +51,7 @@ export default function ShareDialog({
       <Dialog>
         <DialogTrigger render={<Button variant="outline" />}>
           <Share2 size={15} />
-          Udostępnij
+          <span className="hidden sm:inline">Udostępnij</span>
         </DialogTrigger>
         <DialogContent>
           <DialogHeader>

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { signIn, signOut, getSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { ShieldCheck, Eye, EyeOff } from "lucide-react";
+import { ShieldCheck, Eye, EyeOff } from "@/components/ui/icons";
 import { toast } from "sonner";
 
 export default function AdminLoginPage() {

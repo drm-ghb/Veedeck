@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Settings } from "lucide-react";
+import { Settings } from "@/components/ui/icons";
 
 function getSettingsHref(pathname: string): string {
   if (pathname.startsWith("/renderflow")) return "/settings/renderflow";

@@ -1,6 +1,6 @@
 "use client";
 
-import { CornerDownLeft } from "lucide-react";
+import { CornerDownLeft } from "@/components/ui/icons";
 import { useChatGestures } from "@/lib/use-chat-gestures";
 
 interface Props {

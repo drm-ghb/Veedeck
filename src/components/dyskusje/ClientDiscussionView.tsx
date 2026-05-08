@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { MessageSquare, ExternalLink, Paperclip, FileText, FileSpreadsheet, File as FileIcon, Loader2, FolderOpen, X, Mic, Square, Search, Edit2, Trash2, CornerDownLeft, MoreVertical } from "lucide-react";
+import { MessageSquare, ExternalLink, Paperclip, FileText, FileSpreadsheet, File as FileIcon, Loader2, FolderOpen, X, Mic, Square, Search, Edit2, Trash2, CornerDownLeft, MoreVertical } from "@/components/ui/icons";
 import { toast } from "sonner";
 import Pusher from "pusher-js";
 import { useUploadThing } from "@/lib/uploadthing-client";
@@ -133,7 +133,11 @@ function ClientChatSearchResults({ messages, query, onImageClick }: {
   );
 }
 
-function Avatar({ name }: { name: string }) {
+function Avatar({ name, logoUrl }: { name: string; logoUrl?: string | null }) {
+  if (logoUrl) {
+    // eslint-disable-next-line @next/next/no-img-element
+    return <img src={logoUrl} alt={name} title={name} className="w-7 h-7 rounded-full object-cover shrink-0 cursor-default" />;
+  }
   const initials = name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
   return (
     <div title={name} className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-xs font-semibold text-primary shrink-0 cursor-default">
@@ -160,6 +164,8 @@ interface Props {
   initialAuthorName?: string;
   /** If set, use for sound notification logic (don't play for own messages) */
   currentUserId?: string;
+  /** Current user's avatar URL */
+  currentUserAvatarUrl?: string | null;
 }
 
 function dedupeReceipts(recs: ReadReceipt[]): ReadReceipt[] {
@@ -188,7 +194,7 @@ function dayLabel(iso: string) {
   return new Date(iso).toLocaleDateString("pl-PL", { day: "2-digit", month: "long", year: "numeric" });
 }
 
-export default function ClientDiscussionView({ token, discussionId, discussionTitle, apiBasePath, initialAuthorName, currentUserId }: Props) {
+export default function ClientDiscussionView({ token, discussionId, discussionTitle, apiBasePath, initialAuthorName, currentUserId, currentUserAvatarUrl }: Props) {
   const msgApiBase = apiBasePath ?? `/api/share/${token}/discussions/${discussionId}`;
   const [messages, setMessages] = useState<DiscussionMessage[]>([]);
   const [receipts, setReceipts] = useState<ReadReceipt[]>([]);
@@ -881,6 +887,7 @@ export default function ClientDiscussionView({ token, discussionId, discussionTi
                       </div>
                       </SwipeableMessage>
                       </div>
+                      {isOwn && <Avatar name={msg.authorName} logoUrl={currentUserAvatarUrl} />}
                     </div>
                   );
                     })}

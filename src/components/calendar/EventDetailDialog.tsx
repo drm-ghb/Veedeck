@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { X, Clock, MapPin, Users, FileText, Trash2, Pencil } from "lucide-react";
+import { X, Clock, MapPin, Users, FileText, Trash2, Pencil } from "@/components/ui/icons";
 import { toast } from "sonner";
 import type { CalendarEvent, EventType } from "./CalendarView";
 

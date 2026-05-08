@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { auth, signOut } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
-import { LogOut } from "lucide-react";
+import { LogOut } from "@/components/ui/icons";
 
 export default async function ClientIndexPage() {
   const session = await auth();

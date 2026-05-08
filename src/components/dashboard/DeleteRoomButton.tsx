@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { X } from "lucide-react";
+import { X } from "@/components/ui/icons";
 
 interface DeleteRoomButtonProps {
   roomId: string;

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useViewPreference } from "@/hooks/useViewPreference";
-import { LayoutGrid, List, Search, ArchiveRestore, Trash2, ArrowDownUp, Pin, AlertTriangle, Check } from "lucide-react";
+import { LayoutGrid, List, Search, ArchiveRestore, Trash2, ArrowDownUp, Pin, AlertTriangle, Check } from "@/components/ui/icons";
 import ProjectCard from "./ProjectCard";
 import ProjectMenu from "./ProjectMenu";
 import NewProjectDialog from "./NewProjectDialog";

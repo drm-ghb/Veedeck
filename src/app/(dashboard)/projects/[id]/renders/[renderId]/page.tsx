@@ -31,7 +31,7 @@ export default async function RenderPage({ params }: Props) {
 
   const navUser = await prisma.user.findUnique({
     where: { id: session!.user!.id! },
-    select: { navMode: true },
+    select: { navMode: true, avatarUrl: true },
   });
   const sidebarVisible = navUser?.navMode === "sidebar";
 
@@ -75,6 +75,7 @@ export default async function RenderPage({ params }: Props) {
           replies: c.replies.map((r) => ({ ...r, createdAt: r.createdAt.toISOString() })),
         }))}
         authorName={session!.user!.name || session!.user!.email || "Projektant"}
+        authorAvatarUrl={navUser?.avatarUrl ?? null}
         isDesigner={true}
         viewCount={render.viewCount}
         roomRenders={roomRenders.map((r) => ({ ...r, fileType: r.fileType ?? "image" }))}

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Folder, Pin } from "lucide-react";
+import { Folder, Pin } from "@/components/ui/icons";
 import FolderMenu from "./FolderMenu";
 
 interface FolderCardProps {

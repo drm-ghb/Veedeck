@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import { X, Send, Trash2, Edit2, MoreHorizontal, CornerDownLeft, ChevronLeft, ChevronRight } from "lucide-react";
+import { X, Send, Trash2, Edit2, MoreHorizontal, CornerDownLeft, ChevronLeft, ChevronRight } from "@/components/ui/icons";
 import { useT } from "@/lib/i18n";
 import { pusherClient } from "@/lib/pusher";
 import { toast } from "sonner";

@@ -2,6 +2,20 @@ chrome.runtime.onInstalled.addListener(() => {
   chrome.storage.local.get(["offlineQueue"], (data) => {
     if (!data.offlineQueue) chrome.storage.local.set({ offlineQueue: [] });
   });
+
+  chrome.contextMenus.removeAll(() => {
+    chrome.contextMenus.create({
+      id: "veepick-pick-image",
+      title: "Wybierz zdjęcie dla veepick",
+      contexts: ["image"],
+    });
+  });
+});
+
+chrome.contextMenus.onClicked.addListener((info) => {
+  if (info.menuItemId === "veepick-pick-image" && info.srcUrl) {
+    chrome.storage.local.set({ veepick_picked_image: info.srcUrl });
+  }
 });
 
 // Toggle panel in the active tab on icon click

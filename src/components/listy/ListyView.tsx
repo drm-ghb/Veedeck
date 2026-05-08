@@ -20,7 +20,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useT } from "@/lib/i18n";
-import { ScrollText, Search, LayoutGrid, List, ArrowDownUp, Link2, MoreHorizontal, Pencil, Archive, ArchiveRestore, Trash2, Pin, PinOff, AlertTriangle, Check, MessageSquare, GripVertical } from "lucide-react";
+import { ScrollText, Search, LayoutGrid, List, ArrowDownUp, Link2, MoreHorizontal, Pencil, Archive, ArchiveRestore, Trash2, Pin, PinOff, AlertTriangle, Check, MessageSquare, GripVertical } from "@/components/ui/icons";
 import { pusherClient } from "@/lib/pusher";
 import { getUnreadSet, syncListUnread } from "@/lib/list-unread-store";
 import NewListDialog from "./NewListDialog";

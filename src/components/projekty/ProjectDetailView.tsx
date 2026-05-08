@@ -17,7 +17,7 @@ import {
   Pencil,
   KeyRound,
   GripVertical,
-} from "lucide-react";
+} from "@/components/ui/icons";
 import {
   DndContext,
   closestCenter,

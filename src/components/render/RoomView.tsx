@@ -3,7 +3,7 @@
 import { useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useViewPreference } from "@/hooks/useViewPreference";
-import { ArchiveRestore, CopyCheck, Eye, FileText, Folder, LayoutGrid, List, Pin, Trash2, GripVertical, Upload } from "lucide-react";
+import { ArchiveRestore, CopyCheck, Eye, FileText, Folder, LayoutGrid, List, Pin, Trash2, GripVertical, Upload } from "@/components/ui/icons";
 import { useUploadThing } from "@/lib/uploadthing-client";
 import {
   DndContext,

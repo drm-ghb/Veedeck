@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Search, X, Package, SlidersHorizontal, ChevronDown, ChevronRight, Loader2 } from "lucide-react";
+import { Search, X, Package, SlidersHorizontal, ChevronDown, ChevronRight, Loader2 } from "@/components/ui/icons";
 import { useProductSearch } from "@/components/produkty/useProductSearch";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import RenderViewer from "@/components/render/RenderViewer";
@@ -10,13 +10,16 @@ import ShareSidebar from "@/components/share/ShareSidebar";
 import ClientDiscussionView from "@/components/dyskusje/ClientDiscussionView";
 import ShareListClient from "@/components/listy/ShareListClient";
 import { getRoomIcon } from "@/lib/roomIcons";
-import { ChevronLeft, ChevronRight, MessageSquare, FileText, Folder, User, Mail, Lock, Info, ScrollText } from "lucide-react";
+import { ChevronLeft, ChevronRight, MessageSquare, FileText, Folder, User, Mail, Lock, Info, ScrollText, Pencil, X, Eye, EyeOff, UserCircle } from "@/components/ui/icons";
 import Image from "next/image";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { useTheme } from "@/lib/theme";
 import { SectionHeader } from "@/components/settings/SettingsShared";
+import Cropper from "react-easy-crop";
+import type { Area } from "react-easy-crop";
+import { useUploadThing } from "@/lib/uploadthing-client";
 
 type RenderStatus = "REVIEW" | "ACCEPTED";
 
@@ -88,13 +91,28 @@ export default function ClientProjectPage() {
   // Settings state
   const { theme, setTheme } = useTheme();
   const [settingsName, setSettingsName] = useState("");
+  const [settingsFullName, setSettingsFullName] = useState("");
   const [settingsEmail, setSettingsEmail] = useState("");
   const [nameLoading, setNameLoading] = useState(false);
+  const [fullNameLoading, setFullNameLoading] = useState(false);
   const [emailLoading, setEmailLoading] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [passwordLoading, setPasswordLoading] = useState(false);
+  const [showCurrentPwd, setShowCurrentPwd] = useState(false);
+  const [showNewPwd, setShowNewPwd] = useState(false);
+  const [showConfirmPwd, setShowConfirmPwd] = useState(false);
+
+  // Avatar state
+  const [clientAvatarUrl, setClientAvatarUrl] = useState<string | null>(null);
+  const [avatarCropSrc, setAvatarCropSrc] = useState<string | null>(null);
+  const [avatarCrop, setAvatarCrop] = useState({ x: 0, y: 0 });
+  const [avatarZoom, setAvatarZoom] = useState(1);
+  const [avatarCroppedAreaPixels, setAvatarCroppedAreaPixels] = useState<Area | null>(null);
+  const [avatarCropUploading, setAvatarCropUploading] = useState(false);
+  const avatarFileInputRef = useRef<HTMLInputElement>(null);
+  const { startUpload: startAvatarUpload } = useUploadThing("avatarUploader");
 
   useEffect(() => {
     if (status === "unauthenticated") { router.push("/login"); return; }
@@ -102,7 +120,9 @@ export default function ClientProjectPage() {
     if ((session?.user as any)?.role !== "client") { router.push("/dashboard"); return; }
 
     setSettingsName((session.user as any)?.name ?? "");
+    setSettingsFullName((session.user as any)?.fullName ?? "");
     setSettingsEmail(session.user?.email ?? "");
+    setClientAvatarUrl((session.user as any)?.avatarUrl ?? null);
 
     fetch(`/api/client/${projectId}`)
       .then((r) => { if (!r.ok) throw new Error(); return r.json(); })
@@ -130,9 +150,62 @@ export default function ClientProjectPage() {
     } finally { setEmailLoading(false); }
   }
 
+  async function handleFullNameSave() {
+    if (!settingsFullName.trim()) return;
+    setFullNameLoading(true);
+    try {
+      const res = await fetch("/api/user", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ fullName: settingsFullName.trim() }) });
+      if (!res.ok) { const d = await res.json(); toast.error(d.error || "Nie udało się zapisać"); return; }
+      toast.success("Imię i nazwisko zaktualizowane");
+    } finally { setFullNameLoading(false); }
+  }
+
+  function handleAvatarFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+    const reader = new FileReader();
+    reader.onload = () => {
+      setAvatarCropSrc(reader.result as string);
+      setAvatarCrop({ x: 0, y: 0 });
+      setAvatarZoom(1);
+    };
+    reader.readAsDataURL(file);
+  }
+
+  const handleAvatarCropComplete = useCallback((_: Area, pixels: Area) => {
+    setAvatarCroppedAreaPixels(pixels);
+  }, []);
+
+  async function handleAvatarCropApply() {
+    if (!avatarCropSrc || !avatarCroppedAreaPixels) return;
+    setAvatarCropUploading(true);
+    try {
+      const file = await getCroppedImgClient(avatarCropSrc, avatarCroppedAreaPixels);
+      const res = await startAvatarUpload([file]);
+      const url = res?.[0]?.url;
+      if (!url) throw new Error();
+      await fetch("/api/user", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ avatarUrl: url }) });
+      setClientAvatarUrl(url);
+      setAvatarCropSrc(null);
+      toast.success("Avatar zapisany");
+    } catch {
+      toast.error("Błąd przesyłania avatara");
+    } finally {
+      setAvatarCropUploading(false);
+    }
+  }
+
+  async function handleRemoveAvatar() {
+    await fetch("/api/user", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ avatarUrl: null }) });
+    setClientAvatarUrl(null);
+    toast.success("Avatar usunięty");
+  }
+
   async function handlePasswordSave() {
     if (newPassword !== confirmPassword) { toast.error("Hasła nie są identyczne"); return; }
-    if (newPassword.length < 8) { toast.error("Nowe hasło musi mieć co najmniej 8 znaków"); return; }
+    const valid = newPassword.length >= 8 && /[a-z]/.test(newPassword) && /[A-Z]/.test(newPassword) && /[0-9]/.test(newPassword);
+    if (!valid) { toast.error("Hasło nie spełnia wymagań bezpieczeństwa"); return; }
     setPasswordLoading(true);
     try {
       const res = await fetch("/api/user/password", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ currentPassword, newPassword }) });
@@ -198,6 +271,7 @@ export default function ClientProjectPage() {
         apiBasePath={`/api/client/${projectId}/discussions/${project.discussionId}`}
         initialAuthorName={authorName}
         currentUserId={currentUserId}
+        currentUserAvatarUrl={clientAvatarUrl}
       />
     );
 
@@ -247,6 +321,7 @@ export default function ClientProjectPage() {
         fileType={selectedRender.fileType}
         initialComments={selectedRender.comments}
         authorName={authorName}
+        authorAvatarUrl={clientAvatarUrl}
         isDesigner={false}
         roomRenders={roomRenders}
         initialRenderStatus={selectedRender.status}
@@ -497,21 +572,51 @@ export default function ClientProjectPage() {
           <section className="space-y-4">
             <SectionHeader title="Konto" />
 
+            {/* Avatar */}
+            <div className="bg-card border border-border rounded-2xl p-6 space-y-4">
+              <div className="flex items-center gap-2">
+                <UserCircle size={16} className="text-gray-400" />
+                <h3 className="font-semibold text-gray-800 dark:text-gray-200">Avatar</h3>
+              </div>
+              <p className="text-xs text-gray-400">Wyświetlany w nawigacji i przy wiadomościach w czacie.</p>
+              <input ref={avatarFileInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarFileChange} />
+              <div className="flex items-center gap-4">
+                {clientAvatarUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={clientAvatarUrl} alt="Avatar" className="w-16 h-16 rounded-full object-cover border border-border" />
+                ) : (
+                  <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center text-xl font-semibold text-primary border border-border">
+                    {(settingsFullName || settingsName || authorName || "?")[0]?.toUpperCase()}
+                  </div>
+                )}
+                <div className="flex flex-col gap-2">
+                  <Button size="sm" onClick={() => avatarFileInputRef.current?.click()} disabled={avatarCropUploading}>
+                    <Pencil size={14} className="mr-1.5" />{clientAvatarUrl ? "Zmień avatar" : "Dodaj avatar"}
+                  </Button>
+                  {clientAvatarUrl && (
+                    <Button size="sm" variant="outline" onClick={handleRemoveAvatar}>Usuń avatar</Button>
+                  )}
+                </div>
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Imię i nazwisko */}
               <div className="bg-card border border-border rounded-2xl p-6 space-y-4">
                 <div className="flex items-center gap-2">
                   <User size={16} className="text-gray-400" />
-                  <h3 className="font-semibold text-gray-800 dark:text-gray-200">Profil</h3>
+                  <h3 className="font-semibold text-gray-800 dark:text-gray-200">Imię i nazwisko</h3>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm text-gray-600 dark:text-gray-400">Nazwa wyświetlana</label>
-                  <Input value={settingsName} onChange={(e) => setSettingsName(e.target.value)} placeholder="Twoja nazwa" onKeyDown={(e) => e.key === "Enter" && handleNameSave()} />
+                  <label className="text-sm text-gray-600 dark:text-gray-400">Imię i nazwisko</label>
+                  <Input value={settingsFullName} onChange={(e) => setSettingsFullName(e.target.value)} placeholder="np. Jan Kowalski" onKeyDown={(e) => e.key === "Enter" && handleFullNameSave()} />
                 </div>
-                <Button onClick={handleNameSave} disabled={nameLoading || !settingsName.trim()} size="sm">
-                  {nameLoading ? "Zapisywanie…" : "Zapisz"}
+                <Button onClick={handleFullNameSave} disabled={fullNameLoading || !settingsFullName.trim()} size="sm">
+                  {fullNameLoading ? "Zapisywanie…" : "Zapisz"}
                 </Button>
               </div>
 
+              {/* Email */}
               <div className="bg-card border border-border rounded-2xl p-6 space-y-4">
                 <div className="flex items-center gap-2">
                   <Mail size={16} className="text-gray-400" />
@@ -539,17 +644,33 @@ export default function ClientProjectPage() {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <label className="text-sm text-gray-600 dark:text-gray-400">Aktualne hasło</label>
-                  <Input type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} placeholder="••••••••" />
+                  <div className="relative">
+                    <Input type={showCurrentPwd ? "text" : "password"} value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} placeholder="••••••••" className="pr-9" />
+                    <button type="button" onClick={() => setShowCurrentPwd(!showCurrentPwd)} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                      {showCurrentPwd ? <EyeOff size={15} /> : <Eye size={15} />}
+                    </button>
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm text-gray-600 dark:text-gray-400">Nowe hasło</label>
-                  <Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="min. 8 znaków" />
+                  <div className="relative">
+                    <Input type={showNewPwd ? "text" : "password"} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="min. 8 znaków" className="pr-9" />
+                    <button type="button" onClick={() => setShowNewPwd(!showNewPwd)} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                      {showNewPwd ? <EyeOff size={15} /> : <Eye size={15} />}
+                    </button>
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm text-gray-600 dark:text-gray-400">Powtórz nowe hasło</label>
-                  <Input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="••••••••" onKeyDown={(e) => e.key === "Enter" && handlePasswordSave()} />
+                  <div className="relative">
+                    <Input type={showConfirmPwd ? "text" : "password"} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="••••••••" className="pr-9" onKeyDown={(e) => e.key === "Enter" && handlePasswordSave()} />
+                    <button type="button" onClick={() => setShowConfirmPwd(!showConfirmPwd)} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                      {showConfirmPwd ? <EyeOff size={15} /> : <Eye size={15} />}
+                    </button>
+                  </div>
                 </div>
               </div>
+              <p className="text-xs text-gray-400">Hasło musi zawierać: min. 8 znaków, małą literę, wielką literę i cyfrę</p>
               <Button onClick={handlePasswordSave} disabled={passwordLoading || !currentPassword || !newPassword || !confirmPassword} size="sm">
                 {passwordLoading ? "Zmienianie…" : "Zmień hasło"}
               </Button>
@@ -573,6 +694,43 @@ export default function ClientProjectPage() {
               </div>
             </div>
           </section>
+
+          {/* Avatar crop modal */}
+          {avatarCropSrc && (
+            <div className="fixed inset-0 z-50 flex flex-col bg-black/90">
+              <div className="flex items-center justify-between px-6 py-4 bg-card border-b border-border flex-shrink-0">
+                <h3 className="font-semibold text-sm">Kadrowanie avatara</h3>
+                <button onClick={() => setAvatarCropSrc(null)} className="text-muted-foreground hover:text-foreground transition-colors">
+                  <X size={18} />
+                </button>
+              </div>
+              <div className="relative flex-1">
+                <Cropper
+                  image={avatarCropSrc}
+                  crop={avatarCrop}
+                  zoom={avatarZoom}
+                  aspect={1}
+                  cropShape="round"
+                  showGrid={false}
+                  onCropChange={setAvatarCrop}
+                  onZoomChange={setAvatarZoom}
+                  onCropComplete={handleAvatarCropComplete}
+                />
+              </div>
+              <div className="px-6 py-4 bg-card border-t border-border flex-shrink-0 space-y-4">
+                <div className="flex items-center gap-3">
+                  <span className="text-xs text-muted-foreground w-10">Zoom</span>
+                  <input type="range" min={1} max={3} step={0.01} value={avatarZoom} onChange={(e) => setAvatarZoom(Number(e.target.value))} className="flex-1 accent-primary" />
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" onClick={() => setAvatarCropSrc(null)}>Anuluj</Button>
+                  <Button onClick={handleAvatarCropApply} disabled={avatarCropUploading}>
+                    {avatarCropUploading ? "Przesyłanie..." : "Zastosuj"}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </>
@@ -612,6 +770,27 @@ export default function ClientProjectPage() {
       </div>
     </div>
   );
+}
+
+async function getCroppedImgClient(imageSrc: string, pixelCrop: Area): Promise<File> {
+  const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+    const img = document.createElement("img");
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = imageSrc;
+  });
+  const size = Math.min(pixelCrop.width, pixelCrop.height, 512);
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext("2d")!;
+  ctx.drawImage(image, pixelCrop.x, pixelCrop.y, pixelCrop.width, pixelCrop.height, 0, 0, size, size);
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (!blob) { reject(new Error("Canvas empty")); return; }
+      resolve(new File([blob], "avatar.png", { type: "image/png" }));
+    }, "image/png");
+  });
 }
 
 function RenderCard({ render, hideCommentCount, onClick }: { render: Render; hideCommentCount: boolean; onClick: () => void }) {

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { Copy, RefreshCw, Trash2, Eye, EyeOff, Puzzle } from "lucide-react";
+import { Copy, RefreshCw, Trash2, Eye, EyeOff, Puzzle } from "@/components/ui/icons";
 
 interface Props {
   initialKey: string | null;

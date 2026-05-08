@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Grid2x2, Settings, Sun, Moon, Monitor, UserRound, LogOut, Menu } from "lucide-react";
+import { Grid2x2, Settings, Sun, Moon, Monitor, UserRound, LogOut, Menu } from "@/components/ui/icons";
 import { signOut } from "next-auth/react";
 import { useTheme, type Theme } from "@/lib/theme";
 import { Input } from "@/components/ui/input";

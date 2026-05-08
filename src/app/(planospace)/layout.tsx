@@ -1,7 +1,6 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import GlobalSearch from "@/components/dashboard/GlobalSearch";
-import { HomeLinkIcon } from "@/components/dashboard/HomeLinkIcon";
 import { SignOutButton } from "@/components/dashboard/SignOutButton";
 import NotificationBell from "@/components/dashboard/NotificationBell";
 import NavSidebar from "@/components/dashboard/NavSidebar";
@@ -23,7 +22,7 @@ export default async function VeedeckLayout({
 
   const dbUser = await prisma.user.findUnique({
     where: { id: session.user.id! },
-    select: { name: true, email: true, navMode: true, globalHiddenModules: true, clientLogoUrl: true, ownerId: true, colorTheme: true },
+    select: { name: true, fullName: true, email: true, globalHiddenModules: true, clientLogoUrl: true, avatarUrl: true, ownerId: true, colorTheme: true },
   });
 
   // Jeśli to członek zespołu — pobierz ustawienia projektanta
@@ -31,12 +30,13 @@ export default async function VeedeckLayout({
   const ownerSettings = ownerId
     ? await prisma.user.findUnique({
         where: { id: ownerId },
-        select: { navMode: true, globalHiddenModules: true, clientLogoUrl: true },
+        select: { globalHiddenModules: true, clientLogoUrl: true },
       })
     : null;
 
-  const displayName = dbUser?.name || dbUser?.email || null;
-  const navMode = (ownerSettings ?? dbUser)?.navMode ?? "dashboard";
+  const fullName = dbUser?.fullName ?? null;
+  const firstName = fullName ? fullName.split(" ")[0] : (dbUser?.name || dbUser?.email || null);
+  const avatarUrl = dbUser?.avatarUrl ?? null;
   const hiddenModules = (ownerSettings ?? dbUser)?.globalHiddenModules ?? [];
   const logoUrl = (ownerSettings ?? dbUser)?.clientLogoUrl ?? null;
   const colorTheme = (dbUser?.colorTheme ?? "champagne") as ColorTheme;
@@ -46,10 +46,9 @@ export default async function VeedeckLayout({
       <ColorThemeSync dbTheme={colorTheme} />
       <nav className="relative z-30">
         <div className="px-4 flex items-center gap-4 py-3 relative">
-          {/* Left: home + logo */}
+          {/* Left: logo */}
           <div className="flex items-center gap-2 shrink-0">
-            <HomeLinkIcon hidden={navMode === "sidebar"} />
-            <LogoBrand navMode={navMode} />
+            <LogoBrand />
           </div>
 
           {/* Search - centered */}
@@ -62,37 +61,31 @@ export default async function VeedeckLayout({
             <div className="md:hidden"><MobileSearch /></div>
             <QuickNoteButton />
             <NotificationBell userId={session.user.id!} iconOnly />
-            {displayName && (
+            {firstName && (
               <div className="hidden md:flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-semibold shrink-0 overflow-hidden">
-                  {logoUrl
-                    ? <img src={logoUrl} alt="Logo" className="w-full h-full object-cover" />
-                    : displayName[0].toUpperCase()
+                <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-semibold leading-none shrink-0 overflow-hidden">
+                  {avatarUrl
+                    ? <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                    : firstName[0].toUpperCase()
                   }
                 </div>
-                <span className="text-sm font-medium text-foreground">{displayName}</span>
+                <span className="text-sm font-medium text-foreground">{firstName}</span>
               </div>
             )}
             <div className="hidden md:block"><SignOutButton /></div>
             <div className="md:hidden">
-              <MobileMenu userName={displayName} logoUrl={logoUrl} hiddenModules={hiddenModules} />
+              <MobileMenu userName={firstName} logoUrl={avatarUrl} hiddenModules={hiddenModules} />
             </div>
           </div>
         </div>
       </nav>
 
-      {navMode === "sidebar" ? (
-        <div className="flex flex-1 min-h-0">
-          <NavSidebar hiddenModules={hiddenModules} />
-          <main className="flex-1 flex flex-col min-h-0 px-6 py-6 overflow-y-auto overflow-x-hidden bg-background rounded-tl-2xl">
-            {children}
-          </main>
-        </div>
-      ) : (
-        <main className="flex-1 flex flex-col min-h-0 px-3 sm:px-6 py-4 sm:py-6 overflow-y-auto overflow-x-hidden">
+      <div className="flex flex-1 min-h-0">
+        <NavSidebar hiddenModules={hiddenModules} />
+        <main className="flex-1 flex flex-col min-h-0 px-6 py-6 overflow-y-auto overflow-x-hidden bg-background rounded-tl-2xl">
           {children}
         </main>
-      )}
+      </div>
     </div>
   );
 }

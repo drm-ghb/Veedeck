@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus } from "@/components/ui/icons";
 import { toast } from "sonner";
 import AddEventDialog from "./AddEventDialog";
 import EventDetailDialog from "./EventDetailDialog";

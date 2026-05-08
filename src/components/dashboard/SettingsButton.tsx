@@ -1,6 +1,6 @@
 "use client";
 
-import { Settings, Sun, Moon, Monitor } from "lucide-react";
+import { Settings, Sun, Moon, Monitor } from "@/components/ui/icons";
 import { useState, useRef, useEffect } from "react";
 import { useTheme, type Theme } from "@/lib/theme";
 

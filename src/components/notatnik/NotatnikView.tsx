@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect, useCallback } from "react";
-import { Plus, Search, Archive, Trash2, X, ArchiveRestore, ChevronDown, FileText, Paperclip, Download, ExternalLink } from "lucide-react";
+import { Plus, Search, Archive, Trash2, X, ArchiveRestore, ChevronDown, FileText, Paperclip, Download, ExternalLink } from "@/components/ui/icons";
 import { toast } from "sonner";
 import { useT } from "@/lib/i18n";
 import { NoteEditor } from "./NoteEditor";

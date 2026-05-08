@@ -16,7 +16,7 @@ import {
   Tv,
   ShowerHead,
   type LucideIcon,
-} from "lucide-react";
+} from "@/components/ui/icons";
 
 export type RoomType = "TOALETA" | "WC" | "SALON" | "KUCHNIA" | "SYPIALNIA" | "INNE";
 

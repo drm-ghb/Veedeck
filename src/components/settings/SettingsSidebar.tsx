@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Settings, ScrollText, ChevronLeft, Users, Puzzle, PictureInPicture } from "lucide-react";
+import { Settings, ScrollText, ChevronLeft, Users, Puzzle, PictureInPicture } from "@/components/ui/icons";
 import { useT } from "@/lib/i18n";
 
 export default function SettingsSidebar() {

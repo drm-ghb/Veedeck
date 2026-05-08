@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useViewPreference } from "@/hooks/useViewPreference";
-import { ArchiveRestore, CopyCheck, FolderOpen, GripVertical, LayoutGrid, List, Trash2, Pin, Eye, Search, X } from "lucide-react";
+import { ArchiveRestore, CopyCheck, FolderOpen, GripVertical, LayoutGrid, List, Trash2, Pin, Eye, Search, X } from "@/components/ui/icons";
 import {
   DndContext,
   closestCenter,

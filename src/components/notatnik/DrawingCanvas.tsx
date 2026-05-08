@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useCallback, useEffect, useState } from "react";
-import { X, Check, Pencil, Eraser, Trash2, Minus, Circle } from "lucide-react";
+import { X, Check, Pencil, Eraser, Trash2, Minus, Circle } from "@/components/ui/icons";
 
 interface DrawingCanvasProps {
   onSave: (blob: Blob, filename: string) => void;

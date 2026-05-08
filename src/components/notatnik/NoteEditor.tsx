@@ -21,7 +21,7 @@ import {
   Paperclip,
   Loader2,
   PenLine,
-} from "lucide-react";
+} from "@/components/ui/icons";
 
 const DrawingCanvas = lazy(() =>
   import("./DrawingCanvas").then((m) => ({ default: m.DrawingCanvas }))

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Users, Image as ImageIcon, ScrollText, ChevronRight, SlidersHorizontal, Search, ArchiveRestore, Trash2, Pin } from "lucide-react";
+import { Users, Image as ImageIcon, ScrollText, ChevronRight, SlidersHorizontal, Search, ArchiveRestore, Trash2, Pin } from "@/components/ui/icons";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import NewProjectDialog from "@/components/dashboard/NewProjectDialog";

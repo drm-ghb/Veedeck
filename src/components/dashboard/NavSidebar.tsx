@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
 import Pusher from "pusher-js";
-import { LayoutDashboard, Users, ScrollText, Package, PanelLeftClose, PanelLeftOpen, Settings, Sun, Moon, HelpCircle, X, CheckCircle, PictureInPicture, ShieldCheck, CalendarDays, NotebookText, MessageSquare } from "lucide-react";
+import { LayoutDashboard, Users, ScrollText, Package, PanelLeftClose, PanelLeftOpen, Settings, Sun, Moon, HelpCircle, X, CheckCircle, PictureInPicture, ShieldCheck, CalendarDays, NotebookText, MessageSquare } from "@/components/ui/icons";
 import { useTheme } from "@/lib/theme";
 import { useT } from "@/lib/i18n";
 

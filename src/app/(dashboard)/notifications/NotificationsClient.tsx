@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
-import { Bell, ExternalLink, Circle, X } from "lucide-react";
+import { Bell, ExternalLink, Circle, X } from "@/components/ui/icons";
 import { Button } from "@/components/ui/button";
 import { pusherClient } from "@/lib/pusher";
 

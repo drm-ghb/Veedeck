@@ -1,7 +1,7 @@
 "use client";
 
 import { signOut } from "next-auth/react";
-import { LogOut } from "lucide-react";
+import { LogOut } from "@/components/ui/icons";
 import { useT } from "@/lib/i18n";
 
 export function SignOutButton() {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Copy, Check } from "lucide-react";
+import { Copy, Check } from "@/components/ui/icons";
 import { useT } from "@/lib/i18n";
 
 export default function CopyLinkButton({ url }: { url: string }) {

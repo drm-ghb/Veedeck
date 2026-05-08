@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useProductSearch } from "./useProductSearch";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -13,7 +13,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Search, Loader2, ChevronDown, ChevronRight } from "lucide-react";
+import { Search, Loader2, ChevronDown, ChevronRight, SlidersHorizontal } from "@/components/ui/icons";
 import { cn } from "@/lib/utils";
 
 interface Product {
@@ -44,6 +44,13 @@ export function SearchProductDialog({ open, onOpenChange, onSelectProduct }: Pro
     manufacturers: "",
     colors: "",
   });
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      setMobileFiltersOpen(window.innerWidth < 768);
+    }
+  }, [open]);
 
   const toggleFilter = (filterType: string) => {
     setExpandedFilters((prev) => ({
@@ -65,20 +72,26 @@ export function SearchProductDialog({ open, onOpenChange, onSelectProduct }: Pro
     if (!isOpen) {
       search.resetFilters();
       setFilterSearch({ categories: "", manufacturers: "", colors: "" });
+      setMobileFiltersOpen(false);
     }
     onOpenChange(isOpen);
   };
 
+  const totalActiveFilters =
+    search.filters.categories.length +
+    search.filters.manufacturers.length +
+    search.filters.colors.length;
+
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-5xl h-[700px] p-0 flex flex-col overflow-hidden">
+      <DialogContent className="w-[90vw] max-w-6xl sm:max-w-6xl h-[85vh] p-0 flex flex-col overflow-hidden overflow-y-hidden">
         <DialogHeader className="px-6 pt-6 pb-4 border-b">
           <DialogTitle>Zaawansowane wyszukiwanie</DialogTitle>
         </DialogHeader>
 
-        <div className="flex flex-1 overflow-hidden">
-          {/* Left panel: Filters */}
-          <div className="w-64 border-r overflow-y-auto">
+        <div className="flex flex-1 overflow-hidden min-h-0">
+          {/* Left panel: Filters — always visible on md+, toggle on mobile */}
+          <div className={`${mobileFiltersOpen ? "block w-full" : "hidden"} md:block md:w-64 shrink-0 border-r overflow-y-auto`}>
             <div className="p-4 space-y-4">
               {/* Categories */}
               <div>
@@ -258,19 +271,42 @@ export function SearchProductDialog({ open, onOpenChange, onSelectProduct }: Pro
                 </Button>
               )}
             </div>
+            {/* Mobile: show results button */}
+            <div className="md:hidden p-4 border-t">
+              <Button className="w-full" onClick={() => setMobileFiltersOpen(false)}>
+                Pokaż wyniki{totalActiveFilters > 0 ? ` (${totalActiveFilters})` : ""}
+              </Button>
+            </div>
           </div>
 
           {/* Right panel: Search & Results */}
-          <div className="flex-1 flex flex-col">
+          <div className={`${mobileFiltersOpen ? "hidden" : "flex"} md:flex flex-1 flex-col min-h-0 min-w-0`}>
             <div className="p-4 border-b">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  placeholder="Szukaj produktu..."
-                  value={search.query}
-                  onChange={(e) => search.handleQueryChange(e.target.value)}
-                  className="pl-10"
-                />
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Szukaj produktu..."
+                    value={search.query}
+                    onChange={(e) => search.handleQueryChange(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+                {/* Mobile: filter icon button */}
+                <div className="relative md:hidden">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setMobileFiltersOpen(true)}
+                  >
+                    <SlidersHorizontal className="w-4 h-4" />
+                  </Button>
+                  {totalActiveFilters > 0 && (
+                    <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-primary text-primary-foreground text-[10px] flex items-center justify-center">
+                      {totalActiveFilters}
+                    </span>
+                  )}
+                </div>
               </div>
               <div className="mt-2 text-sm text-muted-foreground">
                 {search.loading

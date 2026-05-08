@@ -4,11 +4,7 @@ import Link from "next/link";
 import { useState, useEffect } from "react";
 import { useTheme } from "@/lib/theme";
 
-interface LogoBrandProps {
-  navMode: string;
-}
-
-export function LogoBrand({ navMode }: LogoBrandProps) {
+export function LogoBrand() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const { colorTheme } = useTheme();
 
@@ -22,9 +18,8 @@ export function LogoBrand({ navMode }: LogoBrandProps) {
     return () => window.removeEventListener("sidebar-state-change", handler);
   }, []);
 
-  // Wordmark visible when: no sidebar mode (always), or sidebar mode + expanded
-  const showWordmark = navMode !== "sidebar" || !sidebarCollapsed;
-  const iconSrc = colorTheme === "violet" ? "/logo_violet.png" : "/logo_vee.png";
+  const showWordmark = !sidebarCollapsed;
+  const iconSrc = colorTheme === "violet" ? "/logo_violet.png" : "/veedeck_ikona.png";
 
   return (
     <Link href="/dashboard" className="flex items-center gap-2 shrink-0">

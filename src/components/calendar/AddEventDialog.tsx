@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type CSSProperties } from "react";
-import { X, Search, UserPlus, XCircle } from "lucide-react";
+import { X, Search, UserPlus, XCircle } from "@/components/ui/icons";
 import { toast } from "sonner";
 import type { CalendarEvent, EventType } from "./CalendarView";
 

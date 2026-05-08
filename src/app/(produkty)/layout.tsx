@@ -4,7 +4,6 @@ import GlobalSearch from "@/components/dashboard/GlobalSearch";
 import { LogoBrand } from "@/components/dashboard/LogoBrand";
 import { SignOutButton } from "@/components/dashboard/SignOutButton";
 import NotificationBell from "@/components/dashboard/NotificationBell";
-import { HomeLinkIcon } from "@/components/dashboard/HomeLinkIcon";
 import NavSidebar from "@/components/dashboard/NavSidebar";
 import MobileMenu from "@/components/dashboard/MobileMenu";
 import MobileSearch from "@/components/dashboard/MobileSearch";
@@ -21,7 +20,7 @@ export default async function ProduktyLayout({
 
   const dbUser = await prisma.user.findUnique({
     where: { id: session.user.id! },
-    select: { name: true, email: true, navMode: true, globalHiddenModules: true, clientLogoUrl: true, ownerId: true },
+    select: { name: true, email: true, globalHiddenModules: true, clientLogoUrl: true, ownerId: true },
   });
 
   // Jeśli to członek zespołu — pobierz ustawienia projektanta
@@ -29,12 +28,11 @@ export default async function ProduktyLayout({
   const ownerSettings = ownerId
     ? await prisma.user.findUnique({
         where: { id: ownerId },
-        select: { navMode: true, globalHiddenModules: true, clientLogoUrl: true },
+        select: { globalHiddenModules: true, clientLogoUrl: true },
       })
     : null;
 
   const displayName = dbUser?.name || dbUser?.email || null;
-  const navMode = (ownerSettings ?? dbUser)?.navMode ?? "sidebar";
   const hiddenModules = (ownerSettings ?? dbUser)?.globalHiddenModules ?? [];
   const logoUrl = (ownerSettings ?? dbUser)?.clientLogoUrl ?? null;
 
@@ -43,8 +41,7 @@ export default async function ProduktyLayout({
       <nav className="relative z-10">
         <div className="px-4 flex items-center gap-4 py-3 relative">
           <div className="flex items-center gap-2 shrink-0">
-            <HomeLinkIcon hidden={navMode === "sidebar"} />
-            <LogoBrand navMode={navMode} />
+            <LogoBrand />
           </div>
 
           <div className="absolute left-1/2 -translate-x-1/2 w-full max-w-sm px-4 hidden sm:block">
@@ -73,18 +70,12 @@ export default async function ProduktyLayout({
           </div>
         </div>
       </nav>
-      {navMode === "sidebar" ? (
-        <div className="flex flex-1 min-h-0">
-          <NavSidebar hiddenModules={hiddenModules} />
-          <main className="flex-1 px-6 py-6 overflow-y-auto overflow-x-hidden bg-background rounded-tl-2xl">
-            {children}
-          </main>
-        </div>
-      ) : (
-        <main className="flex-1 px-3 sm:px-6 py-4 sm:py-8 overflow-y-auto overflow-x-hidden">
+      <div className="flex flex-1 min-h-0">
+        <NavSidebar hiddenModules={hiddenModules} />
+        <main className="flex-1 px-6 py-6 overflow-y-auto overflow-x-hidden bg-background rounded-tl-2xl">
           {children}
         </main>
-      )}
+      </div>
     </div>
   );
 }

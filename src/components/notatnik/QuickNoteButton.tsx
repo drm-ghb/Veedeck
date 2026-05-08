@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { NotebookPen, X } from "lucide-react";
+import { NotebookPen, X } from "@/components/ui/icons";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { useT } from "@/lib/i18n";

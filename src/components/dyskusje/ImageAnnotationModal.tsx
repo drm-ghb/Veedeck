@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState, useEffect } from "react";
-import { X, Pen, Square, Minus, RotateCcw, Send } from "lucide-react";
+import { X, Pen, Square, Minus, RotateCcw, Send } from "@/components/ui/icons";
 
 type Tool = "pen" | "rect" | "arrow";
 const COLORS = ["#ef4444", "#f97316", "#22c55e", "#3b82f6", "#ffffff", "#111111"];

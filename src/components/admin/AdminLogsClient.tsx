@@ -7,7 +7,7 @@ import {
   AlertTriangle,
   Info,
   RefreshCw,
-} from "lucide-react";
+} from "@/components/ui/icons";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 

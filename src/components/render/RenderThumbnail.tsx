@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { FileText } from "lucide-react";
+import { FileText } from "@/components/ui/icons";
 
 interface RenderThumbnailProps {
   id: string;

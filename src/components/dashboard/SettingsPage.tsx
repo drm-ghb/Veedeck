@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { User, Mail, Lock, Info, Sun, Moon, Monitor, Palette, Image as ImageIcon } from "lucide-react";
+import { User, Mail, Lock, Info, Sun, Moon, Monitor, Palette, Image as ImageIcon } from "@/components/ui/icons";
 import { useTheme, type Theme } from "@/lib/theme";
 import { UploadButton } from "@uploadthing/react";
 import type { OurFileRouter } from "@/lib/uploadthing";

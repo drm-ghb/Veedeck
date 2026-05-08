@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Search, Users, DoorOpen, Image, ScrollText, User, Package } from "lucide-react";
+import { Search, Users, DoorOpen, Image, ScrollText, User, Package } from "@/components/ui/icons";
 import { useT } from "@/lib/i18n";
 
 interface SearchResult {

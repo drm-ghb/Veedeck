@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { ChevronLeft, ChevronRight, ChevronDown, Eye, EyeOff, Pin, X, Send, ZoomIn, ZoomOut, History, Upload, Maximize2, RotateCcw, Lock, LockOpen, SplitSquareHorizontal, ChevronsLeftRight, MessageSquare, Sparkles, Package, Trash2, Edit2, ExternalLink, Mic, StopCircle, CheckCircle2, Armchair, Loader2, FileText, MoreVertical, CornerDownLeft } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronDown, Eye, EyeOff, Pin, X, Send, ZoomIn, ZoomOut, History, Upload, Maximize2, RotateCcw, Lock, LockOpen, SplitSquareHorizontal, ChevronsLeftRight, MessageSquare, Sparkles, Package, Trash2, Edit2, ExternalLink, Mic, StopCircle, CheckCircle2, Armchair, Loader2, FileText, MoreVertical, CornerDownLeft } from "@/components/ui/icons";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import RenderUploader from "./RenderUploader";
 import { SwipeableMessage } from "@/components/ui/swipeable-message";
@@ -111,6 +111,7 @@ interface RenderViewerProps {
   onRenderSelect?: (render: RoomRender) => void;
   shareToken?: string;
   initialProductPins?: ProductPin[];
+  authorAvatarUrl?: string | null;
 }
 
 const STATUS_PIN_COLOR: Record<CommentStatus, string> = {
@@ -131,7 +132,11 @@ const STATUS_LABEL: Record<CommentStatus, string> = {
   DONE: "Gotowe",
 };
 
-function Avatar({ name }: { name: string }) {
+function Avatar({ name, logoUrl }: { name: string; logoUrl?: string | null }) {
+  if (logoUrl) {
+    // eslint-disable-next-line @next/next/no-img-element
+    return <img src={logoUrl} alt={name} title={name} className="w-6 h-6 rounded-full object-cover shrink-0 cursor-default" />;
+  }
   const initials = name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
   return (
     <div title={name} className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-[10px] font-semibold text-primary shrink-0 cursor-default">
@@ -222,6 +227,7 @@ export default function RenderViewer({
   onRenderSelect,
   shareToken,
   initialProductPins,
+  authorAvatarUrl,
 }: RenderViewerProps) {
   const isPdf = fileType === "pdf";
 
@@ -2403,6 +2409,7 @@ export default function RenderViewer({
                                 )}
                                 </SwipeableMessage>
                                 </div>
+                                {isOwn && <Avatar name={item.author} logoUrl={authorAvatarUrl} />}
                               </div>
                             );
                           }

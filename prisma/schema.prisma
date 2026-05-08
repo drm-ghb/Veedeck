@@ -17,8 +17,11 @@ model User {
   createdAt                  DateTime       @default(now())
   updatedAt                  DateTime       @updatedAt
   role                       String         @default("designer") // "designer" | "client"
+  fullName                   String?                             // imię i nazwisko
+  avatarUrl                  String?                             // custom avatar
+  phonePrefix                String?        @default("+48")      // country code prefix
   login                      String?        @unique              // client login e.g. "drychlik"
-  phone                      String?                             // client phone (optional)
+  phone                      String?                             // contact phone
   allowDirectStatusChange    Boolean        @default(false)
   accentColor                String?
   allowClientAcceptance      Boolean        @default(true)
@@ -42,7 +45,7 @@ model User {
   needsNameSetup             Boolean        @default(false)
   globalHiddenModules        String[]       @default([])
   listsCategoryOrder         String[]       @default([])
-  navMode                    String         @default("dashboard")
+  navMode                    String         @default("sidebar")
   colorTheme                 String         @default("champagne")
   extensionKey               String?        @unique
   customCategories           String[]       @default([])

@@ -12,7 +12,7 @@ import ShareNavbar from "@/components/share/ShareNavbar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { getRoomIcon } from "@/lib/roomIcons";
-import { ChevronLeft, ChevronRight, FileText, MessageSquare, UserRound, Sun, Moon, Monitor, Lock, Folder, FolderPlus } from "lucide-react";
+import { ChevronLeft, ChevronRight, FileText, MessageSquare, UserRound, Sun, Moon, Monitor, Lock, Folder, FolderPlus } from "@/components/ui/icons";
 import { useTheme, type Theme } from "@/lib/theme";
 import { pusherClient } from "@/lib/pusher";
 import { toast } from "sonner";

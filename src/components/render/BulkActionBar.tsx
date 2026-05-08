@@ -1,6 +1,6 @@
 "use client";
 
-import { Archive, FolderInput, Loader2, Trash2, X } from "lucide-react";
+import { Archive, FolderInput, Loader2, Trash2, X } from "@/components/ui/icons";
 
 interface BulkActionBarProps {
   count: number;

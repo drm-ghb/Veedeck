@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { signIn, signOut, getSession } from "next-auth/react";
+import { Eye, EyeOff } from "@/components/ui/icons";
 import { Separator } from "@/components/ui/separator";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -17,17 +18,27 @@ type Mode = "login" | "register";
 export default function LoginPage() {
   const t = useT();
   const [mode, setMode] = useState<Mode>("login");
-  const [name, setName] = useState("");
+  const [fullName, setFullName] = useState("");
+  const [companyName, setCompanyName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [privacyAccepted, setPrivacyAccepted] = useState(false);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
+  function validatePassword(pwd: string) {
+    return pwd.length >= 8 && /[a-z]/.test(pwd) && /[A-Z]/.test(pwd) && /[0-9]/.test(pwd);
+  }
+
   function switchMode(next: Mode) {
     setMode(next);
-    setName("");
+    setFullName("");
+    setCompanyName("");
     setEmail("");
     setPassword("");
+    setShowPassword(false);
+    setPrivacyAccepted(false);
   }
 
   async function handleLogin(e: React.FormEvent) {
@@ -62,12 +73,20 @@ export default function LoginPage() {
 
   async function handleRegister(e: React.FormEvent) {
     e.preventDefault();
+    if (!validatePassword(password)) {
+      toast.error(t.auth.passwordTooWeak);
+      return;
+    }
+    if (!privacyAccepted) {
+      toast.error(t.auth.privacyRequired);
+      return;
+    }
     setLoading(true);
 
     const res = await fetch("/api/auth/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, email, password }),
+      body: JSON.stringify({ fullName: fullName.trim(), name: companyName.trim() || null, email, password }),
     });
 
     if (!res.ok) {
@@ -88,7 +107,7 @@ export default function LoginPage() {
       <div className="hidden lg:flex flex-col justify-center px-16 w-1/2 bg-[#0f0f0f]">
         <div className="flex items-center gap-3 mb-6">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/veedeck_ikona.png" alt="veedeck" className="h-10 w-10 shrink-0 object-contain rounded-xl" />
+          <img src="/veedeck_ikona.png" alt="veedeck" className="h-10 w-10 shrink-0 object-contain" />
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/veedeckicon.png" alt="veedeck" className="shrink-0" style={{ height: "22px", width: "auto" }} />
         </div>
@@ -110,7 +129,7 @@ export default function LoginPage() {
         <div className="lg:hidden text-center mb-8">
           <div className="flex items-center justify-center gap-2 mb-2">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/veedeck_ikona.png" alt="veedeck" className="h-7 w-7 shrink-0 object-contain rounded-lg" />
+            <img src="/veedeck_ikona.png" alt="veedeck" className="h-7 w-7 shrink-0 object-contain" />
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/vee_black.png" alt="veedeck" className="dark:hidden shrink-0" style={{ height: "17px", width: "auto" }} />
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -131,7 +150,7 @@ export default function LoginPage() {
           <CardHeader className="pb-4">
             <div className="flex items-center justify-center gap-2 mb-1">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/veedeck_ikona.png" alt="veedeck" className="h-7 w-7 shrink-0 object-contain rounded-lg" />
+              <img src="/veedeck_ikona.png" alt="veedeck" className="h-7 w-7 shrink-0 object-contain" />
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/vee_black.png" alt="veedeck" className="dark:hidden shrink-0" style={{ height: "17px", width: "auto" }} />
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -216,13 +235,23 @@ export default function LoginPage() {
             ) : (
               <form onSubmit={handleRegister} className="space-y-4">
                 <div className="space-y-1.5">
-                  <Label htmlFor="name">{t.auth.name}</Label>
+                  <Label htmlFor="fullName">{t.auth.fullName}</Label>
                   <Input
-                    id="name"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
+                    id="fullName"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    placeholder={t.auth.fullNamePlaceholder}
                     required
                     autoFocus
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="companyName">{t.auth.companyNameOptional}</Label>
+                  <Input
+                    id="companyName"
+                    value={companyName}
+                    onChange={(e) => setCompanyName(e.target.value)}
+                    placeholder={t.auth.companyNamePlaceholder}
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -237,18 +266,42 @@ export default function LoginPage() {
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="password">{t.auth.password}</Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    minLength={8}
-                  />
-                  <p className="text-xs text-muted-foreground">{t.auth.minChars}</p>
+                  <div className="relative">
+                    <Input
+                      id="password"
+                      type={showPassword ? "text" : "password"}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                      className="pr-9"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                    </button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">{t.auth.passwordRequirements}</p>
+                  {password && !validatePassword(password) && (
+                    <p className="text-xs text-destructive">{t.auth.passwordTooWeak}</p>
+                  )}
                 </div>
-                <div className="pt-2 space-y-2">
-                  <Button type="submit" className="w-full" disabled={loading}>
+                <div className="flex items-start gap-2 pt-1">
+                  <input
+                    type="checkbox"
+                    id="privacy"
+                    checked={privacyAccepted}
+                    onChange={(e) => setPrivacyAccepted(e.target.checked)}
+                    className="mt-0.5 h-4 w-4 rounded border-input accent-primary flex-shrink-0"
+                  />
+                  <label htmlFor="privacy" className="text-xs text-muted-foreground leading-relaxed cursor-pointer">
+                    {t.auth.privacyCheckbox}
+                  </label>
+                </div>
+                <div className="pt-1 space-y-2">
+                  <Button type="submit" className="w-full" disabled={loading || !privacyAccepted}>
                     {loading ? t.auth.registering : t.auth.registerBtn}
                   </Button>
                   <Button

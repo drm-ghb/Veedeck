@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, X, LayoutDashboard, Users, ScrollText, Package, Settings, LogOut, HelpCircle, Sun, Moon, CheckCircle, CalendarDays, NotebookText, PictureInPicture, MessageSquare } from "lucide-react";
+import { Menu, X, LayoutDashboard, Users, ScrollText, Package, Settings, LogOut, HelpCircle, Sun, Moon, CheckCircle, CalendarDays, NotebookText, PictureInPicture, MessageSquare } from "@/components/ui/icons";
 import { signOut } from "next-auth/react";
 import { useTheme } from "@/lib/theme";
 import { useT } from "@/lib/i18n";

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { MoreHorizontal, Pencil, Trash2, Archive, Pin, PinOff } from "lucide-react";
+import { MoreHorizontal, Pencil, Trash2, Archive, Pin, PinOff } from "@/components/ui/icons";
 import {
   DropdownMenu,
   DropdownMenuTrigger,

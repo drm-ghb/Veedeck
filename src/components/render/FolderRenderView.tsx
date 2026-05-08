@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback } from "react";
 import { useViewPreference } from "@/hooks/useViewPreference";
-import { CopyCheck, Eye, FileText, LayoutGrid, List, Pin, Upload } from "lucide-react";
+import { CopyCheck, Eye, FileText, LayoutGrid, List, Pin, Upload } from "@/components/ui/icons";
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import RenderMenu from "./RenderMenu";

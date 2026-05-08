@@ -20,7 +20,7 @@ import {
   Check,
   X,
   CalendarDays,
-} from "lucide-react";
+} from "@/components/ui/icons";
 import NewProjectDialog from "./NewProjectDialog";
 import { useT } from "@/lib/i18n";
 
@@ -119,7 +119,6 @@ interface TodayEvent {
 interface DashboardViewProps {
   displayName: string | null;
   userId: string;
-  navMode: string;
   hiddenModules: string[];
   stats: Stats;
   recentProjects: RecentProject[];
@@ -169,7 +168,6 @@ const EVENT_TYPE_COLORS: Record<string, { bar: string; bg: string; text: string 
 export default function DashboardView({
   displayName,
   userId,
-  navMode,
   hiddenModules,
   stats,
   recentProjects,
@@ -294,68 +292,13 @@ export default function DashboardView({
         <div>
           <h1 className="text-2xl font-bold">
             {displayName
-              ? t.home.welcome.replace("{name}", displayName)
+              ? t.home.welcome.replace("{name}", displayName.split(" ")[0])
               : t.home.welcomeDefault}
           </h1>
         </div>
         <NewProjectDialog label={t.projekty.newClient} />
       </div>
 
-      {/* Module tiles — only in dashboard mode */}
-      {navMode === "dashboard" && (
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3">
-            {t.home.modules}
-          </p>
-          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
-            <Link
-              href="/projekty"
-              className="group flex flex-col items-center gap-2 p-3 rounded-xl bg-card border border-border hover:shadow-md hover:border-gray-300 dark:hover:border-gray-600 transition-all"
-            >
-              <div className="w-12 h-12 rounded-xl flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform bg-primary">
-                <Users size={24} className="text-white" />
-              </div>
-              <p className="text-xs font-medium text-foreground text-center leading-tight">{t.nav.projects}</p>
-            </Link>
-
-            {!hiddenModules.includes("renderflow") && (
-              <Link
-                href="/renderflow"
-                className="group flex flex-col items-center gap-2 p-3 rounded-xl bg-card border border-border hover:shadow-md hover:border-gray-300 dark:hover:border-gray-600 transition-all"
-              >
-                <div className="w-12 h-12 rounded-xl flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform bg-primary">
-                  <PictureInPicture size={30} className="text-white" />
-                </div>
-                <p className="text-xs font-medium text-foreground text-center leading-tight">{t.nav.renderflow}</p>
-              </Link>
-            )}
-
-            {!hiddenModules.includes("listy") && (
-              <Link
-                href="/listy"
-                className="group flex flex-col items-center gap-2 p-3 rounded-xl bg-card border border-border hover:shadow-md hover:border-gray-300 dark:hover:border-gray-600 transition-all"
-              >
-                <div className="w-12 h-12 rounded-xl flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform bg-primary">
-                  <ScrollText size={24} className="text-white" />
-                </div>
-                <p className="text-xs font-medium text-foreground text-center leading-tight">{t.nav.lists}</p>
-              </Link>
-            )}
-
-            {!hiddenModules.includes("produkty") && (
-              <Link
-                href="/produkty"
-                className="group flex flex-col items-center gap-2 p-3 rounded-xl bg-card border border-border hover:shadow-md hover:border-gray-300 dark:hover:border-gray-600 transition-all"
-              >
-                <div className="w-12 h-12 rounded-xl flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform bg-[#7c3aed]">
-                  <Package size={24} className="text-white" />
-                </div>
-                <p className="text-xs font-medium text-foreground text-center leading-tight">{t.nav.products}</p>
-              </Link>
-            )}
-          </div>
-        </div>
-      )}
 
       {/* Main grid — two independent flex columns */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

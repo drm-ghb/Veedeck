@@ -9,6 +9,8 @@ export default async function DyskusjePage() {
   if (!session?.user?.id) redirect("/login");
   const userId = getWorkspaceUserId(session);
 
+  const dbUser = await prisma.user.findUnique({ where: { id: userId }, select: { avatarUrl: true } });
+
   const [discussions, projects] = await Promise.all([
     prisma.discussion.findMany({
       where: { ownerId: userId },
@@ -29,6 +31,7 @@ export default async function DyskusjePage() {
   return (
     <DyskusjeView
       currentUserId={userId}
+      currentUserAvatarUrl={dbUser?.avatarUrl ?? null}
       initialDiscussions={discussions.map((d) => ({
         id: d.id,
         title: d.title,

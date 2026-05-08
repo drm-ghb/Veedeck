@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Grid2x2 } from "lucide-react";
+import { Grid2x2 } from "@/components/ui/icons";
 
 export function HomeLinkIcon({ hidden }: { hidden?: boolean } = {}) {
   const pathname = usePathname();

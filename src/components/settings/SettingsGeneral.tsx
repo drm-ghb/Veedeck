@@ -6,35 +6,72 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { User, Mail, Lock, Info, Sun, Moon, Monitor, Palette, Image as ImageIcon, Layers, ScrollText, Package, LayoutDashboard, PanelLeft, Globe, PictureInPicture, Pencil, X } from "lucide-react";
+import { User, Mail, Lock, Info, Sun, Moon, Monitor, Palette, Image as ImageIcon, Layers, ScrollText, Package, Globe, PictureInPicture, Pencil, X, Eye, EyeOff, Phone, UserCircle, Trash2 } from "@/components/ui/icons";
 import { useTheme, type Theme, type ColorTheme } from "@/lib/theme";
 import { useT, useLang } from "@/lib/i18n";
 import Cropper from "react-easy-crop";
 import type { Area } from "react-easy-crop";
 import { useUploadThing } from "@/lib/uploadthing-client";
+import { signOut } from "next-auth/react";
 import { patchUser, SettingRow, SectionHeader, ToggleSwitch } from "./SettingsShared";
 
 interface Props {
+  isDesigner: boolean;
   initialName: string;
+  initialFullName: string;
   initialEmail: string;
+  initialPhone: string;
+  initialPhonePrefix: string;
+  initialAvatarUrl: string | null;
   initialShowProfileName: boolean;
   initialShowClientLogo: boolean;
   initialGlobalHiddenModules: string[];
   initialClientLogoUrl: string | null;
   initialClientWelcomeMessage: string | null;
-  initialNavMode: string;
   initialColorTheme: ColorTheme;
 }
 
+const PHONE_PREFIXES = [
+  { code: "+48", flag: "🇵🇱", country: "PL" },
+  { code: "+49", flag: "🇩🇪", country: "DE" },
+  { code: "+44", flag: "🇬🇧", country: "GB" },
+  { code: "+1",  flag: "🇺🇸", country: "US" },
+  { code: "+33", flag: "🇫🇷", country: "FR" },
+  { code: "+39", flag: "🇮🇹", country: "IT" },
+  { code: "+34", flag: "🇪🇸", country: "ES" },
+  { code: "+31", flag: "🇳🇱", country: "NL" },
+  { code: "+46", flag: "🇸🇪", country: "SE" },
+  { code: "+47", flag: "🇳🇴", country: "NO" },
+  { code: "+45", flag: "🇩🇰", country: "DK" },
+  { code: "+358", flag: "🇫🇮", country: "FI" },
+  { code: "+43", flag: "🇦🇹", country: "AT" },
+  { code: "+41", flag: "🇨🇭", country: "CH" },
+  { code: "+32", flag: "🇧🇪", country: "BE" },
+  { code: "+420", flag: "🇨🇿", country: "CZ" },
+  { code: "+421", flag: "🇸🇰", country: "SK" },
+  { code: "+36", flag: "🇭🇺", country: "HU" },
+  { code: "+40", flag: "🇷🇴", country: "RO" },
+  { code: "+380", flag: "🇺🇦", country: "UA" },
+  { code: "+385", flag: "🇭🇷", country: "HR" },
+];
+
+function validatePassword(pwd: string): boolean {
+  return pwd.length >= 8 && /[a-z]/.test(pwd) && /[A-Z]/.test(pwd) && /[0-9]/.test(pwd);
+}
+
 export function SettingsGeneral({
+  isDesigner,
   initialName,
+  initialFullName,
   initialEmail,
+  initialPhone,
+  initialPhonePrefix,
+  initialAvatarUrl,
   initialShowProfileName,
   initialShowClientLogo,
   initialGlobalHiddenModules,
   initialClientLogoUrl,
   initialClientWelcomeMessage,
-  initialNavMode,
   initialColorTheme,
 }: Props) {
   const router = useRouter();
@@ -50,12 +87,33 @@ export function SettingsGeneral({
 
   const [name, setName] = useState(initialName);
   const [nameLoading, setNameLoading] = useState(false);
+  const [fullName, setFullName] = useState(initialFullName);
+  const [fullNameLoading, setFullNameLoading] = useState(false);
+  const [phone, setPhone] = useState(initialPhone);
+  const [phonePrefix, setPhonePrefix] = useState(initialPhonePrefix);
+  const [phoneLoading, setPhoneLoading] = useState(false);
   const [email, setEmail] = useState(initialEmail);
   const [emailLoading, setEmailLoading] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [passwordLoading, setPasswordLoading] = useState(false);
+  const [showCurrentPwd, setShowCurrentPwd] = useState(false);
+  const [showNewPwd, setShowNewPwd] = useState(false);
+  const [showConfirmPwd, setShowConfirmPwd] = useState(false);
+
+  // Avatar state
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(initialAvatarUrl);
+  const [avatarCropSrc, setAvatarCropSrc] = useState<string | null>(null);
+  const [avatarCrop, setAvatarCrop] = useState({ x: 0, y: 0 });
+  const [avatarZoom, setAvatarZoom] = useState(1);
+  const [avatarCroppedAreaPixels, setAvatarCroppedAreaPixels] = useState<Area | null>(null);
+  const [avatarCropUploading, setAvatarCropUploading] = useState(false);
+  const avatarFileInputRef = useRef<HTMLInputElement>(null);
+  const { startUpload: startAvatarUpload } = useUploadThing("avatarUploader");
+
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   const [showProfileName, setShowProfileName] = useState(initialShowProfileName);
   const [showClientLogo, setShowClientLogo] = useState(initialShowClientLogo);
@@ -63,8 +121,6 @@ export function SettingsGeneral({
   const [clientLogoUrl, setClientLogoUrl] = useState<string | null>(initialClientLogoUrl);
   const [welcomeMsg, setWelcomeMsg] = useState(initialClientWelcomeMessage ?? "");
   const [welcomeLoading, setWelcomeLoading] = useState(false);
-  const [navMode, setNavMode] = useState(initialNavMode);
-
   // Logo crop state
   const [cropSrc, setCropSrc] = useState<string | null>(null);
   const [crop, setCrop] = useState({ x: 0, y: 0 });
@@ -73,6 +129,68 @@ export function SettingsGeneral({
   const [cropUploading, setCropUploading] = useState(false);
   const logoFileInputRef = useRef<HTMLInputElement>(null);
   const { startUpload: startLogoUpload } = useUploadThing("logoUploader");
+
+  function handleAvatarFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+    const reader = new FileReader();
+    reader.onload = () => {
+      setAvatarCropSrc(reader.result as string);
+      setAvatarCrop({ x: 0, y: 0 });
+      setAvatarZoom(1);
+    };
+    reader.readAsDataURL(file);
+  }
+
+  const handleAvatarCropComplete = useCallback((_: Area, pixels: Area) => {
+    setAvatarCroppedAreaPixels(pixels);
+  }, []);
+
+  async function handleAvatarCropApply() {
+    if (!avatarCropSrc || !avatarCroppedAreaPixels) return;
+    setAvatarCropUploading(true);
+    try {
+      const file = await getCroppedImg(avatarCropSrc, avatarCroppedAreaPixels);
+      const res = await startAvatarUpload([file]);
+      const url = res?.[0]?.url;
+      if (!url) throw new Error();
+      await patchUser({ avatarUrl: url });
+      setAvatarUrl(url);
+      setAvatarCropSrc(null);
+      toast.success(t.settings.saved);
+    } catch {
+      toast.error(t.settings.avatarUploadError);
+    } finally {
+      setAvatarCropUploading(false);
+    }
+  }
+
+  async function handleRemoveAvatar() {
+    const res = await patchUser({ avatarUrl: null });
+    if (res.ok) { setAvatarUrl(null); toast.success(t.settings.avatarDeleted); }
+    else toast.error(t.settings.avatarDeleteError);
+  }
+
+  async function handleFullNameSave() {
+    if (!fullName.trim()) return;
+    setFullNameLoading(true);
+    try {
+      const res = await patchUser({ fullName: fullName.trim() });
+      if (!res.ok) { const d = await res.json(); toast.error(d.error || t.settings.saveError); return; }
+      toast.success(t.settings.fullNameUpdated);
+      router.refresh();
+    } finally { setFullNameLoading(false); }
+  }
+
+  async function handlePhoneSave() {
+    setPhoneLoading(true);
+    try {
+      const res = await patchUser({ phone: phone.trim() || null, phonePrefix });
+      if (!res.ok) { const d = await res.json(); toast.error(d.error || t.settings.saveError); return; }
+      toast.success(t.settings.phoneUpdated);
+    } finally { setPhoneLoading(false); }
+  }
 
   function handleLogoFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -134,7 +252,7 @@ export function SettingsGeneral({
 
   async function handlePasswordSave() {
     if (newPassword !== confirmPassword) { toast.error(t.settings.passwordMismatch); return; }
-    if (newPassword.length < 8) { toast.error(t.settings.passwordTooShort); return; }
+    if (!validatePassword(newPassword)) { toast.error(t.settings.passwordTooWeak); return; }
     setPasswordLoading(true);
     try {
       const res = await fetch("/api/user/password", {
@@ -181,13 +299,6 @@ export function SettingsGeneral({
     } finally { setWelcomeLoading(false); }
   }
 
-  async function handleNavModeChange(mode: string) {
-    setNavMode(mode);
-    const res = await patchUser({ navMode: mode });
-    if (res.ok) { toast.success(t.settings.saved); router.refresh(); }
-    else { setNavMode(navMode); toast.error(t.settings.saveError); }
-  }
-
 const COLOR_THEMES: {
     slug: ColorTheme;
     name: string;
@@ -219,6 +330,18 @@ const COLOR_THEMES: {
     else toast.error(t.settings.logoDeleteError);
   }
 
+  async function handleDeleteAccount() {
+    setDeleteLoading(true);
+    const res = await fetch("/api/user", { method: "DELETE" });
+    if (!res.ok) {
+      toast.error("Błąd podczas usuwania konta");
+      setDeleteLoading(false);
+      return;
+    }
+    await signOut({ redirect: false });
+    router.push("/login");
+  }
+
   return (
     <div className="max-w-3xl space-y-10">
       <div>
@@ -230,11 +353,55 @@ const COLOR_THEMES: {
       <section className="space-y-4">
         <SectionHeader title={t.settings.account} />
 
+        {/* Avatar */}
+        <div className="bg-card border border-border rounded-2xl p-6 space-y-4">
+          <div className="flex items-center gap-2">
+            <UserCircle size={16} className="text-gray-400" />
+            <h3 className="font-semibold text-gray-800 dark:text-gray-200">{t.settings.avatar}</h3>
+          </div>
+          <p className="text-xs text-gray-400">{t.settings.avatarDesc}</p>
+          <input ref={avatarFileInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarFileChange} />
+          <div className="flex items-center gap-4">
+            {avatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={avatarUrl} alt="Avatar" className="w-16 h-16 rounded-full object-cover border border-border" />
+            ) : (
+              <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center text-xl font-semibold text-primary border border-border">
+                {(fullName || name || "?")[0]?.toUpperCase()}
+              </div>
+            )}
+            <div className="flex flex-col gap-2">
+              <Button size="sm" onClick={() => avatarFileInputRef.current?.click()} disabled={avatarCropUploading}>
+                <Pencil size={14} className="mr-1.5" />{avatarUrl ? t.settings.changeAvatar : "Dodaj avatar"}
+              </Button>
+              {avatarUrl && (
+                <Button size="sm" variant="outline" onClick={handleRemoveAvatar}>{t.settings.deleteAvatar}</Button>
+              )}
+            </div>
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {/* Imię i nazwisko */}
           <div className="bg-card border border-border rounded-2xl p-6 space-y-4">
             <div className="flex items-center gap-2">
               <User size={16} className="text-gray-400" />
-              <h3 className="font-semibold text-gray-800 dark:text-gray-200">{t.settings.profile}</h3>
+              <h3 className="font-semibold text-gray-800 dark:text-gray-200">{t.settings.fullName}</h3>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm text-gray-600 dark:text-gray-400">{t.settings.fullName}</label>
+              <Input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder={t.settings.fullNamePlaceholder} onKeyDown={(e) => e.key === "Enter" && handleFullNameSave()} />
+            </div>
+            <Button onClick={handleFullNameSave} disabled={fullNameLoading || !fullName.trim() || fullName.trim() === initialFullName} size="sm">
+              {fullNameLoading ? t.common.saving : t.common.save}
+            </Button>
+          </div>
+
+          {/* Nazwa firmy */}
+          <div className="bg-card border border-border rounded-2xl p-6 space-y-4">
+            <div className="flex items-center gap-2">
+              <User size={16} className="text-gray-400" />
+              <h3 className="font-semibold text-gray-800 dark:text-gray-200">{t.settings.profileName}</h3>
             </div>
             <div className="space-y-2">
               <label className="text-sm text-gray-600 dark:text-gray-400">{t.settings.profileName}</label>
@@ -244,7 +411,10 @@ const COLOR_THEMES: {
               {nameLoading ? t.common.saving : t.common.save}
             </Button>
           </div>
+        </div>
 
+        {/* Email + numer kontaktowy */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="bg-card border border-border rounded-2xl p-6 space-y-4">
             <div className="flex items-center gap-2">
               <Mail size={16} className="text-gray-400" />
@@ -262,8 +432,40 @@ const COLOR_THEMES: {
               {emailLoading ? t.common.saving : t.common.save}
             </Button>
           </div>
+
+          <div className="bg-card border border-border rounded-2xl p-6 space-y-4">
+            <div className="flex items-center gap-2">
+              <Phone size={16} className="text-gray-400" />
+              <h3 className="font-semibold text-gray-800 dark:text-gray-200">{t.settings.phone}</h3>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm text-gray-600 dark:text-gray-400">{t.settings.phone}</label>
+              <div className="flex gap-2">
+                <select
+                  value={phonePrefix}
+                  onChange={(e) => setPhonePrefix(e.target.value)}
+                  className="flex-shrink-0 bg-background border border-input rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                >
+                  {PHONE_PREFIXES.map(({ code, flag, country }) => (
+                    <option key={code} value={code}>{flag} {code}</option>
+                  ))}
+                </select>
+                <Input
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder={t.settings.phonePlaceholder}
+                  onKeyDown={(e) => e.key === "Enter" && handlePhoneSave()}
+                  className="flex-1"
+                />
+              </div>
+            </div>
+            <Button onClick={handlePhoneSave} disabled={phoneLoading || (phone.trim() === initialPhone && phonePrefix === initialPhonePrefix)} size="sm">
+              {phoneLoading ? t.common.saving : t.common.save}
+            </Button>
+          </div>
         </div>
 
+        {/* Hasło */}
         <div className="bg-card border border-border rounded-2xl p-6 space-y-4">
           <div className="flex items-center gap-2">
             <Lock size={16} className="text-gray-400" />
@@ -272,17 +474,33 @@ const COLOR_THEMES: {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="space-y-2">
               <label className="text-sm text-gray-600 dark:text-gray-400">{t.settings.currentPassword}</label>
-              <Input type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} placeholder="••••••••" />
+              <div className="relative">
+                <Input type={showCurrentPwd ? "text" : "password"} value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} placeholder="••••••••" className="pr-9" />
+                <button type="button" onClick={() => setShowCurrentPwd(!showCurrentPwd)} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                  {showCurrentPwd ? <EyeOff size={15} /> : <Eye size={15} />}
+                </button>
+              </div>
             </div>
             <div className="space-y-2">
               <label className="text-sm text-gray-600 dark:text-gray-400">{t.settings.newPassword}</label>
-              <Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder={t.settings.newPasswordPlaceholder} />
+              <div className="relative">
+                <Input type={showNewPwd ? "text" : "password"} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder={t.settings.newPasswordPlaceholder} className="pr-9" />
+                <button type="button" onClick={() => setShowNewPwd(!showNewPwd)} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                  {showNewPwd ? <EyeOff size={15} /> : <Eye size={15} />}
+                </button>
+              </div>
             </div>
             <div className="space-y-2">
               <label className="text-sm text-gray-600 dark:text-gray-400">{t.settings.repeatPassword}</label>
-              <Input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="••••••••" onKeyDown={(e) => e.key === "Enter" && handlePasswordSave()} />
+              <div className="relative">
+                <Input type={showConfirmPwd ? "text" : "password"} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="••••••••" className="pr-9" onKeyDown={(e) => e.key === "Enter" && handlePasswordSave()} />
+                <button type="button" onClick={() => setShowConfirmPwd(!showConfirmPwd)} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                  {showConfirmPwd ? <EyeOff size={15} /> : <Eye size={15} />}
+                </button>
+              </div>
             </div>
           </div>
+          <p className="text-xs text-gray-400">{t.settings.passwordRequirements}</p>
           <Button onClick={handlePasswordSave} disabled={passwordLoading || !currentPassword || !newPassword || !confirmPassword} size="sm">
             {passwordLoading ? t.settings.changingPassword : t.settings.changePassword}
           </Button>
@@ -400,53 +618,51 @@ const COLOR_THEMES: {
         </div>
       </section>
 
-      {/* ── Nawigacja ── */}
-      <section className="space-y-4">
-        <SectionHeader title={t.settings.navigation} />
 
-        <div className="bg-card border border-border rounded-2xl p-6 space-y-4">
-          <div className="flex items-center gap-2">
-            <PanelLeft size={16} className="text-gray-400" />
-            <h3 className="font-semibold text-gray-800 dark:text-gray-200">{t.settings.navigationDesc}</h3>
+      {/* ── Avatar crop modal ── */}
+      {avatarCropSrc && (
+        <div className="fixed inset-0 z-50 flex flex-col bg-black/90">
+          <div className="flex items-center justify-between px-6 py-4 bg-card border-b border-border flex-shrink-0">
+            <h3 className="font-semibold text-sm">{t.settings.cropAvatar}</h3>
+            <button onClick={() => setAvatarCropSrc(null)} className="text-muted-foreground hover:text-foreground transition-colors">
+              <X size={18} />
+            </button>
           </div>
-          <p className="text-xs text-gray-400">{t.settings.navigationSubDesc}</p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {[
-              {
-                value: "dashboard",
-                label: t.settings.navDashboard,
-                description: t.settings.navDashboardDesc,
-                Icon: LayoutDashboard,
-              },
-              {
-                value: "sidebar",
-                label: t.settings.navSidebar,
-                description: t.settings.navSidebarDesc,
-                Icon: PanelLeft,
-              },
-            ].map(({ value, label, description, Icon }) => (
-              <button
-                key={value}
-                type="button"
-                onClick={() => handleNavModeChange(value)}
-                className={`flex items-start gap-3 p-4 rounded-xl border text-left transition-colors ${
-                  navMode === value
-                    ? "border-primary bg-primary/5 dark:bg-primary/10"
-                    : "border-border hover:bg-muted"
-                }`}
-              >
-                <div className={`mt-0.5 flex-shrink-0 ${navMode === value ? "text-primary" : "text-gray-400"}`}>
-                  <Icon size={20} />
-                </div>
-                <div>
-                  <p className={`text-sm font-medium ${navMode === value ? "text-primary" : "text-gray-700 dark:text-gray-300"}`}>{label}</p>
-                  <p className="text-xs text-gray-400 mt-0.5">{description}</p>
-                </div>
-              </button>
-            ))}
+          <div className="relative flex-1">
+            <Cropper
+              image={avatarCropSrc}
+              crop={avatarCrop}
+              zoom={avatarZoom}
+              aspect={1}
+              cropShape="round"
+              showGrid={false}
+              onCropChange={setAvatarCrop}
+              onZoomChange={setAvatarZoom}
+              onCropComplete={handleAvatarCropComplete}
+            />
+          </div>
+          <div className="px-6 py-4 bg-card border-t border-border flex-shrink-0 space-y-4">
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-muted-foreground w-10">Zoom</span>
+              <input
+                type="range"
+                min={1}
+                max={3}
+                step={0.01}
+                value={avatarZoom}
+                onChange={(e) => setAvatarZoom(Number(e.target.value))}
+                className="flex-1 accent-primary"
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setAvatarCropSrc(null)}>Anuluj</Button>
+              <Button onClick={handleAvatarCropApply} disabled={avatarCropUploading}>
+                {avatarCropUploading ? "Przesyłanie..." : "Zastosuj"}
+              </Button>
+            </div>
           </div>
         </div>
-      </section>
+      )}
 
       {/* ── Crop modal ── */}
       {cropSrc && (
@@ -581,6 +797,40 @@ const COLOR_THEMES: {
           </div>
         </div>
       </section>
+
+      {isDesigner && (
+        <section>
+          <SectionHeader title="Strefa niebezpieczna" />
+          <div className="border border-destructive/40 rounded-2xl p-6 space-y-4">
+            <div className="flex items-start gap-3">
+              <Trash2 size={18} className="text-destructive shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-medium text-foreground">Usuń konto</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Trwale usuwa konto wraz ze wszystkimi projektami, renderami, listami zakupowymi i danymi. Tej operacji nie można cofnąć.
+                </p>
+              </div>
+            </div>
+            {!deleteConfirm ? (
+              <Button variant="outline" size="sm" className="border-destructive/50 text-destructive hover:bg-destructive hover:text-destructive-foreground" onClick={() => setDeleteConfirm(true)}>
+                Usuń konto
+              </Button>
+            ) : (
+              <div className="space-y-3">
+                <p className="text-sm font-medium text-destructive">Czy na pewno chcesz usunąć konto? Tej operacji nie można cofnąć.</p>
+                <div className="flex gap-2">
+                  <Button variant="destructive" size="sm" onClick={handleDeleteAccount} disabled={deleteLoading}>
+                    {deleteLoading ? "Usuwanie..." : "Tak, usuń moje konto"}
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => setDeleteConfirm(false)} disabled={deleteLoading}>
+                    Anuluj
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        </section>
+      )}
     </div>
   );
 }

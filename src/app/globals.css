@@ -2,6 +2,34 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
+/* ── Material Symbols Rounded ─────────────────────────────────── */
+.material-symbols-rounded {
+  font-family: "Material Symbols Rounded", sans-serif;
+  font-optical-sizing: auto;
+  font-variation-settings: "FILL" 0, "wght" 300, "GRAD" 0, "opsz" 20;
+  font-size: 20px;
+  line-height: 1;
+  display: inline-block;
+  vertical-align: middle;
+  user-select: none;
+  flex-shrink: 0;
+}
+/* Map Tailwind size classes to font-size */
+.material-symbols-rounded.h-3,
+.material-symbols-rounded.size-3 { font-size: 12px; }
+.material-symbols-rounded.h-4,
+.material-symbols-rounded.size-4 { font-size: 16px; }
+.material-symbols-rounded.h-5,
+.material-symbols-rounded.size-5 { font-size: 20px; }
+.material-symbols-rounded.h-6,
+.material-symbols-rounded.size-6 { font-size: 24px; }
+.material-symbols-rounded.h-7,
+.material-symbols-rounded.size-7 { font-size: 28px; }
+.material-symbols-rounded.h-8,
+.material-symbols-rounded.size-8 { font-size: 32px; }
+.material-symbols-rounded.h-10,
+.material-symbols-rounded.size-10 { font-size: 40px; }
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {

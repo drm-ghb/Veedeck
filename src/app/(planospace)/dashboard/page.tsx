@@ -12,11 +12,10 @@ export default async function DashboardPage() {
 
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { globalHiddenModules: true, navMode: true, name: true, email: true },
+    select: { globalHiddenModules: true, name: true, email: true },
   });
 
   const hiddenModules = user?.globalHiddenModules ?? [];
-  const navMode = user?.navMode ?? "sidebar";
   const displayName = user?.name || user?.email || null;
 
   // Fetch all active projects (for stats + recent + requests)
@@ -217,7 +216,6 @@ export default async function DashboardPage() {
     <DashboardView
       displayName={displayName}
       userId={userId}
-      navMode={navMode}
       hiddenModules={hiddenModules}
       stats={{
         projects: activeProjectCount,

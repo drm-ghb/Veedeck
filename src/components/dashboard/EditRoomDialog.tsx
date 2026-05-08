@@ -18,7 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown } from "@/components/ui/icons";
 import { ROOM_TYPE_LABELS, ICON_OPTIONS, getRoomIcon, type RoomType } from "@/lib/roomIcons";
 
 const ROOM_TYPES = Object.entries(ROOM_TYPE_LABELS) as [RoomType, string][];

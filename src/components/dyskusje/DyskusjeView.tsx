@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { MessageSquare, Plus, Trash2, Edit2, Check, X, ExternalLink, ChevronDown, ChevronLeft, Paperclip, FileText, FileSpreadsheet, File as FileIcon, Loader2, FolderOpen, Mic, Square, Search, Archive, ArchiveRestore, CornerDownLeft, MoreVertical } from "lucide-react";
+import { MessageSquare, Plus, Trash2, Edit2, Check, X, ExternalLink, ChevronDown, ChevronLeft, Paperclip, FileText, FileSpreadsheet, File as FileIcon, Loader2, FolderOpen, Mic, Square, Search, Archive, ArchiveRestore, CornerDownLeft, MoreVertical } from "@/components/ui/icons";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import Pusher from "pusher-js";
@@ -57,6 +57,7 @@ interface ProjectOption {
 
 interface Props {
   currentUserId: string;
+  currentUserAvatarUrl?: string | null;
   initialDiscussions: DiscussionSummary[];
   projects: ProjectOption[];
 }
@@ -95,7 +96,7 @@ function dayLabel(iso: string) {
   return new Date(iso).toLocaleDateString("pl-PL", { day: "2-digit", month: "long", year: "numeric" });
 }
 
-export default function DyskusjeView({ currentUserId, initialDiscussions, projects }: Props) {
+export default function DyskusjeView({ currentUserId, currentUserAvatarUrl, initialDiscussions, projects }: Props) {
   const router = useRouter();
   const [discussions, setDiscussions] = useState<DiscussionSummary[]>(initialDiscussions);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -1059,6 +1060,7 @@ export default function DyskusjeView({ currentUserId, initialDiscussions, projec
                             key={msg.id}
                             msg={msg}
                             isOwn={isOwn}
+                            ownAvatarUrl={isOwn ? currentUserAvatarUrl : undefined}
                             onImageClick={setAnnotatingImage}
                             receipts={isOwn
                               ? receipts.filter((r) => r.lastMessageId === msg.id && r.readerId !== currentUserId)
@@ -1219,7 +1221,11 @@ function PillDropdown({ value, onChange, options }: {
   );
 }
 
-function Avatar({ name }: { name: string }) {
+function Avatar({ name, logoUrl }: { name: string; logoUrl?: string | null }) {
+  if (logoUrl) {
+    // eslint-disable-next-line @next/next/no-img-element
+    return <img src={logoUrl} alt={name} title={name} className="w-7 h-7 rounded-full object-cover shrink-0 self-end mb-0.5 cursor-default" />;
+  }
   const initials = name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
   return (
     <div title={name} className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-xs font-semibold text-primary shrink-0 self-end mb-0.5 cursor-default">
@@ -1324,9 +1330,10 @@ function ChatSearchResults({ messages, query, onImageClick }: {
   );
 }
 
-function MessageBubble({ msg, isOwn, onImageClick, receipts, onEdit, onDelete, onReply }: {
+function MessageBubble({ msg, isOwn, ownAvatarUrl, onImageClick, receipts, onEdit, onDelete, onReply }: {
   msg: DiscussionMessage;
   isOwn: boolean;
+  ownAvatarUrl?: string | null;
   onImageClick: (url: string) => void;
   receipts?: ReadReceipt[];
   onEdit?: (content: string) => void;
@@ -1503,6 +1510,7 @@ function MessageBubble({ msg, isOwn, onImageClick, receipts, onEdit, onDelete, o
       </div>
       </SwipeableMessage>
       </div>
+      {isOwn && <Avatar name={msg.authorName} logoUrl={ownAvatarUrl} />}
     </div>
   );
 }

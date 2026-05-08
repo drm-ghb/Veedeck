@@ -4,7 +4,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronDown, ChevronUp, Plus, ExternalLink, Minus, MoreHorizontal, Pencil, Trash2, GripVertical, FileDown, Sheet, MessageSquare, ArrowDownUp, Eye, EyeOff, Check, X, RotateCcw, FolderInput, Wallet, AlertCircle, DollarSign, Copy } from "lucide-react";
+import { ChevronLeft, ChevronDown, ChevronUp, Plus, ExternalLink, Minus, MoreHorizontal, Pencil, Trash2, GripVertical, FileDown, Sheet, MessageSquare, ArrowDownUp, Eye, EyeOff, Check, X, RotateCcw, FolderInput, Wallet, AlertCircle, DollarSign, Copy } from "@/components/ui/icons";
 import ProductCommentPanel from "./ProductCommentPanel";
 import { pusherClient } from "@/lib/pusher";
 import { Button } from "@/components/ui/button";
@@ -531,39 +531,52 @@ function ProductRow({
               {product.category ? getCategoryLabel(product.category, allCategories) : "+ kategoria"}
             </button>
           </div>
-          {/* Inline-editable fields */}
-          {(["manufacturer", "supplier", "color", "dimensions", "deliveryTime", "catalogNumber"] as const).map((field) => {
-            const labels: Record<string, string> = { manufacturer: "Producent", supplier: "Dostawca", color: "Kolor", dimensions: "Wymiar", deliveryTime: "Dostawa", catalogNumber: "Nr kat." };
-            const val = product[field] as string | null;
-            if (editingField === field) {
+          {/* 2-column attribute grid */}
+          <div className="grid grid-cols-2 gap-x-4 mt-1">
+            {(["manufacturer", "supplier", "color", "deliveryTime", "dimensions", "catalogNumber"] as const).map((field) => {
+              const labels: Record<string, string> = { manufacturer: "Producent", supplier: "Dostawca", color: "Kolor", dimensions: "Wymiar", deliveryTime: "Dostawa", catalogNumber: "Nr kat." };
+              const val = product[field] as string | null;
+              if (editingField === field) {
+                return (
+                  <div key={field} className="flex items-center gap-1 py-0.5">
+                    <span className="text-xs text-muted-foreground shrink-0">{labels[field]}:</span>
+                    <input
+                      autoFocus
+                      value={editingValue}
+                      onChange={(e) => setEditingValue(e.target.value)}
+                      onBlur={saveFieldEdit}
+                      onKeyDown={(e) => { if (e.key === "Enter") saveFieldEdit(); if (e.key === "Escape") setEditingField(null); }}
+                      className="text-xs bg-transparent border-b border-primary/40 focus:outline-none focus:border-primary px-0 min-w-0 flex-1"
+                    />
+                  </div>
+                );
+              }
+              if (!val) {
+                return (
+                  <button
+                    key={`add-${field}`}
+                    onClick={() => startFieldEdit(field, null)}
+                    className="text-left text-xs text-muted-foreground/30 hover:text-muted-foreground transition-colors py-0.5"
+                    title={`Dodaj ${labels[field].toLowerCase()}`}
+                  >
+                    + {labels[field]}
+                  </button>
+                );
+              }
               return (
-                <div key={field} className="flex items-center gap-1 mt-0.5">
-                  <span className="text-xs text-muted-foreground shrink-0">{labels[field]}:</span>
-                  <input
-                    autoFocus
-                    value={editingValue}
-                    onChange={(e) => setEditingValue(e.target.value)}
-                    onBlur={saveFieldEdit}
-                    onKeyDown={(e) => { if (e.key === "Enter") saveFieldEdit(); if (e.key === "Escape") setEditingField(null); }}
-                    className="text-xs bg-transparent border-b border-primary/40 focus:outline-none focus:border-primary px-0 min-w-0 flex-1"
-                  />
+                <div key={field} className="group/field flex items-center gap-1 py-0.5 min-w-0">
+                  <p className="text-xs text-muted-foreground truncate">{labels[field]}: {val}</p>
+                  <button
+                    onClick={() => startFieldEdit(field, val)}
+                    className="opacity-0 group-hover/field:opacity-100 transition-opacity text-muted-foreground hover:text-foreground shrink-0"
+                    title={`Edytuj ${labels[field].toLowerCase()}`}
+                  >
+                    <Pencil size={10} />
+                  </button>
                 </div>
               );
-            }
-            if (!val && editingField !== field) return null;
-            return (
-              <div key={field} className="group/field flex items-center gap-1 mt-0.5">
-                <p className="text-xs text-muted-foreground">{labels[field]}: {val}</p>
-                <button
-                  onClick={() => startFieldEdit(field, val)}
-                  className="opacity-0 group-hover/field:opacity-100 transition-opacity text-muted-foreground hover:text-foreground"
-                  title={`Edytuj ${labels[field].toLowerCase()}`}
-                >
-                  <Pencil size={10} />
-                </button>
-              </div>
-            );
-          })}
+            })}
+          </div>
           {/* Note field */}
           {editingField === "note" ? (
             <div className="flex items-start gap-1 mt-1">
@@ -580,7 +593,7 @@ function ProductRow({
             </div>
           ) : product.note ? (
             <div className="group/note flex items-start gap-1 mt-1">
-              <p className="text-xs text-muted-foreground italic flex-1">📝 {product.note}</p>
+              <p className="text-xs text-muted-foreground italic">📝 {product.note}</p>
               <button
                 onClick={() => startFieldEdit("note", product.note)}
                 className="opacity-0 group-hover/note:opacity-100 transition-opacity text-muted-foreground hover:text-foreground shrink-0"
@@ -592,28 +605,11 @@ function ProductRow({
           ) : (
             <button
               onClick={() => startFieldEdit("note", null)}
-              className="opacity-0 group-hover:opacity-100 text-xs text-muted-foreground/50 hover:text-muted-foreground transition-opacity block mt-0.5"
-              title="Dodaj notatkę"
+              className="text-xs text-muted-foreground/30 hover:text-muted-foreground transition-colors mt-1 block"
             >
               + Notatka
             </button>
           )}
-          {/* Add empty fields on hover */}
-          {(["manufacturer", "supplier", "color", "dimensions", "deliveryTime", "catalogNumber"] as const).map((field) => {
-            const val = product[field] as string | null;
-            if (val || editingField === field) return null;
-            const labels: Record<string, string> = { manufacturer: "Producent", supplier: "Dostawca", color: "Kolor", dimensions: "Wymiar", deliveryTime: "Dostawa", catalogNumber: "Nr kat." };
-            return (
-              <button
-                key={`add-${field}`}
-                onClick={() => startFieldEdit(field, null)}
-                className="opacity-0 group-hover:opacity-0 hover:opacity-100 text-xs text-muted-foreground/50 hover:text-muted-foreground transition-opacity block mt-0.5"
-                title={`Dodaj ${labels[field].toLowerCase()}`}
-              >
-                + {labels[field]}
-              </button>
-            );
-          })}
         </div>
         <div className="flex items-center gap-3 shrink-0">
           {approval === "accepted" && <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 shrink-0">Zaakceptowane</span>}
@@ -699,7 +695,23 @@ function ProductRow({
               {product.manufacturer && <p className="text-xs text-muted-foreground truncate">Producent: {product.manufacturer}</p>}
               {product.supplier && <p className="text-xs text-muted-foreground truncate">Dostawca: {product.supplier}</p>}
               {product.color && <p className="text-xs text-muted-foreground truncate">Kolor: {product.color}</p>}
-              {product.note && <p className="text-xs text-muted-foreground italic truncate">📝 {product.note}</p>}
+              {product.deliveryTime && <p className="text-xs text-muted-foreground truncate">Dostawa: {product.deliveryTime}</p>}
+              {product.dimensions && <p className="text-xs text-muted-foreground truncate">Wymiar: {product.dimensions}</p>}
+              {product.catalogNumber && <p className="text-xs text-muted-foreground truncate">Nr kat.: {product.catalogNumber}</p>}
+              {editingField === "note" ? (
+                <textarea
+                  autoFocus
+                  value={editingValue}
+                  onChange={(e) => setEditingValue(e.target.value)}
+                  onBlur={saveFieldEdit}
+                  onKeyDown={(e) => { if (e.key === "Enter" && e.ctrlKey) saveFieldEdit(); if (e.key === "Escape") setEditingField(null); }}
+                  rows={2}
+                  placeholder="Wpisz notatkę…"
+                  className="text-xs bg-transparent border border-primary/40 rounded px-1 focus:outline-none focus:border-primary w-full resize-none mt-0.5"
+                />
+              ) : (
+                product.note && <p className="text-xs text-muted-foreground italic truncate">📝 {product.note}</p>
+              )}
             </div>
             <div className="shrink-0 -mt-0.5">{dropdown}</div>
           </div>
@@ -2437,16 +2449,26 @@ export default function ListDetail({ list, designerName, designerEmail, designer
               <div className="space-y-2">
                 <p className="text-sm font-semibold">Cała lista</p>
                 <div className="flex items-center gap-2">
-                  <input
-                    type="number"
-                    min="0"
-                    step="100"
-                    value={budgetInput}
-                    onChange={(e) => setBudgetInput(e.target.value)}
-                    placeholder="np. 60 000"
-                    className="flex-1 px-3 py-2 text-sm border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary/40"
-                    autoFocus
-                  />
+                  <div className="relative flex-1">
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={budgetInput}
+                      onChange={(e) => setBudgetInput(e.target.value)}
+                      placeholder="np. 60 000"
+                      className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary/40 pr-8"
+                      autoFocus
+                    />
+                    {budgetInput !== "" && (
+                      <button
+                        onClick={() => setBudgetInput("")}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                        tabIndex={-1}
+                      >
+                        <X size={14} />
+                      </button>
+                    )}
+                  </div>
                   <span className="text-sm text-muted-foreground shrink-0">zł</span>
                 </div>
               </div>
@@ -2459,15 +2481,25 @@ export default function ListDetail({ list, designerName, designerEmail, designer
                     <div key={s.id} className="space-y-1">
                       <label className="text-xs text-muted-foreground">{s.name}</label>
                       <div className="flex items-center gap-2">
-                        <input
-                          type="number"
-                          min="0"
-                          step="100"
-                          value={sectionBudgetInputs[s.id] ?? ""}
-                          onChange={(e) => setSectionBudgetInputs((prev) => ({ ...prev, [s.id]: e.target.value }))}
-                          placeholder="np. 15 000"
-                          className="flex-1 px-3 py-2 text-sm border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary/40"
-                        />
+                        <div className="relative flex-1">
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            value={sectionBudgetInputs[s.id] ?? ""}
+                            onChange={(e) => setSectionBudgetInputs((prev) => ({ ...prev, [s.id]: e.target.value }))}
+                            placeholder="np. 15 000"
+                            className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary/40 pr-8"
+                          />
+                          {(sectionBudgetInputs[s.id] ?? "") !== "" && (
+                            <button
+                              onClick={() => setSectionBudgetInputs((prev) => ({ ...prev, [s.id]: "" }))}
+                              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                              tabIndex={-1}
+                            >
+                              <X size={14} />
+                            </button>
+                          )}
+                        </div>
                         <span className="text-sm text-muted-foreground shrink-0">zł</span>
                       </div>
                     </div>

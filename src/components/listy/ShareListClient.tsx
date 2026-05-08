@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
-import { ExternalLink, MessageSquare, Check, X, RotateCcw } from "lucide-react";
+import { ExternalLink, MessageSquare, Check, X, RotateCcw } from "@/components/ui/icons";
 import ProductCommentPanel from "./ProductCommentPanel";
 import { pusherClient } from "@/lib/pusher";
 

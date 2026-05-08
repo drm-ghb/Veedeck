@@ -65,6 +65,25 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
   },
   callbacks: {
+    async signIn({ user, account, profile }) {
+      if (account?.provider === "google" && profile && user.id) {
+        try {
+          const dbUser = await prisma.user.findUnique({
+            where: { id: user.id },
+            select: { fullName: true },
+          });
+          if (!dbUser?.fullName && profile.name) {
+            await prisma.user.update({
+              where: { id: user.id },
+              data: { fullName: profile.name as string },
+            });
+          }
+        } catch (e) {
+          console.error("[auth] signIn callback error (Google fullName):", e);
+        }
+      }
+      return true;
+    },
     async jwt({ token, user, trigger }) {
       if (user) {
         token.id = user.id;

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { UserPlus, Trash2, Loader2, Mail, Users, Clock } from "lucide-react";
+import { UserPlus, Trash2, Loader2, Mail, Users, Clock } from "@/components/ui/icons";
 
 interface Member {
   id: string;

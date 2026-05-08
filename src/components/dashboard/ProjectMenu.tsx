@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { MoreHorizontal, Pencil, Archive, Trash2, Pin, PinOff } from "lucide-react";
+import { MoreHorizontal, Pencil, Archive, Trash2, Pin, PinOff } from "@/components/ui/icons";
 import {
   DropdownMenu,
   DropdownMenuTrigger,

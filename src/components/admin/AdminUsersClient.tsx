@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Trash2, ShieldCheck, FolderOpen, KeyRound, X } from "lucide-react";
+import { Trash2, ShieldCheck, FolderOpen, KeyRound, X } from "@/components/ui/icons";
 import { Button } from "@/components/ui/button";
 
 interface User {

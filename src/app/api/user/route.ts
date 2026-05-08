@@ -2,6 +2,26 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
+export async function DELETE() {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Nieautoryzowany" }, { status: 401 });
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { role: true, isAdmin: true },
+  });
+
+  if (!user || user.role !== "designer" || user.isAdmin) {
+    return NextResponse.json({ error: "Brak uprawnień" }, { status: 403 });
+  }
+
+  await prisma.user.delete({ where: { id: session.user.id } });
+
+  return NextResponse.json({ ok: true });
+}
+
 export async function PATCH(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) {
@@ -24,7 +44,7 @@ export async function PATCH(req: NextRequest) {
     "autoArchiveOnAccept", "hideCommentCount", "notifyClientOnStatusChange",
     "notifyClientOnReply", "allowClientVersionRestore", "showProfileName", "showClientLogo",
   ] as const;
-  const stringFields = ["clientWelcomeMessage", "clientLogoUrl", "accentColor", "defaultRenderOrder", "defaultRenderStatus", "navMode"] as const;
+  const stringFields = ["clientWelcomeMessage", "clientLogoUrl", "accentColor", "defaultRenderOrder", "defaultRenderStatus", "navMode", "avatarUrl", "fullName", "phone", "phonePrefix"] as const;
 
   const VALID_COLOR_THEMES = ["violet", "champagne", "obsidian", "navy", "plum", "mono"] as const;
   if (body.colorTheme !== undefined && !VALID_COLOR_THEMES.includes(body.colorTheme)) {

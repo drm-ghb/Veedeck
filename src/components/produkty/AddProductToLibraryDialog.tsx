@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Loader2, ExternalLink, ImagePlus, X } from "lucide-react";
+import { Loader2, ExternalLink, ImagePlus, X } from "@/components/ui/icons";
 import { UploadButton } from "@uploadthing/react";
 import type { OurFileRouter } from "@/lib/uploadthing";
 import { SearchProductDialog } from "./SearchProductDialog";

@@ -39,6 +39,10 @@ export default async function ShareDyskusjePage({ params }: { params: Promise<{ 
 
   const hasRenders = project.renders.length > 0;
 
+  const clientAvatarUrl = session?.user?.id
+    ? (await prisma.user.findUnique({ where: { id: session.user.id }, select: { avatarUrl: true } }))?.avatarUrl ?? null
+    : null;
+
   return (
     <ClientNameGate
       token={token}
@@ -68,6 +72,7 @@ export default async function ShareDyskusjePage({ params }: { params: Promise<{ 
             discussionId={project.discussion.id}
             discussionTitle={project.discussion.title}
             initialAuthorName={session?.user?.name ?? undefined}
+            currentUserAvatarUrl={clientAvatarUrl}
           />
         </main>
       </div>
