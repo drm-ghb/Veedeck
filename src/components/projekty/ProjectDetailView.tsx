@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { PaymentsTab } from "@/components/projekty/PaymentsTab";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -113,6 +114,9 @@ export default function ProjectDetailView({ project }: { project: ProjectData })
   const [projectEndDate, setProjectEndDate] = useState(project.endDate ?? "");
   const [showPassword, setShowPassword] = useState(false);
   const [savingInfo, setSavingInfo] = useState(false);
+
+  // Tab state
+  const [activeTab, setActiveTab] = useState<"info" | "payments">("info");
 
   // Clients state
   const [clients, setClients] = useState<ProjectClient[]>(project.clients);
@@ -433,7 +437,7 @@ export default function ProjectDetailView({ project }: { project: ProjectData })
       {/* Back nav */}
       <div className="mb-6">
         <Link
-          href="/projekty"
+          href="/klienci"
           className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
         >
           <ArrowLeft size={15} />
@@ -448,7 +452,38 @@ export default function ProjectDetailView({ project }: { project: ProjectData })
         </div>
       </div>
 
-      <div className="space-y-6">
+      {/* Tabs */}
+      <div className="flex gap-1 border-b border-border mb-6">
+        <button
+          onClick={() => setActiveTab("info")}
+          className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
+            activeTab === "info"
+              ? "border-primary text-foreground"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          Informacje ogólne
+        </button>
+        <button
+          onClick={() => setActiveTab("payments")}
+          className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
+            activeTab === "payments"
+              ? "border-primary text-foreground"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          Płatności
+        </button>
+      </div>
+
+      {activeTab === "payments" && (
+        <PaymentsTab
+          clientId={clients[0]?.id ?? ""}
+          projectId={project.id}
+        />
+      )}
+
+      {activeTab === "info" && <div className="space-y-6">
         {/* === Info section === */}
         <section className="bg-card border border-border rounded-xl p-5">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground mb-4">
@@ -918,6 +953,7 @@ export default function ProjectDetailView({ project }: { project: ProjectData })
           </div>
         </section>
       </div>
+      }
 
       {/* Warning dialog */}
       <Dialog

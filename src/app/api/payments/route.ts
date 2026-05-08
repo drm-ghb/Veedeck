@@ -1,0 +1,63 @@
+import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+
+// GET /api/payments?clientId=xxx — fetch all groups + payments for a client
+export async function GET(req: NextRequest) {
+  const session = await auth();
+  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const clientId = req.nextUrl.searchParams.get("clientId");
+  if (!clientId) return NextResponse.json({ error: "clientId required" }, { status: 400 });
+
+  // Verify ownership
+  const client = await prisma.projectClient.findFirst({
+    where: { id: clientId, project: { userId: session.user.id } },
+  });
+  if (!client) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  const [groups, payments] = await Promise.all([
+    prisma.paymentGroup.findMany({
+      where: { clientId },
+      orderBy: [{ order: "asc" }, { createdAt: "asc" }],
+    }),
+    prisma.payment.findMany({
+      where: { clientId },
+      orderBy: [{ order: "asc" }, { createdAt: "asc" }],
+    }),
+  ]);
+
+  return NextResponse.json({ groups, payments });
+}
+
+// POST /api/payments — create payment
+export async function POST(req: NextRequest) {
+  const session = await auth();
+  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const body = await req.json();
+  const { clientId, groupId, name, amount, status } = body;
+
+  if (!clientId || !name || amount == null) {
+    return NextResponse.json({ error: "clientId, name, amount required" }, { status: 400 });
+  }
+
+  const client = await prisma.projectClient.findFirst({
+    where: { id: clientId, project: { userId: session.user.id } },
+  });
+  if (!client) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  const count = await prisma.payment.count({ where: { clientId } });
+  const payment = await prisma.payment.create({
+    data: {
+      clientId,
+      groupId: groupId ?? null,
+      name,
+      amount: parseFloat(amount),
+      status: status ?? "pending",
+      order: count,
+    },
+  });
+
+  return NextResponse.json(payment, { status: 201 });
+}

@@ -310,7 +310,7 @@ export default function DashboardView({
         <div className="order-1">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <Link
-              href="/projekty"
+              href="/klienci"
               className="flex items-center gap-3 p-3 rounded-xl bg-card border border-border hover:border-primary/30 hover:bg-primary/5 transition-colors"
             >
               <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">

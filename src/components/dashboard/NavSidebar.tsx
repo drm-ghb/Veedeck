@@ -100,7 +100,7 @@ export default function NavSidebar({ hiddenModules, isAdmin }: NavSidebarProps) 
 
   const items = [
     { label: t.nav.dashboard, href: "/dashboard", icon: <LayoutDashboard size={18} />, slug: null, badge: 0, matchPrefixes: [] as string[] },
-    { label: t.nav.projects, href: "/projekty", icon: <Users size={18} />, slug: null, badge: 0, matchPrefixes: [] as string[] },
+    { label: t.nav.projects, href: "/klienci", icon: <Users size={18} />, slug: null, badge: 0, matchPrefixes: [] as string[] },
     { label: t.nav.renderflow, href: "/renderflow", icon: <PictureInPicture size={18} />, slug: "renderflow", badge: 0, matchPrefixes: ["/projects/"] },
     { label: t.nav.lists, href: "/listy", icon: <ScrollText size={18} />, slug: "listy", badge: 0, matchPrefixes: [] as string[] },
     { label: t.nav.products, href: "/produkty", icon: <Package size={18} />, slug: "produkty", badge: 0, matchPrefixes: [] as string[] },

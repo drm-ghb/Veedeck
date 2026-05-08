@@ -91,7 +91,7 @@ export async function GET(req: NextRequest) {
         id: p.id,
         title: p.title,
         subtitle: p.clientName ?? undefined,
-        href: `/projekty/${p.slug ?? p.id}`,
+        href: `/klienci/${p.slug ?? p.id}`,
       })),
       rooms: rooms.map((r) => ({
         id: r.id,
@@ -115,7 +115,7 @@ export async function GET(req: NextRequest) {
         id: c.id,
         title: c.name,
         subtitle: c.email ?? c.project.title,
-        href: `/projekty/${c.project.slug ?? c.projectId}#klienci`,
+        href: `/klienci/${c.project.slug ?? c.projectId}`,
       })),
       products: products.map((p) => ({
         id: p.id,

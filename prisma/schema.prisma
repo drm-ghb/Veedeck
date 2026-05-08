@@ -192,19 +192,49 @@ model Project {
 }
 
 model ProjectClient {
-  id            String    @id @default(cuid())
+  id            String         @id @default(cuid())
   name          String
   email         String?
   phone         String?
   projectId     String
-  createdAt     DateTime  @default(now())
-  isMainContact Boolean   @default(false)
-  order         Int       @default(0)
+  createdAt     DateTime       @default(now())
+  isMainContact Boolean        @default(false)
+  order         Int            @default(0)
   startDate     DateTime?
   endDate       DateTime?
-  userId        String?                          // linked User account (role: "client")
-  project       Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  user          User?     @relation("ProjectClientUser", fields: [userId], references: [id], onDelete: SetNull)
+  userId        String?
+  project       Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user          User?          @relation("ProjectClientUser", fields: [userId], references: [id], onDelete: SetNull)
+  paymentGroups PaymentGroup[]
+  payments      Payment[]
+}
+
+model PaymentGroup {
+  id        String         @id @default(cuid())
+  clientId  String
+  parentId  String?
+  name      String
+  order     Int            @default(0)
+  createdAt DateTime       @default(now())
+  client    ProjectClient  @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  parent    PaymentGroup?  @relation("PaymentGroupChildren", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  children  PaymentGroup[] @relation("PaymentGroupChildren")
+  payments  Payment[]
+}
+
+model Payment {
+  id             String         @id @default(cuid())
+  clientId       String
+  groupId        String?
+  name           String
+  amount         Float
+  status         String         @default("pending")
+  attachmentUrl  String?
+  attachmentName String?
+  order          Int            @default(0)
+  createdAt      DateTime       @default(now())
+  client         ProjectClient  @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  group          PaymentGroup?  @relation(fields: [groupId], references: [id], onDelete: SetNull)
 }
 
 model ShoppingList {

@@ -7,7 +7,7 @@ import { Settings } from "@/components/ui/icons";
 function getSettingsHref(pathname: string): string {
   if (pathname.startsWith("/renderflow")) return "/settings/renderflow";
   if (pathname.startsWith("/listy")) return "/settings/listy";
-  if (pathname.startsWith("/projekty")) return "/settings/ogolne";
+  if (pathname.startsWith("/klienci")) return "/settings/ogolne";
   return "/settings/ogolne";
 }
 

@@ -21,7 +21,7 @@ export default function SettingsSidebar() {
       href: "/settings/renderflow",
       label: t.settings.renderflow,
       icon: <PictureInPicture size={16} />,
-      module: { href: "/projekty", label: "RenderFlow" },
+      module: { href: "/klienci", label: "RenderFlow" },
     },
     {
       href: "/settings/listy",

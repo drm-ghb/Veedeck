@@ -112,6 +112,15 @@ export const ourFileRouter = {
     .onUploadComplete(async ({ metadata, file }) => {
       return { url: file.url, key: file.key, projectId: metadata.projectId };
     }),
+  paymentAttachmentUploader: f({ image: { maxFileSize: "16MB", maxFileCount: 1 }, pdf: { maxFileSize: "16MB", maxFileCount: 1 } })
+    .middleware(async () => {
+      const session = await auth();
+      if (!session?.user?.id) throw new Error("Unauthorized");
+      return { userId: session.user.id };
+    })
+    .onUploadComplete(async ({ file }) => {
+      return { ufsUrl: file.ufsUrl, key: file.key };
+    }),
 } satisfies FileRouter;
 
 export type OurFileRouter = typeof ourFileRouter;
