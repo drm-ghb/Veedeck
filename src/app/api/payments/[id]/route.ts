@@ -27,6 +27,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       ...(body.groupId !== undefined && { groupId: body.groupId }),
       ...(body.attachmentUrl !== undefined && { attachmentUrl: body.attachmentUrl }),
       ...(body.attachmentName !== undefined && { attachmentName: body.attachmentName }),
+      ...(body.order !== undefined && { order: body.order }),
     },
   });
 

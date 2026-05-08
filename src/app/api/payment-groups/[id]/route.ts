@@ -23,6 +23,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     data: {
       ...(body.name !== undefined && { name: body.name }),
       ...(body.parentId !== undefined && { parentId: body.parentId }),
+      ...(body.order !== undefined && { order: body.order }),
     },
   });
 

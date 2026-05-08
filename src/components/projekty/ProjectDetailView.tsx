@@ -116,7 +116,7 @@ export default function ProjectDetailView({ project }: { project: ProjectData })
   const [savingInfo, setSavingInfo] = useState(false);
 
   // Tab state
-  const [activeTab, setActiveTab] = useState<"info" | "payments">("info");
+  const [activeTab, setActiveTab] = useState<"info" | "contacts" | "payments">("info");
 
   // Clients state
   const [clients, setClients] = useState<ProjectClient[]>(project.clients);
@@ -465,6 +465,16 @@ export default function ProjectDetailView({ project }: { project: ProjectData })
           Informacje ogólne
         </button>
         <button
+          onClick={() => setActiveTab("contacts")}
+          className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
+            activeTab === "contacts"
+              ? "border-primary text-foreground"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          Kontakty
+        </button>
+        <button
           onClick={() => setActiveTab("payments")}
           className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
             activeTab === "payments"
@@ -476,131 +486,8 @@ export default function ProjectDetailView({ project }: { project: ProjectData })
         </button>
       </div>
 
-      {activeTab === "payments" && (
-        <PaymentsTab
-          clientId={clients[0]?.id ?? ""}
-          projectId={project.id}
-        />
-      )}
-
-      {activeTab === "info" && <div className="space-y-6">
-        {/* === Info section === */}
+      {activeTab === "contacts" && (
         <section className="bg-card border border-border rounded-xl p-5">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground mb-4">
-            {t.projekty.projectInfo}
-          </h2>
-          <div className="space-y-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="proj-title">{t.projekty.projectNameLabel}</Label>
-              <Input
-                id="proj-title"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="Nazwa projektu"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="proj-desc">{t.projekty.descriptionLabel}</Label>
-              <Textarea
-                id="proj-desc"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Opis projektu..."
-                rows={3}
-              />
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="proj-start">Data rozpoczęcia współpracy</Label>
-                <Input
-                  id="proj-start"
-                  type="date"
-                  value={projectStartDate}
-                  onChange={(e) => setProjectStartDate(e.target.value)}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="proj-end">Data zakończenia współpracy</Label>
-                <Input
-                  id="proj-end"
-                  type="date"
-                  value={projectEndDate}
-                  onChange={(e) => setProjectEndDate(e.target.value)}
-                />
-              </div>
-            </div>
-            <div className="flex items-center justify-between pt-1">
-              <p className="text-xs text-muted-foreground">
-                {t.projekty.createdAt}{" "}
-                {new Date(project.createdAt).toLocaleDateString("pl-PL", {
-                  day: "2-digit",
-                  month: "long",
-                  year: "numeric",
-                })}
-              </p>
-              <Button onClick={saveInfo} disabled={savingInfo || !title.trim()} size="sm">
-                {savingInfo ? t.common.saving : t.common.save}
-              </Button>
-            </div>
-          </div>
-        </section>
-
-        {/* === Address section === */}
-        <section className="bg-card border border-border rounded-xl p-5">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground mb-4">
-            {t.projekty.address}
-          </h2>
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="addr-street">{t.projekty.street}</Label>
-                <Input
-                  id="addr-street"
-                  value={addressStreet}
-                  onChange={(e) => setAddressStreet(e.target.value)}
-                  placeholder={t.projekty.streetPlaceholder}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="addr-city">{t.projekty.city}</Label>
-                <Input
-                  id="addr-city"
-                  value={addressCity}
-                  onChange={(e) => setAddressCity(e.target.value)}
-                  placeholder={t.projekty.cityPlaceholder}
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="addr-postal">{t.projekty.postalCode}</Label>
-                <Input
-                  id="addr-postal"
-                  value={addressPostalCode}
-                  onChange={(e) => setAddressPostalCode(e.target.value)}
-                  placeholder={t.projekty.postalCodePlaceholder}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="addr-country">{t.projekty.country}</Label>
-                <Input
-                  id="addr-country"
-                  value={addressCountry}
-                  onChange={(e) => setAddressCountry(e.target.value)}
-                  placeholder={t.projekty.countryPlaceholder}
-                />
-              </div>
-            </div>
-            <div className="flex justify-end pt-1">
-              <Button onClick={saveAddress} disabled={savingAddress} size="sm">
-                {savingAddress ? t.common.saving : t.common.save}
-              </Button>
-            </div>
-          </div>
-        </section>
-
-        {/* === Clients section === */}
-        <section id="klienci" className="bg-card border border-border rounded-xl p-5">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
               {t.projekty.clients}
@@ -732,9 +619,7 @@ export default function ProjectDetailView({ project }: { project: ProjectData })
                   }`}
                 >
                   <div className="flex items-center gap-2 px-4 py-2.5">
-                    {/* drag handle */}
                     <SortableClientItemHandle id={client.id} />
-                    {/* Name + main badge */}
                     <div className="flex items-center gap-1.5 min-w-0 flex-1">
                       <p className="text-sm font-medium truncate">{client.name}</p>
                       {client.isMainContact && (
@@ -743,7 +628,6 @@ export default function ProjectDetailView({ project }: { project: ProjectData })
                         </span>
                       )}
                     </div>
-                    {/* Actions */}
                     <div className="flex items-center gap-1 flex-shrink-0">
                       {(client.email || client.phone) && editingClientId !== client.id && (
                         <span className="text-xs text-muted-foreground mr-1 hidden sm:inline">
@@ -852,6 +736,130 @@ export default function ProjectDetailView({ project }: { project: ProjectData })
             </SortableContext>
             </DndContext>
           )}
+        </section>
+      )}
+
+      {activeTab === "payments" && (
+        <PaymentsTab
+          clientId={clients[0]?.id ?? ""}
+          projectId={project.id}
+        />
+      )}
+
+      {activeTab === "info" && <div className="space-y-6">
+        {/* === Info section === */}
+        <section className="bg-card border border-border rounded-xl p-5">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground mb-4">
+            {t.projekty.projectInfo}
+          </h2>
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="proj-title">{t.projekty.projectNameLabel}</Label>
+              <Input
+                id="proj-title"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="Nazwa projektu"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="proj-desc">{t.projekty.descriptionLabel}</Label>
+              <Textarea
+                id="proj-desc"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Opis projektu..."
+                rows={3}
+              />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="proj-start">Data rozpoczęcia współpracy</Label>
+                <Input
+                  id="proj-start"
+                  type="date"
+                  value={projectStartDate}
+                  onChange={(e) => setProjectStartDate(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="proj-end">Data zakończenia współpracy</Label>
+                <Input
+                  id="proj-end"
+                  type="date"
+                  value={projectEndDate}
+                  onChange={(e) => setProjectEndDate(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="flex items-center justify-between pt-1">
+              <p className="text-xs text-muted-foreground">
+                {t.projekty.createdAt}{" "}
+                {new Date(project.createdAt).toLocaleDateString("pl-PL", {
+                  day: "2-digit",
+                  month: "long",
+                  year: "numeric",
+                })}
+              </p>
+              <Button onClick={saveInfo} disabled={savingInfo || !title.trim()} size="sm">
+                {savingInfo ? t.common.saving : t.common.save}
+              </Button>
+            </div>
+          </div>
+        </section>
+
+        {/* === Address section === */}
+        <section className="bg-card border border-border rounded-xl p-5">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground mb-4">
+            {t.projekty.address}
+          </h2>
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="addr-street">{t.projekty.street}</Label>
+                <Input
+                  id="addr-street"
+                  value={addressStreet}
+                  onChange={(e) => setAddressStreet(e.target.value)}
+                  placeholder={t.projekty.streetPlaceholder}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="addr-city">{t.projekty.city}</Label>
+                <Input
+                  id="addr-city"
+                  value={addressCity}
+                  onChange={(e) => setAddressCity(e.target.value)}
+                  placeholder={t.projekty.cityPlaceholder}
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="addr-postal">{t.projekty.postalCode}</Label>
+                <Input
+                  id="addr-postal"
+                  value={addressPostalCode}
+                  onChange={(e) => setAddressPostalCode(e.target.value)}
+                  placeholder={t.projekty.postalCodePlaceholder}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="addr-country">{t.projekty.country}</Label>
+                <Input
+                  id="addr-country"
+                  value={addressCountry}
+                  onChange={(e) => setAddressCountry(e.target.value)}
+                  placeholder={t.projekty.countryPlaceholder}
+                />
+              </div>
+            </div>
+            <div className="flex justify-end pt-1">
+              <Button onClick={saveAddress} disabled={savingAddress} size="sm">
+                {savingAddress ? t.common.saving : t.common.save}
+              </Button>
+            </div>
+          </div>
         </section>
 
         {/* === Modules section === */}
