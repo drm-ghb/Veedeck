@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { MessageSquare, Plus, Trash2, Edit2, Check, X, ExternalLink, ChevronDown, ChevronLeft, Paperclip, FileText, FileSpreadsheet, File as FileIcon, Loader2, FolderOpen, Mic, Square, Search, Archive, ArchiveRestore, CornerDownLeft, MoreVertical } from "@/components/ui/icons";
+import { MessageSquare, Plus, Trash2, Edit2, Check, X, ExternalLink, ChevronDown, ChevronLeft, Paperclip, FileText, FileSpreadsheet, File as FileIcon, Loader2, FolderOpen, Mic, Square, Search, Archive, ArchiveRestore, CornerDownLeft, MoreVertical, Send } from "@/components/ui/icons";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import Pusher from "pusher-js";
@@ -131,6 +131,7 @@ export default function DyskusjeView({ currentUserId, currentUserAvatarUrl, init
   const [annotatingImage, setAnnotatingImage] = useState<string | null>(null);
   const [sendingAnnotation, setSendingAnnotation] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const inputTextareaRef = useRef<HTMLTextAreaElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const pusherRef = useRef<Pusher | null>(null);
@@ -481,6 +482,7 @@ export default function DyskusjeView({ currentUserId, currentUserAvatarUrl, init
       }
 
       setInput("");
+      if (inputTextareaRef.current) { inputTextareaRef.current.style.height = "40px"; }
       setPendingAttachments([]);
       setReplyingToMsg(null);
     } catch {
@@ -1123,7 +1125,7 @@ export default function DyskusjeView({ currentUserId, currentUserAvatarUrl, init
                   <span className="flex-1 text-xs font-medium">Nagrywanie... {recordingSeconds}s</span>
                 </div>
               )}
-              <div className="flex gap-2">
+              <div className="flex items-end gap-2">
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -1135,32 +1137,40 @@ export default function DyskusjeView({ currentUserId, currentUserAvatarUrl, init
                 <button
                   onClick={() => fileInputRef.current?.click()}
                   disabled={uploading || isRecording}
-                  className="p-2 rounded-xl text-muted-foreground hover:bg-muted hover:text-foreground transition-colors disabled:opacity-40 flex-shrink-0"
+                  className="flex-shrink-0 flex items-center justify-center w-8 h-8 rounded-full bg-primary text-white transition-colors disabled:opacity-40 hover:opacity-90"
                   title="Załącz pliki"
                 >
-                  {uploading ? <Loader2 size={18} className="animate-spin" /> : <Paperclip size={18} />}
+                  {uploading ? <Loader2 size={16} className="animate-spin" /> : <Paperclip size={16} />}
                 </button>
-                <button
-                  onClick={isRecording ? stopRecording : startRecording}
-                  disabled={uploading}
-                  className={`p-2 rounded-xl transition-colors disabled:opacity-40 flex-shrink-0 ${isRecording ? "text-destructive bg-destructive/10 hover:bg-destructive/20" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}
-                  title={isRecording ? "Zatrzymaj nagrywanie" : "Nagraj wiadomość głosową"}
-                >
-                  {isRecording ? <Square size={18} /> : <Mic size={18} />}
-                </button>
-                <input
+                <textarea
+                  ref={inputTextareaRef}
                   value={input}
-                  onChange={(e) => setInput(e.target.value)}
+                  onChange={(e) => {
+                    setInput(e.target.value);
+                    e.target.style.height = "auto";
+                    e.target.style.height = Math.min(e.target.scrollHeight, 160) + "px";
+                    e.target.style.overflowY = e.target.scrollHeight > 160 ? "auto" : "hidden";
+                  }}
                   onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
                   placeholder="Napisz wiadomość..."
-                  className="flex-1 px-4 py-2 text-sm rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  rows={1}
+                  style={{ height: "40px", overflowY: "hidden" }}
+                  className="flex-1 min-h-10 max-h-40 px-3 py-2 text-sm resize-none rounded-2xl bg-muted focus:outline-none"
                 />
                 <button
-                  onClick={sendMessage}
-                  disabled={(!input.trim() && pendingAttachments.length === 0) || sending || uploading || isRecording}
-                  className="px-4 py-2 text-sm bg-primary text-primary-foreground rounded-xl hover:opacity-90 disabled:opacity-40 transition-opacity flex-shrink-0"
+                  onClick={isRecording ? stopRecording : (input.trim() || pendingAttachments.length > 0 ? sendMessage : startRecording)}
+                  disabled={sending || uploading}
+                  className="flex-shrink-0 flex items-center justify-center w-8 h-8 text-primary disabled:opacity-40 hover:opacity-90 transition-colors"
                 >
-                  Wyślij
+                  {sending ? (
+                    <Loader2 className="w-7 h-7 animate-spin" />
+                  ) : isRecording ? (
+                    <Square className="w-7 h-7 text-destructive" />
+                  ) : input.trim() || pendingAttachments.length > 0 ? (
+                    <Send className="w-7 h-7" />
+                  ) : (
+                    <Mic className="w-7 h-7" />
+                  )}
                 </button>
               </div>
             </div>

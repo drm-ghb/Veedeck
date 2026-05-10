@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import { X, Send, Trash2, Edit2, MoreHorizontal, CornerDownLeft, ChevronLeft, ChevronRight } from "@/components/ui/icons";
+import { X, Send, Trash2, Edit2, MoreHorizontal, CornerDownLeft, ChevronLeft, ChevronRight, Loader2, Paperclip } from "@/components/ui/icons";
+import { useUploadThing } from "@/lib/uploadthing-client";
 import { useT } from "@/lib/i18n";
 import { pusherClient } from "@/lib/pusher";
 import { toast } from "sonner";
@@ -18,12 +19,14 @@ interface Comment {
   content: string;
   author: string;
   createdAt: string;
+  imageUrl?: string | null;
   replies: Reply[];
 }
 
 interface ProductCommentPanelProps {
   productId: string;
   productName: string;
+  productImageUrl?: string | null;
   isDesigner: boolean;
   authorName: string;
   designerName?: string;
@@ -67,6 +70,7 @@ function Avatar({ name, logoUrl }: { name: string; logoUrl?: string }) {
 export default function ProductCommentPanel({
   productId,
   productName,
+  productImageUrl,
   isDesigner,
   authorName,
   designerName,
@@ -91,6 +95,21 @@ export default function ProductCommentPanel({
   const [showHighlights, setShowHighlights] = useState(true);
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const [pendingImageUrl, setPendingImageUrl] = useState<string | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
+
+  const { startUpload: startImageUpload } = useUploadThing("listCommentImageUploader", {
+    onClientUploadComplete: (res) => {
+      const url = res[0]?.url;
+      if (url) setPendingImageUrl(url);
+      setUploadingImage(false);
+    },
+    onUploadError: () => {
+      toast.error("Błąd przesyłania zdjęcia");
+      setUploadingImage(false);
+    },
+  });
 
   useEffect(() => {
     if (!lastReadAt) return;
@@ -183,7 +202,7 @@ export default function ProductCommentPanel({
 
   async function handleSend() {
     const content = text.trim();
-    if (!content || sending) return;
+    if (!content && !pendingImageUrl || sending) return;
     setSending(true);
     try {
       if (replyingToComment) {
@@ -198,12 +217,14 @@ export default function ProductCommentPanel({
         const res = await fetch("/api/list-comments", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ productId, content, author: authorName, listShareToken }),
+          body: JSON.stringify({ productId, content, author: authorName, listShareToken, imageUrl: pendingImageUrl }),
         });
         if (!res.ok) throw new Error();
         onCountChange?.(productId, comments.length + 1);
       }
       setText("");
+      setPendingImageUrl(null);
+      if (textareaRef.current) { textareaRef.current.style.height = "40px"; }
       setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
     } catch {
       toast.error(t.share.sendError);
@@ -267,7 +288,7 @@ export default function ProductCommentPanel({
   }
 
   return (
-    <div className="fixed right-0 top-0 h-full z-50 flex flex-row items-end">
+    <div className="fixed left-0 right-0 md:left-auto top-0 h-full z-50 flex flex-row items-end">
       {/* Expand handle on left edge */}
       <button
         onClick={() => setExpanded(v => !v)}
@@ -277,13 +298,19 @@ export default function ProductCommentPanel({
         {expanded ? <ChevronRight size={13} /> : <ChevronLeft size={13} />}
       </button>
 
-      <div className={`h-full bg-background border-l border-border shadow-xl flex flex-col transition-[width] duration-200 ${expanded ? "w-[640px]" : "w-80"}`}>
+      <div className={`h-full bg-background border-l border-border shadow-xl flex flex-col transition-[width] duration-200 w-full ${expanded ? "md:w-[640px]" : "md:w-80"}`}>
 
       {/* Header */}
       <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-border shrink-0">
-        <div className="min-w-0">
-          <p className="text-xs text-muted-foreground">{t.share.comments}</p>
-          <p className="text-sm font-semibold truncate">{productName}</p>
+        <div className="flex items-center gap-2.5 min-w-0">
+          {productImageUrl && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={productImageUrl} alt={productName} className="w-9 h-9 rounded-md object-cover shrink-0 border border-border" />
+          )}
+          <div className="min-w-0">
+            <p className="text-xs text-muted-foreground">{t.share.comments}</p>
+            <p className="text-sm font-semibold truncate">{productName}</p>
+          </div>
         </div>
         <button
           onClick={onClose}
@@ -306,11 +333,11 @@ export default function ProductCommentPanel({
 
         {(() => {
           type FlatItem =
-            | { type: "comment"; id: string; content: string; author: string; createdAt: string }
+            | { type: "comment"; id: string; content: string; author: string; createdAt: string; imageUrl?: string | null }
             | { type: "reply"; id: string; content: string; author: string; createdAt: string; commentId: string; parentContent: string; parentAuthor: string };
 
           const flatItems: FlatItem[] = comments.flatMap((comment) => [
-            { type: "comment" as const, id: comment.id, content: comment.content, author: comment.author, createdAt: comment.createdAt },
+            { type: "comment" as const, id: comment.id, content: comment.content, author: comment.author, createdAt: comment.createdAt, imageUrl: comment.imageUrl },
             ...comment.replies.map((reply) => ({
               type: "reply" as const,
               id: reply.id,
@@ -366,7 +393,11 @@ export default function ProductCommentPanel({
                         ? "bg-primary text-primary-foreground rounded-2xl rounded-br-sm"
                         : "bg-muted text-foreground rounded-2xl rounded-bl-sm"
                     } ${showHighlights && unread ? "ring-2 ring-offset-1 ring-primary/40" : ""}`}>
-                      {item.content}
+                      {item.content !== "[zdjęcie]" && item.content}
+                      {item.type === "comment" && item.imageUrl && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={item.imageUrl} alt="zdjęcie" className="mt-1 max-w-[200px] max-h-[200px] rounded-lg object-cover cursor-pointer" onClick={() => window.open(item.imageUrl!, "_blank")} />
+                      )}
                       {showHighlights && unread && (
                         <span className="ml-1.5 text-[9px] font-semibold opacity-70">{t.share.newBadge}</span>
                       )}
@@ -443,25 +474,76 @@ export default function ProductCommentPanel({
             </button>
           </div>
         )}
-        <div className="flex gap-2">
+        {/* Pending image preview */}
+        {pendingImageUrl && (
+          <div className="flex items-start gap-2 mb-2">
+            <div className="relative">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={pendingImageUrl} alt="podgląd" className="h-20 w-20 rounded-lg object-cover border" />
+              <button
+                onClick={() => setPendingImageUrl(null)}
+                className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-gray-800 text-white flex items-center justify-center hover:bg-red-500 transition-colors"
+              >
+                <X size={10} />
+              </button>
+            </div>
+          </div>
+        )}
+        <div className="flex items-end gap-2">
+          {/* Hidden file input */}
+          <input
+            ref={imageInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (!file) return;
+              setUploadingImage(true);
+              startImageUpload([file]);
+              e.target.value = "";
+            }}
+          />
+          {/* Attachment button — designer only */}
+          {isDesigner && (
+            <button
+              type="button"
+              disabled={uploadingImage || sending}
+              onClick={() => imageInputRef.current?.click()}
+              title="Dodaj zdjęcie"
+              className="flex-shrink-0 flex items-center justify-center w-8 h-8 rounded-full bg-primary text-white transition-colors disabled:opacity-40 hover:opacity-90"
+            >
+              {uploadingImage ? (
+                <Loader2 size={16} className="animate-spin" />
+              ) : (
+                <Paperclip size={16} />
+              )}
+            </button>
+          )}
           <textarea
             ref={textareaRef}
             value={text}
-            onChange={(e) => setText(e.target.value)}
+            onChange={(e) => {
+              setText(e.target.value);
+              e.target.style.height = "auto";
+              e.target.style.height = Math.min(e.target.scrollHeight, 160) + "px";
+              e.target.style.overflowY = e.target.scrollHeight > 160 ? "auto" : "hidden";
+            }}
             onKeyDown={(e) => {
-              if (e.key === "Enter" && e.ctrlKey) handleSend();
+              if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
               if (e.key === "Escape") setReplyingToComment(null);
             }}
-            placeholder={replyingToComment ? t.share.replyPlaceholder : t.share.messagePlaceholder}
-            rows={2}
-            className="flex-1 px-3 py-2 text-sm border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 resize-none"
+            placeholder="Napisz wiadomość..."
+            rows={1}
+            style={{ height: "40px", overflowY: "hidden" }}
+            className="flex-1 min-h-10 max-h-40 px-3 py-2 text-sm resize-none rounded-2xl bg-muted focus:outline-none"
           />
           <button
             onClick={handleSend}
-            disabled={!text.trim() || sending}
-            className="w-9 h-9 rounded-lg bg-primary text-white flex items-center justify-center disabled:opacity-40 hover:bg-primary/80 transition-colors self-end shrink-0"
+            disabled={(!text.trim() && !pendingImageUrl) || sending || uploadingImage}
+            className="flex-shrink-0 flex items-center justify-center w-8 h-8 text-primary disabled:opacity-40 hover:opacity-90 transition-colors"
           >
-            <Send size={15} />
+            <Send className="w-7 h-7" />
           </button>
         </div>
       </div>

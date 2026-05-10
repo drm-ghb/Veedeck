@@ -19,14 +19,15 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const session = await auth();
-  const { productId, content, author, listShareToken } = await req.json();
+  const { productId, content, author, listShareToken, imageUrl } = await req.json();
 
-  if (!productId || !content || !author) {
+  const finalContent = content?.trim() || (imageUrl ? "[zdjęcie]" : "");
+  if (!productId || !finalContent || !author) {
     return NextResponse.json({ error: "Brakujące pola" }, { status: 400 });
   }
 
   const comment = await prisma.listProductComment.create({
-    data: { productId, content, author },
+    data: { productId, content: finalContent, author, imageUrl: imageUrl ?? null },
     include: { replies: true },
   });
 

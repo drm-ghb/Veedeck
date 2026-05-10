@@ -47,6 +47,7 @@ model User {
   listsCategoryOrder         String[]       @default([])
   navMode                    String         @default("sidebar")
   colorTheme                 String         @default("champagne")
+  pdfListTemplate            String         @default("violet")
   extensionKey               String?        @unique
   customCategories           String[]       @default([])
   viewPreferences            Json?
@@ -306,6 +307,7 @@ model ListProductComment {
   createdAt        DateTime           @default(now())
   productId        String
   viewedByDesigner Boolean            @default(false)
+  imageUrl         String?
   product          ListProduct        @relation(fields: [productId], references: [id], onDelete: Cascade)
   replies          ListProductReply[]
 }
@@ -425,6 +427,7 @@ model Comment {
   isAiSummary       Boolean       @default(false)
   viewedByDesigner  Boolean       @default(false)
   voiceUrl          String?
+  imageUrl          String?
   archivedVersionId String?
   replyToId         String?
   replyToContent    String?

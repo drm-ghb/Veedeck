@@ -379,6 +379,7 @@ export default function ShareListClient({
           <ProductCommentPanel
             productId={commentsPanelProductId}
             productName={product.name}
+            productImageUrl={product.imageUrl}
             isDesigner={false}
             authorName={authorName}
             designerName={designerName}

@@ -19,11 +19,11 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const session = await auth();
-  const { renderId, title, content, posX, posY, author, isInternal, voiceUrl, replyToId, replyToContent, replyToAuthor } = await req.json();
+  const { renderId, title, content, posX, posY, author, isInternal, voiceUrl, imageUrl, replyToId, replyToContent, replyToAuthor } = await req.json();
 
   const isPin = posX !== null && posX !== undefined && posY !== null && posY !== undefined;
 
-  const finalContent = content?.trim() || (voiceUrl ? "[wiadomość głosowa]" : "");
+  const finalContent = content?.trim() || (voiceUrl ? "[wiadomość głosowa]" : imageUrl ? "[zdjęcie]" : "");
   if (!renderId || !finalContent || !author) {
     return NextResponse.json({ error: "Brakujące pola" }, { status: 400 });
   }
@@ -63,6 +63,7 @@ export async function POST(req: NextRequest) {
       author,
       isInternal: isInternal ?? false,
       voiceUrl: voiceUrl ?? null,
+      imageUrl: imageUrl ?? null,
       replyToId: replyToId ?? null,
       replyToContent: replyToContent ?? null,
       replyToAuthor: replyToAuthor ?? null,

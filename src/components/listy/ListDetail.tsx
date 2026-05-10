@@ -4,7 +4,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronDown, ChevronUp, Plus, ExternalLink, Minus, MoreHorizontal, Pencil, Trash2, GripVertical, FileDown, Sheet, MessageSquare, ArrowDownUp, Eye, EyeOff, Check, X, RotateCcw, FolderInput, Wallet, AlertCircle, DollarSign, Copy } from "@/components/ui/icons";
+import { ChevronLeft, ChevronDown, ChevronUp, Plus, ExternalLink, Minus, MoreHorizontal, Pencil, Trash2, GripVertical, FileDown, Sheet, ArrowDownUp, Eye, EyeOff, Check, X, RotateCcw, FolderInput, Wallet, AlertCircle, DollarSign, Copy } from "@/components/ui/icons";
 import ProductCommentPanel from "./ProductCommentPanel";
 import { pusherClient } from "@/lib/pusher";
 import { Button } from "@/components/ui/button";
@@ -39,6 +39,8 @@ import ShareDialog from "@/components/dashboard/ShareDialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
 import { getUnreadSet, syncListUnread } from "@/lib/list-unread-store";
+import { generateListPDF, type PdfTemplate } from "@/lib/pdf-templates";
+import { useLang } from "@/lib/i18n";
 
 const BUILT_IN_CATEGORIES = [
   { value: "OSWIETLENIE", label: "Oświetlenie" },
@@ -122,6 +124,7 @@ interface ListDetailProps {
   };
   categoryOrder: string[];
   customCategories: string[];
+  pdfTemplate?: PdfTemplate;
 }
 
 function getSortBy(sortBy: string | null | undefined): string {
@@ -248,6 +251,7 @@ function ProductRow({
   onFieldUpdate,
   approval,
   commentCount,
+  unreadCount,
   unread,
   deleting,
   dragHandle,
@@ -273,6 +277,7 @@ function ProductRow({
   sections: Section[];
   approval: string | null;
   commentCount: number;
+  unreadCount: number;
   unread: boolean;
   deleting?: boolean;
   dragHandle?: React.ReactNode;
@@ -664,8 +669,8 @@ function ProductRow({
             <a href={product.url} target="_blank" rel="noopener noreferrer" className="w-7 h-7 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors" title="Otwórz produkt"><ExternalLink size={14} /></a>
           ) : <span className="w-7" />}
           <button onClick={onOpenComments} className="relative flex items-center justify-center w-7 h-7 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors" title="Komentarze">
-            <MessageSquare size={15} className={unread ? "text-blue-500" : ""} />
-            {commentCount > 0 && <span className={`absolute -top-1 -right-1 min-w-[14px] h-[14px] rounded-full text-white text-[9px] font-bold flex items-center justify-center px-0.5 leading-none transition-colors ${unread ? "bg-primary" : "bg-muted-foreground/40"}`}>{commentCount > 99 ? "99+" : commentCount}</span>}
+            <svg viewBox="0 0 24 24" className={`w-[15px] h-[15px] transition-colors ${unread ? "text-blue-500" : ""}`} fill="currentColor"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/></svg>
+            {commentCount > 0 && <span className={`absolute -top-1 -right-1 min-w-[14px] h-[14px] rounded-full text-white text-[9px] font-bold flex items-center justify-center px-0.5 leading-none transition-colors ${unread ? "bg-primary" : "bg-muted-foreground/40"}`}>{(unread ? unreadCount : commentCount) > 99 ? "99+" : (unread ? unreadCount : commentCount)}</span>}
           </button>
           {dropdown}
         </div>
@@ -777,8 +782,8 @@ function ProductRow({
               )}
             </div>
             <button onClick={onOpenComments} className="relative flex items-center justify-center w-7 h-7 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
-              <MessageSquare size={14} className={unread ? "text-blue-500" : ""} />
-              {commentCount > 0 && <span className={`absolute -top-1 -right-1 min-w-[14px] h-[14px] rounded-full text-white text-[9px] font-bold flex items-center justify-center px-0.5 leading-none ${unread ? "bg-primary" : "bg-muted-foreground/40"}`}>{commentCount > 99 ? "99+" : commentCount}</span>}
+              <svg viewBox="0 0 24 24" className={`w-[14px] h-[14px] transition-colors ${unread ? "text-blue-500" : ""}`} fill="currentColor"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/></svg>
+              {commentCount > 0 && <span className={`absolute -top-1 -right-1 min-w-[14px] h-[14px] rounded-full text-white text-[9px] font-bold flex items-center justify-center px-0.5 leading-none ${unread ? "bg-primary" : "bg-muted-foreground/40"}`}>{(unread ? unreadCount : commentCount) > 99 ? "99+" : (unread ? unreadCount : commentCount)}</span>}
             </button>
           </div>
         </div>
@@ -860,7 +865,8 @@ function sortProducts(products: Product[], sortBy: string, categoryOrder: string
   return sorted;
 }
 
-export default function ListDetail({ list, designerName, designerEmail, designerLogoUrl, initialOpenProductId, categoryOrder, customCategories }: ListDetailProps & { designerName?: string; designerEmail?: string; designerLogoUrl?: string; initialOpenProductId?: string }) {
+export default function ListDetail({ list, designerName, designerEmail, designerLogoUrl, initialOpenProductId, categoryOrder, customCategories, pdfTemplate }: ListDetailProps & { designerName?: string; designerEmail?: string; designerLogoUrl?: string; initialOpenProductId?: string }) {
+  const { lang } = useLang();
   const [sections, setSections] = useState<Section[]>(list.sections);
 
   // Sync sections from server props after router.refresh() (e.g. product added via extension)
@@ -1072,7 +1078,9 @@ export default function ListDetail({ list, designerName, designerEmail, designer
 
   function openCommentsPanel(productId: string) {
     const lastReadAt = localStorage.getItem(`lc_readAt_${productId}`);
+    const currentCount = commentCounts[productId] ?? 0;
     localStorage.setItem(`lc_readAt_${productId}`, new Date().toISOString());
+    localStorage.setItem(`lc_seen_${productId}`, String(currentCount));
     localStorage.removeItem(`lc_unread_${productId}`);
     getUnreadSet(list.id).delete(productId);
     syncListUnread(list.id);
@@ -1081,7 +1089,7 @@ export default function ListDetail({ list, designerName, designerEmail, designer
       next.delete(productId);
       return next;
     });
-    setSeenCounts((prev) => ({ ...prev, [productId]: commentCounts[productId] ?? 0 }));
+    setSeenCounts((prev) => ({ ...prev, [productId]: currentCount }));
     setPanelLastReadAt(lastReadAt);
     setCommentsPanelProductId(productId);
   }
@@ -1521,404 +1529,86 @@ export default function ListDetail({ list, designerName, designerEmail, designer
   const hasTotal = allProducts.some((p) => parsePrice(p.price) !== null);
 
   async function exportToPDF() {
-    const { default: jsPDF } = await import("jspdf");
+    // Load images: try direct fetch first (works for UploadThing which has CORS *),
+    // fall back to server-side proxy for external URLs without CORS headers.
+    const loadImgToDataUrl = async (rawSrc: string): Promise<string | null> => {
+      // Decode HTML entities in URL (e.g. &amp; → &) that can appear in scraped URLs
+      const src = rawSrc.replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"');
+      const toDataUrl = (objectUrl: string): Promise<string | null> =>
+        new Promise((resolve) => {
+          const img = new Image();
+          img.onload = () => {
+            try {
+              const canvas = document.createElement("canvas");
+              canvas.width = img.naturalWidth || 200;
+              canvas.height = img.naturalHeight || 200;
+              const ctx = canvas.getContext("2d");
+              ctx?.drawImage(img, 0, 0);
+              resolve(canvas.toDataURL("image/jpeg", 0.85));
+            } catch { resolve(null); }
+            finally { URL.revokeObjectURL(objectUrl); }
+          };
+          img.onerror = () => { URL.revokeObjectURL(objectUrl); resolve(null); };
+          img.src = objectUrl;
+        });
 
-    // ── Design tokens ──────────────────────────────────────────────────
-    const ACCENT: [number, number, number] = [79, 70, 229];      // #4F46E5 primary
-    const ACCENT_BG: [number, number, number] = [238, 242, 255]; // indigo-50
-    const DARK: [number, number, number] = [28, 28, 28];
-    const MUTED: [number, number, number] = [110, 110, 110];
-    const BORDER: [number, number, number] = [225, 225, 225];
-    const WHITE: [number, number, number] = [255, 255, 255];
+      // Try direct fetch (works when CORS * is set, e.g. UploadThing CDN)
+      try {
+        const res = await fetch(src);
+        if (res.ok) {
+          const blob = await res.blob();
+          return toDataUrl(URL.createObjectURL(blob));
+        }
+      } catch { /* CORS or network error — fall through to proxy */ }
 
-    const PAGE_W = 210;
-    const PAGE_H = 297;
-    const ML = 14;
-    const MR = 14;
-    const CW = PAGE_W - ML - MR; // 182 mm
-    const IMG = 31; // product image square size
-
-    const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-    const today = new Date().toLocaleDateString("pl-PL");
-    let y = 0;
-
-    // ── Helpers ────────────────────────────────────────────────────────
-    function ensureSpace(needed: number) {
-      if (y + needed > PAGE_H - 14) {
-        doc.addPage();
-        y = 14;
-      }
-    }
-
-    function fmtNum(n: number) {
-      return n.toLocaleString("pl-PL", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
-    }
-
-    // ── Embed Geist (Polish/Unicode support) ───────────────────────────
-    const FONT = "Geist";
-    const toBase64 = async (url: string) => {
-      const res = await fetch(url);
-      const buf = await res.arrayBuffer();
-      const bytes = new Uint8Array(buf);
-      let bin = "";
-      for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
-      return btoa(bin);
+      // Fall back to server-side proxy for external URLs without CORS headers
+      try {
+        const res = await fetch(`/api/image-proxy?url=${encodeURIComponent(src)}`);
+        if (!res.ok) return null;
+        const blob = await res.blob();
+        return toDataUrl(URL.createObjectURL(blob));
+      } catch { return null; }
     };
-    const [regular, bold] = await Promise.all([
-      toBase64("/fonts/Geist-Regular.ttf"),
-      toBase64("/fonts/Geist-Bold.ttf"),
-    ]);
-    doc.addFileToVFS("Geist-Regular.ttf", regular);
-    doc.addFont("Geist-Regular.ttf", FONT, "normal");
-    doc.addFileToVFS("Geist-Bold.ttf", bold);
-    doc.addFont("Geist-Bold.ttf", FONT, "bold");
 
-    // ── Pre-load images via same-origin proxy (avoids CORS/canvas taint) ─
     const regularSections = sections.filter((s) => !s.unsorted);
     const unsortedProducts = sections
       .filter((s) => s.unsorted)
       .flatMap((s) => s.products.filter((p) => !p.hidden));
-    const exportSections = [
-      ...regularSections,
-      ...(unsortedProducts.length > 0
-        ? [{ id: "__unsorted__", name: "Pozostałe", unsorted: false, products: unsortedProducts }]
-        : []),
+    const allVisible = [
+      ...regularSections.flatMap((s) => s.products.filter((p) => !p.hidden)),
+      ...unsortedProducts,
     ];
-    const allVisible = exportSections.flatMap((s) => s.products.filter((p) => !p.hidden));
+
     const imgCache: Record<string, string> = {};
-
-    const loadImgToDataUrl = (src: string): Promise<string | null> =>
-      new Promise((resolve) => {
-        const img = new Image();
-        img.onload = () => {
-          try {
-            const canvas = document.createElement("canvas");
-            canvas.width = img.naturalWidth || img.width || 200;
-            canvas.height = img.naturalHeight || img.height || 200;
-            const ctx = canvas.getContext("2d");
-            ctx?.drawImage(img, 0, 0);
-            resolve(canvas.toDataURL("image/jpeg", 0.85));
-          } catch { resolve(null); }
-        };
-        img.onerror = () => resolve(null);
-        img.src = src;
-      });
-
     await Promise.all(
       allVisible
         .filter((p) => p.imageUrl)
         .map(async (p) => {
-          const proxyUrl = `/api/image-proxy?url=${encodeURIComponent(p.imageUrl!)}`;
-          const data = await loadImgToDataUrl(proxyUrl);
+          const data = await loadImgToDataUrl(p.imageUrl!);
           if (data) imgCache[p.id] = data;
         })
     );
 
-    // ── Load designer logo ──────────────────────────────────────────────
     let logoDataUrl: string | null = null;
     if (designerLogoUrl) {
-      const proxyUrl = `/api/image-proxy?url=${encodeURIComponent(designerLogoUrl)}`;
-      logoDataUrl = await loadImgToDataUrl(proxyUrl);
+      logoDataUrl = await loadImgToDataUrl(designerLogoUrl);
     }
 
-    // ── Header banner — two columns ─────────────────────────────────────
-    // Compute address lines for right column
-    const addressLines: string[] = [];
-    if (list.project) {
-      if (list.project.addressStreet) addressLines.push(list.project.addressStreet);
-      const cityLine = [list.project.addressPostalCode, list.project.addressCity].filter(Boolean).join(" ");
-      if (cityLine) addressLines.push(cityLine);
-      if (list.project.addressCountry) addressLines.push(list.project.addressCountry);
-    }
-
-    const LINE_H = 5;        // line height mm
-    const LABEL_H = 4.5;     // height of the small label row
-    const SECTION_PAD = 3;   // top/bottom padding per section
-    const leftLines = 2;     // designer name + email
-    const rightLines = list.project?.clientName ? 1 + addressLines.length : addressLines.length;
-    const leftH = LABEL_H + SECTION_PAD + leftLines * LINE_H;
-    const rightH = LABEL_H + SECTION_PAD + (rightLines > 0 ? rightLines * LINE_H : LINE_H);
-    const BANNER_H = Math.max(leftH, rightH) + SECTION_PAD * 2 + 4;
-
-    doc.setFillColor(...ACCENT);
-    doc.rect(0, 0, PAGE_W, BANNER_H, "F");
-
-    // Divider line between two columns
-    const MID = PAGE_W / 2;
-    doc.setDrawColor(165, 180, 252);
-    doc.setLineWidth(0.3);
-    doc.line(MID, 5, MID, BANNER_H - 5);
-
-    const COL_W = MID - ML - 4; // max text width per column
-
-    // ── Left column: "Oferta przygotowana przez" ──────────────────────
-    let lx = ML;
-    let ly = 6;
-
-    // Logo left of text if available
-    const LOGO_SIZE = 12;
-    if (logoDataUrl) {
-      try {
-        doc.addImage(logoDataUrl, "JPEG", lx, ly, LOGO_SIZE, LOGO_SIZE);
-        lx += LOGO_SIZE + 3;
-      } catch { /* skip */ }
-    }
-
-    doc.setFont(FONT, "normal");
-    doc.setFontSize(7);
-    doc.setTextColor(199, 210, 254);
-    doc.text("Oferta przygotowana przez", lx, ly + 3);
-
-    doc.setFont(FONT, "bold");
-    doc.setFontSize(9.5);
-    doc.setTextColor(...WHITE);
-    doc.text(authorName, lx, ly + 3 + LINE_H + 1.5);
-
-    if (designerEmail) {
-      const contactY = ly + 3 + LINE_H * 2 + 2;
-      doc.setFont(FONT, "normal");
-      doc.setFontSize(6.5);
-      doc.setTextColor(199, 210, 254);
-      doc.text("Dane kontaktowe", lx, contactY);
-      doc.setFontSize(8);
-      doc.text(designerEmail, lx, contactY + LINE_H);
-    }
-
-    // ── Date — top right corner ───────────────────────────────────────
-    doc.setFont(FONT, "normal");
-    doc.setFontSize(7.5);
-    doc.setTextColor(...WHITE);
-    doc.text(`Data oferty: ${today}`, PAGE_W - MR, 9, { align: "right" });
-
-    // ── Right column: "Oferta przygotowana dla" ───────────────────────
-    const rx = MID + 4;
-    let ry = 6;
-
-    doc.setFont(FONT, "normal");
-    doc.setFontSize(7);
-    doc.setTextColor(199, 210, 254);
-    doc.text("Oferta przygotowana dla", rx, ry + 3);
-
-    ry += 3 + LINE_H + 1.5;
-
-    if (list.project?.clientName) {
-      doc.setFont(FONT, "bold");
-      doc.setFontSize(9.5);
-      doc.setTextColor(...WHITE);
-      doc.text(list.project.clientName, rx, ry, { maxWidth: COL_W });
-      ry += LINE_H + 1;
-    }
-
-    if (addressLines.length > 0) {
-      doc.setFont(FONT, "normal");
-      doc.setFontSize(8);
-      doc.setTextColor(199, 210, 254);
-      for (const line of addressLines) {
-        doc.text(line, rx, ry, { maxWidth: COL_W });
-        ry += LINE_H;
-      }
-    }
-
-    // ── List name below banner ────────────────────────────────────────
-    y = BANNER_H + 12;
-    doc.setFont(FONT, "bold");
-    doc.setFontSize(13);
-    doc.setTextColor(...DARK);
-    doc.text(list.name, ML, y);
-
-    if (list.project) {
-      doc.setFont(FONT, "normal");
-      doc.setFontSize(8.5);
-      doc.setTextColor(...MUTED);
-      doc.text(`Projekt: ${list.project.title}`, PAGE_W - MR, y, { align: "right" });
-    }
-
-    y += 9;
-
-    // ── Sections ───────────────────────────────────────────────────────
-    for (const section of exportSections) {
-      const products = section.products.filter((p) => !p.hidden);
-      if (products.length === 0) continue;
-
-      ensureSpace(16);
-
-      // Section header
-      doc.setFillColor(...ACCENT_BG);
-      doc.roundedRect(ML, y, CW, 9, 2, 2, "F");
-      doc.setFillColor(...ACCENT);
-      doc.roundedRect(ML, y, 5, 9, 2, 2, "F");
-      // cover right rounded corners of accent bar so it looks like a left-only radius
-      doc.rect(ML + 2, y, 3, 9, "F");
-
-      doc.setFont(FONT, "bold");
-      doc.setFontSize(9);
-      doc.setTextColor(...ACCENT);
-      doc.text(section.name.toUpperCase(), ML + 7, y + 6);
-
-      const secTotal = products.reduce((sum, p) => {
-        const n = parsePrice(p.price);
-        return n !== null ? sum + n * p.quantity : sum;
-      }, 0);
-      const secCur = getCurrency(products.find((p) => getCurrency(p.price))?.price ?? null);
-      if (secTotal > 0) {
-        doc.setFont(FONT, "bold");
-        doc.setFontSize(9);
-        doc.setTextColor(...ACCENT);
-        doc.text(`${fmtNum(secTotal)} ${secCur}`, ML + CW - 2, y + 6, { align: "right" });
-      }
-
-      y += 13;
-
-      // ── Products ─────────────────────────────────────────────────────
-      // Columns: [IMG=31] [gap=4] [TEXT=99] [gap=4] [PRICE=44]
-      const PRICE_COL = 44;
-      const TEXT_X = ML + IMG + 4;
-      const TEXT_W = CW - IMG - 4 - PRICE_COL - 4; // 104 mm
-      const PRICE_X = ML + CW;
-
-      for (let i = 0; i < products.length; i++) {
-        const p = products[i];
-        ensureSpace(IMG + 4);
-
-        const rowY = y;
-
-        // ── Image ──────────────────────────────────────────────────────
-        doc.setFillColor(...BORDER);
-        doc.rect(ML, rowY, IMG, IMG, "F");
-
-        if (imgCache[p.id]) {
-          try {
-            doc.addImage(imgCache[p.id], "JPEG", ML, rowY, IMG, IMG);
-          } catch { /* skip */ }
-        } else {
-          doc.setFont(FONT, "normal");
-          doc.setFontSize(7);
-          doc.setTextColor(...MUTED);
-          doc.text("brak zdj.", ML + IMG / 2, rowY + IMG / 2 + 1, { align: "center" });
-        }
-
-        if (p.url) {
-          doc.link(ML, rowY, IMG, IMG, { url: p.url });
-        }
-
-        // ── Text column ────────────────────────────────────────────────
-        let cy = rowY + 4;
-
-        // Name — max 2 lines within TEXT_W
-        doc.setFont(FONT, "bold");
-        doc.setFontSize(9.5);
-        doc.setTextColor(...DARK);
-        const nameLines = (doc.splitTextToSize(p.name, TEXT_W) as string[]).slice(0, 2);
-        doc.text(nameLines, TEXT_X, cy);
-        cy += nameLines.length * 5.2;
-
-        // Details rows
-        const detailRows: [string, string][] = [];
-        if (p.supplier)      detailRows.push(["Dostawca",  p.supplier]);
-        if (p.manufacturer)  detailRows.push(["Producent", p.manufacturer]);
-        if (p.dimensions)    detailRows.push(["Wymiar",    p.dimensions]);
-        if (p.color)         detailRows.push(["Kolor",     p.color]);
-        detailRows.push(["Ilość", `${p.quantity} szt.`]);
-
-        doc.setFont(FONT, "normal");
-        doc.setFontSize(7.5);
-        for (const [label, value] of detailRows) {
-          doc.setTextColor(...MUTED);
-          doc.text(`${label}: `, TEXT_X, cy);
-          const labelW = doc.getTextWidth(`${label}: `);
-          doc.setTextColor(...DARK);
-          doc.text(value, TEXT_X + labelW, cy, { maxWidth: TEXT_W - labelW });
-          cy += 4.2;
-        }
-
-        // ── Price column ───────────────────────────────────────────────
-        const unit = parsePrice(p.price);
-        const cur = getCurrency(p.price);
-        if (unit !== null) {
-          const total = unit * p.quantity;
-          doc.setFont(FONT, "bold");
-          doc.setFontSize(10);
-          doc.setTextColor(...DARK);
-          doc.text(`${fmtNum(total)} ${cur}`, PRICE_X, rowY + 6, { align: "right" });
-
-          if (p.quantity > 1) {
-            doc.setFont(FONT, "normal");
-            doc.setFontSize(7.5);
-            doc.setTextColor(...MUTED);
-            doc.text(`${p.quantity} × ${fmtNum(unit)} ${cur}`, PRICE_X, rowY + 11.5, { align: "right" });
-          }
-        } else if (p.quantity > 1) {
-          doc.setFont(FONT, "normal");
-          doc.setFontSize(8);
-          doc.setTextColor(...MUTED);
-          doc.text(`${p.quantity} szt.`, PRICE_X, rowY + 6, { align: "right" });
-        }
-
-        // ── Product link icon (ExternalLink — canvas-rendered, same as UI) ─
-        if (p.url) {
-          const ICO = 5;   // mm
-          const PX  = 32;  // canvas pixels
-          const ix  = PRICE_X - ICO;
-          const iy  = rowY + IMG - ICO - 2;
-
-          try {
-            const cv  = document.createElement("canvas");
-            cv.width  = PX;
-            cv.height = PX;
-            const ctx = cv.getContext("2d")!;
-            const scale = PX / 24;
-            ctx.scale(scale, scale);
-            ctx.strokeStyle = `rgb(${ACCENT[0]},${ACCENT[1]},${ACCENT[2]})`;
-            ctx.lineWidth   = 2;
-            ctx.lineCap     = "round";
-            ctx.lineJoin    = "round";
-            // Lucide ExternalLink paths (viewBox 0 0 24 24)
-            ctx.stroke(new Path2D("M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"));
-            ctx.stroke(new Path2D("M15 3h6v6"));
-            ctx.stroke(new Path2D("M10 14L21 3"));
-            doc.addImage(cv.toDataURL("image/png"), "PNG", ix, iy, ICO, ICO);
-          } catch { /* skip */ }
-
-          doc.link(ix, iy, ICO, ICO, { url: p.url });
-        }
-
-        y = rowY + IMG + 5;
-
-        // Row separator (not after last)
-        if (i < products.length - 1) {
-          doc.setDrawColor(...BORDER);
-          doc.setLineWidth(0.2);
-          doc.line(TEXT_X, y, ML + CW, y);
-          y += 2;
-        }
-      }
-
-      y += 9;
-    }
-
-    // ── Grand total ────────────────────────────────────────────────────
-    if (hasTotal) {
-      ensureSpace(13);
-      doc.setFillColor(...ACCENT);
-      doc.rect(ML, y, CW, 11, "F");
-      doc.setFont(FONT, "bold");
-      doc.setFontSize(10);
-      doc.setTextColor(...WHITE);
-      doc.text("Suma całkowita", ML + 5, y + 7.5);
-      doc.text(`${fmtNum(grandTotal)} ${grandCurrency}`, ML + CW - 5, y + 7.5, { align: "right" });
-    }
-
-    // ── Page numbers ───────────────────────────────────────────────────
-    const totalPages = doc.getNumberOfPages();
-    for (let pg = 1; pg <= totalPages; pg++) {
-      doc.setPage(pg);
-      doc.setFont(FONT, "normal");
-      doc.setFontSize(7.5);
-      doc.setTextColor(...MUTED);
-      doc.text(`${pg} / ${totalPages}`, PAGE_W / 2, PAGE_H - 5, { align: "center" });
-    }
-
-    doc.save(`${list.name}.pdf`);
+    const pdf = await generateListPDF({
+      template: pdfTemplate ?? "violet",
+      lang,
+      list,
+      sections,
+      designerName: authorName,
+      designerEmail,
+      designerLogoUrl,
+      grandTotal,
+      grandCurrency,
+      hasTotal,
+      imgCache,
+      logoDataUrl,
+    });
+    pdf.save(`${list.name}.pdf`);
   }
 
   async function exportToXLSX() {
@@ -2150,7 +1840,8 @@ export default function ListDetail({ list, designerName, designerEmail, designer
                           onApprovalChange={(value) => handleApprovalChange(unsortedSection.id, product.id, value)}
                           onFieldUpdate={(pid, field, value) => handleProductFieldUpdate(unsortedSection.id, pid, field, value)}
                           approval={approvals[product.id] ?? null}
-                          commentCount={unreadProducts.has(product.id) ? Math.max(0, (commentCounts[product.id] ?? 0) - (seenCounts[product.id] ?? 0)) : 0}
+                          commentCount={commentCounts[product.id] ?? 0}
+                          unreadCount={unreadProducts.has(product.id) ? Math.max(0, (commentCounts[product.id] ?? 0) - (seenCounts[product.id] ?? 0)) : 0}
                           unread={unreadProducts.has(product.id)}
                           deleting={deletingId === product.id}
                           dragHandle={dragHandle}
@@ -2301,7 +1992,8 @@ export default function ListDetail({ list, designerName, designerEmail, designer
                                     onApprovalChange={(value) => handleApprovalChange(section.id, product.id, value)}
                                     onFieldUpdate={(pid, field, value) => handleProductFieldUpdate(section.id, pid, field, value)}
                                     approval={approvals[product.id] ?? null}
-                                    commentCount={unreadProducts.has(product.id) ? Math.max(0, (commentCounts[product.id] ?? 0) - (seenCounts[product.id] ?? 0)) : 0}
+                                    commentCount={commentCounts[product.id] ?? 0}
+                                    unreadCount={unreadProducts.has(product.id) ? Math.max(0, (commentCounts[product.id] ?? 0) - (seenCounts[product.id] ?? 0)) : 0}
                                     unread={unreadProducts.has(product.id)}
                                     deleting={deletingId === product.id}
                                     dragHandle={dragHandle}
@@ -2419,6 +2111,7 @@ export default function ListDetail({ list, designerName, designerEmail, designer
           <ProductCommentPanel
             productId={commentsPanelProductId}
             productName={product.name}
+            productImageUrl={product.imageUrl}
             isDesigner={true}
             authorName={authorName}
             designerName={authorName}

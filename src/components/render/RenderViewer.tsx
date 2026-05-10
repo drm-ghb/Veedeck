@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { ChevronLeft, ChevronRight, ChevronDown, Eye, EyeOff, Pin, X, Send, ZoomIn, ZoomOut, History, Upload, Maximize2, RotateCcw, Lock, LockOpen, SplitSquareHorizontal, ChevronsLeftRight, MessageSquare, Sparkles, Package, Trash2, Edit2, ExternalLink, Mic, StopCircle, CheckCircle2, Armchair, Loader2, FileText, MoreVertical, CornerDownLeft } from "@/components/ui/icons";
+import { ChevronLeft, ChevronRight, ChevronDown, Pin, X, Send, ZoomIn, ZoomOut, History, Upload, Maximize2, RotateCcw, Lock, LockOpen, SplitSquareHorizontal, ChevronsLeftRight, Sparkles, Package, Trash2, Edit2, ExternalLink, Mic, StopCircle, CheckCircle2, Armchair, Loader2, FileText, MoreVertical, CornerDownLeft, Paperclip } from "@/components/ui/icons";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import RenderUploader from "./RenderUploader";
 import { SwipeableMessage } from "@/components/ui/swipeable-message";
@@ -41,6 +41,7 @@ interface Comment {
   createdAt: string;
   replies: Reply[];
   voiceUrl?: string | null;
+  imageUrl?: string | null;
   replyToId?: string | null;
   replyToContent?: string | null;
   replyToAuthor?: string | null;
@@ -309,6 +310,11 @@ export default function RenderViewer({
   const chatAudioChunksRef = useRef<Blob[]>([]);
   const chatRecordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  const [chatPendingImageUrl, setChatPendingImageUrl] = useState<string | null>(null);
+  const [chatUploadingImage, setChatUploadingImage] = useState(false);
+  const chatImageInputRef = useRef<HTMLInputElement | null>(null);
+  const chatTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+
   const [isReplyRecording, setIsReplyRecording] = useState(false);
   const [replyRecordingSeconds, setReplyRecordingSeconds] = useState(0);
   const [replyPendingVoiceUrl, setReplyPendingVoiceUrl] = useState<string | null>(null);
@@ -446,6 +452,22 @@ export default function RenderViewer({
       onUploadError: () => {
         toast.error("Błąd przesyłania nagrania głosowego");
         setReplyUploadingVoice(false);
+      },
+    }
+  );
+
+  const { startUpload: startChatImageUpload } = useUploadThing(
+    isDesigner ? "chatImageUploader" : "clientChatImageUploader",
+    {
+      headers: !isDesigner && shareToken ? { "x-share-token": shareToken } : undefined,
+      onClientUploadComplete: (res) => {
+        const url = res[0]?.url;
+        if (url) setChatPendingImageUrl(url);
+        setChatUploadingImage(false);
+      },
+      onUploadError: () => {
+        toast.error("Błąd przesyłania zdjęcia");
+        setChatUploadingImage(false);
       },
     }
   );
@@ -756,7 +778,7 @@ export default function RenderViewer({
   }
 
   async function submitChatMessage() {
-    if (!chatMessage.trim() && !chatPendingVoiceUrl) return;
+    if (!chatMessage.trim() && !chatPendingVoiceUrl && !chatPendingImageUrl) return;
     setSendingChatMessage(true);
     try {
       const res = await fetch("/api/comments", {
@@ -769,6 +791,7 @@ export default function RenderViewer({
           posY: null,
           author: authorName,
           voiceUrl: chatPendingVoiceUrl ?? null,
+          imageUrl: chatPendingImageUrl ?? null,
           replyToId: replyingToMsg?.id ?? null,
           replyToContent: replyingToMsg?.content ?? null,
           replyToAuthor: replyingToMsg?.author ?? null,
@@ -781,7 +804,9 @@ export default function RenderViewer({
       }
       setChatMessage("");
       setChatPendingVoiceUrl(null);
+      setChatPendingImageUrl(null);
       setReplyingToMsg(null);
+      if (chatTextareaRef.current) { chatTextareaRef.current.style.height = "40px"; }
     } catch {
       toast.error("Błąd wysyłania wiadomości");
     } finally {
@@ -1297,7 +1322,7 @@ export default function RenderViewer({
 
             {/* Zone 2: View controls — icon only */}
             <button onClick={() => setHidePins((v) => !v)} title={hidePins ? "Pokaż piny" : "Ukryj piny"} className={`flex items-center justify-center w-8 h-8 rounded-md border transition-colors ${hidePins ? "bg-gray-900 text-white border-gray-900" : "border-transparent text-gray-500 dark:text-gray-400 hover:bg-muted"}`}>
-              {hidePins ? <EyeOff size={15} /> : <Eye size={15} />}
+              <svg viewBox="0 0 24 24" className="w-[15px] h-[15px]" fill="currentColor"><path d="M16 9V4h1c.55 0 1-.45 1-1s-.45-1-1-1H7c-.55 0-1 .45-1 1s.45 1 1 1h1v5c0 1.66-1.34 3-3 3h10c-1.66 0-3-1.34-3-3zm-3 12v-6h-2v6c0 .55.45 1 1 1s1-.45 1-1z"/><path d="M3.51 3.51c-.39.39-.39 1.02 0 1.41l15.56 15.57c.39.39 1.02.39 1.41 0s.39-1.02 0-1.41L4.93 3.51c-.39-.39-1.02-.39-1.42 0z"/></svg>
             </button>
             <button onClick={openLightbox} title="Podgląd pełnoekranowy" className={`flex items-center justify-center w-8 h-8 rounded-md border transition-colors ${lightboxOpen ? "bg-gray-900 text-white border-gray-900" : "border-transparent text-gray-500 dark:text-gray-400 hover:bg-muted"}`}>
               <Maximize2 size={15} />
@@ -1353,7 +1378,7 @@ export default function RenderViewer({
               onClick={() => setShowComments((v) => { const next = !v; sessionStorage.setItem("renderflow_showComments", String(next)); if (next && sidebarTabRef.current === "chat") markChatRead(); return next; })}
               className={`relative flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md border transition-colors ${showComments ? "bg-gray-900 text-white border-gray-900" : "border-transparent text-gray-500 dark:text-gray-400 hover:bg-muted"}`}
             >
-              <MessageSquare size={14} /> Dyskusja
+              <svg viewBox="0 0 24 24" className="w-[14px] h-[14px]" fill="currentColor"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/></svg> Dyskusja
               {chatUnreadCount > 0 && (
                 <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 bg-blue-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center leading-none">
                   {chatUnreadCount > 99 ? "99+" : chatUnreadCount}
@@ -1384,7 +1409,7 @@ export default function RenderViewer({
 
               {/* Zone 2: View controls — icon only */}
               <button onClick={() => setHidePins((v) => !v)} title={hidePins ? "Pokaż piny" : "Ukryj piny"} className={`flex items-center justify-center w-8 h-8 rounded-md border transition-colors flex-shrink-0 ${hidePins ? "bg-gray-900 text-white border-gray-900" : "border-transparent text-gray-500 dark:text-gray-400 hover:bg-muted"}`}>
-                {hidePins ? <EyeOff size={15} /> : <Eye size={15} />}
+                <svg viewBox="0 0 24 24" className="w-[15px] h-[15px]" fill="currentColor"><path d="M16 9V4h1c.55 0 1-.45 1-1s-.45-1-1-1H7c-.55 0-1 .45-1 1s.45 1 1 1h1v5c0 1.66-1.34 3-3 3h10c-1.66 0-3-1.34-3-3zm-3 12v-6h-2v6c0 .55.45 1 1 1s1-.45 1-1z"/><path d="M3.51 3.51c-.39.39-.39 1.02 0 1.41l15.56 15.57c.39.39 1.02.39 1.41 0s.39-1.02 0-1.41L4.93 3.51c-.39-.39-1.02-.39-1.42 0z"/></svg>
               </button>
               <button onClick={openLightbox} title="Podgląd pełnoekranowy" className={`flex items-center justify-center w-8 h-8 rounded-md border transition-colors flex-shrink-0 ${lightboxOpen ? "bg-gray-900 text-white border-gray-900" : "border-transparent text-gray-500 dark:text-gray-400 hover:bg-muted"}`}>
                 <Maximize2 size={15} />
@@ -1440,7 +1465,7 @@ export default function RenderViewer({
               onClick={() => setShowComments((v) => { const next = !v; sessionStorage.setItem("renderflow_showComments", String(next)); if (next && sidebarTabRef.current === "chat") markChatRead(); return next; })}
               className={`relative flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md border transition-colors flex-shrink-0 ${showComments ? "bg-gray-900 text-white border-gray-900" : "border-transparent text-gray-500 dark:text-gray-400 hover:bg-muted"}`}
             >
-              <MessageSquare size={14} /> Dyskusja
+              <svg viewBox="0 0 24 24" className="w-[14px] h-[14px]" fill="currentColor"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/></svg> Dyskusja
               {chatUnreadCount > 0 && (
                 <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 bg-blue-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center leading-none">
                   {chatUnreadCount > 99 ? "99+" : chatUnreadCount}
@@ -2058,7 +2083,7 @@ export default function RenderViewer({
             className="fixed inset-0 z-20 bg-black/30 md:hidden"
             onClick={() => { setShowComments(false); sessionStorage.setItem("renderflow_showComments", "false"); }}
           />
-          <div className={`fixed md:relative inset-y-0 right-0 z-30 md:z-auto md:flex-shrink-0 transition-[width] duration-200 ${sidebarExpanded ? "md:w-[576px]" : "md:w-72"}`}>
+          <div className={`fixed md:relative inset-y-0 right-0 left-0 md:left-auto z-30 md:z-auto md:flex-shrink-0 transition-[width] duration-200 ${sidebarExpanded ? "md:w-[576px]" : "md:w-72"}`}>
 
             {/* Expand handle — absolutely positioned outside the panel, bottom-left */}
             <button
@@ -2069,7 +2094,7 @@ export default function RenderViewer({
               {sidebarExpanded ? <ChevronRight size={13} /> : <ChevronLeft size={13} />}
             </button>
 
-            <div className={`h-full w-[min(288px,100vw)] flex flex-col bg-card border-l shadow-xl md:shadow-none transition-[width] duration-200 ${sidebarExpanded ? "md:w-[576px]" : "md:w-72"}`}>
+            <div className={`h-full w-full flex flex-col bg-card border-l shadow-xl md:shadow-none transition-[width] duration-200 ${sidebarExpanded ? "md:w-[576px]" : "md:w-72"}`}>
 
             {/* Tab switcher */}
             <div className="flex border-b flex-shrink-0">
@@ -2092,8 +2117,15 @@ export default function RenderViewer({
                     : "border-transparent text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
                 }`}
               >
-                <MessageSquare size={13} />
+                <svg viewBox="0 0 24 24" className="w-[13px] h-[13px]" fill="currentColor"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/></svg>
                 Czat {comments.filter(c => c.posX === null).length > 0 && <span className={`rounded-full px-1.5 py-0.5 text-[10px] ${chatUnreadCount > 0 ? "bg-blue-500 text-white" : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300"}`}>{comments.filter(c => c.posX === null).length}</span>}
+              </button>
+              <button
+                onClick={() => { setShowComments(false); sessionStorage.setItem("renderflow_showComments", "false"); }}
+                className="md:hidden flex items-center justify-center w-10 border-l text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
+                title="Zamknij"
+              >
+                <X size={16} />
               </button>
             </div>
 
@@ -2361,9 +2393,13 @@ export default function RenderViewer({
                                         ? "bg-violet-600 text-white rounded-2xl rounded-tr-sm"
                                         : "bg-gray-100 dark:bg-muted text-gray-800 dark:text-gray-200 rounded-2xl rounded-tl-sm"
                                     }`}>
-                                      {item.content !== "[wiadomość głosowa]" && item.content}
+                                      {item.content !== "[wiadomość głosowa]" && item.content !== "[zdjęcie]" && item.content}
                                       {item.voiceUrl && (
                                         <audio src={item.voiceUrl} controls className="mt-1 h-8 w-48 max-w-full" />
+                                      )}
+                                      {item.imageUrl && (
+                                        // eslint-disable-next-line @next/next/no-img-element
+                                        <img src={item.imageUrl} alt="zdjęcie" className="mt-1 max-w-[200px] max-h-[200px] rounded-lg object-cover cursor-pointer" onClick={() => window.open(item.imageUrl!, "_blank")} />
                                       )}
                                     </div>
                                     <div className={`absolute top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5 ${isOwn ? "right-full pr-1 flex-row-reverse" : "left-full pl-1"}`}>
@@ -2446,6 +2482,22 @@ export default function RenderViewer({
                         </div>
                       )}
 
+                      {/* Pending image preview */}
+                      {chatPendingImageUrl && (
+                        <div className="flex items-start gap-2 mb-2">
+                          <div className="relative">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={chatPendingImageUrl} alt="podgląd" className="h-20 w-20 rounded-lg object-cover border" />
+                            <button
+                              onClick={() => setChatPendingImageUrl(null)}
+                              className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-gray-800 text-white flex items-center justify-center hover:bg-red-500 transition-colors"
+                            >
+                              <X size={10} />
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
                       {/* Recording state */}
                       {isChatRecording ? (
                         <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-950/30">
@@ -2464,14 +2516,51 @@ export default function RenderViewer({
                           </button>
                         </div>
                       ) : (
-                        /* Textarea + dynamic button */
-                        <div className="relative">
+                        /* Textarea + dynamic button (Messenger-style) */
+                        <div className="flex items-end gap-2">
+                          {/* Hidden file input for image attachment */}
+                          <input
+                            ref={chatImageInputRef}
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (!file) return;
+                              setChatUploadingImage(true);
+                              startChatImageUpload([file]);
+                              e.target.value = "";
+                            }}
+                          />
+
+                          {/* Attachment button */}
+                          <button
+                            type="button"
+                            disabled={chatUploadingImage || sendingChatMessage}
+                            onClick={() => chatImageInputRef.current?.click()}
+                            title="Dodaj zdjęcie"
+                            className="flex-shrink-0 flex items-center justify-center w-8 h-8 rounded-full bg-primary text-white transition-colors disabled:opacity-40 hover:opacity-90"
+                          >
+                            {chatUploadingImage ? (
+                              <Loader2 size={16} className="animate-spin" />
+                            ) : (
+                              <Paperclip size={16} />
+                            )}
+                          </button>
+
                           <Textarea
+                            ref={chatTextareaRef}
                             value={chatMessage}
-                            onChange={(e) => setChatMessage(e.target.value)}
+                            onChange={(e) => {
+                              setChatMessage(e.target.value);
+                              e.target.style.height = "auto";
+                              e.target.style.height = Math.min(e.target.scrollHeight, 160) + "px";
+                              e.target.style.overflowY = e.target.scrollHeight > 160 ? "auto" : "hidden";
+                            }}
                             placeholder="Napisz wiadomość…"
-                            className="text-sm resize-none pr-10 max-h-28 overflow-y-auto"
+                            className="text-sm resize-none flex-1 min-h-10 max-h-40 rounded-2xl"
                             rows={1}
+                            style={{ height: "40px", overflowY: "hidden" }}
                             onKeyDown={(e) => {
                               if (e.key === "Enter" && !e.shiftKey) {
                                 e.preventDefault();
@@ -2481,25 +2570,25 @@ export default function RenderViewer({
                           />
                           <button
                             type="button"
-                            disabled={chatUploadingVoice || sendingChatMessage}
+                            disabled={chatUploadingVoice || chatUploadingImage || sendingChatMessage}
                             onClick={
-                              chatMessage.trim() || chatPendingVoiceUrl
+                              chatMessage.trim() || chatPendingVoiceUrl || chatPendingImageUrl
                                 ? submitChatMessage
                                 : startChatRecording
                             }
                             title={
-                              chatMessage.trim() || chatPendingVoiceUrl
+                              chatMessage.trim() || chatPendingVoiceUrl || chatPendingImageUrl
                                 ? "Wyślij"
                                 : "Nagraj wiadomość głosową"
                             }
-                            className="absolute right-2 bottom-2 z-10 flex items-center justify-center w-6 h-6 rounded-md transition-colors text-muted-foreground hover:text-foreground disabled:opacity-40"
+                            className="flex-shrink-0 flex items-center justify-center w-8 h-8 text-primary transition-colors disabled:opacity-40 hover:opacity-90"
                           >
-                            {chatUploadingVoice || sendingChatMessage ? (
-                              <Loader2 size={15} className="animate-spin" />
-                            ) : chatMessage.trim() || chatPendingVoiceUrl ? (
-                              <Send size={15} />
+                            {chatUploadingVoice || chatUploadingImage || sendingChatMessage ? (
+                              <Loader2 className="w-7 h-7 animate-spin" />
+                            ) : chatMessage.trim() || chatPendingVoiceUrl || chatPendingImageUrl ? (
+                              <Send className="w-7 h-7" />
                             ) : (
-                              <Mic size={15} />
+                              <Mic className="w-7 h-7" />
                             )}
                           </button>
                         </div>
