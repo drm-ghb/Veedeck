@@ -5,7 +5,23 @@ export async function GET(req: NextRequest) {
   if (!url) return NextResponse.json({ error: "Missing url" }, { status: 400 });
 
   try {
-    const upstream = await fetch(url);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+
+    let origin = "";
+    try { origin = new URL(url).origin; } catch { /* ignore */ }
+
+    const upstream = await fetch(url, {
+      signal: controller.signal,
+      redirect: "follow",
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
+        "Accept-Language": "pl-PL,pl;q=0.9,en-US;q=0.8,en;q=0.7",
+        "Referer": origin + "/",
+      },
+    });
+    clearTimeout(timeout);
     if (!upstream.ok) return NextResponse.json({ error: "Upstream error" }, { status: 502 });
 
     const blob = await upstream.blob();

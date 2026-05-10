@@ -250,6 +250,15 @@ export const en: TranslationKeys = {
     pinLimitError: "Enter a number greater than 0 or leave empty",
   },
   listSettings: {
+    pdfTemplate: "Shopping list PDF template",
+    pdfTemplateDesc: "Choose the look of the PDF document generated for clients.",
+    pdfTemplates: {
+      violet: { name: "Violet", desc: "Default — matches app theme." },
+      editorial: { name: "Editorial Mono", desc: "Black & white editorial, timeless." },
+      atelier: { name: "Atelier Warm", desc: "Cream boutique with bronze accent." },
+      architect: { name: "Architect Grid", desc: "Grid-based, technical luxury." },
+      linen: { name: "Soft Linen", desc: "Minimalist, soft cards." },
+    },
     categoryOrder: "Category hierarchy",
     categoryOrderDesc: "Set the order of categories used when sorting products in list sections. Drag categories to reorder.",
     restoreDefault: "Restore default order",

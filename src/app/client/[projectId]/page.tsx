@@ -9,6 +9,7 @@ import ShareNavbar from "@/components/share/ShareNavbar";
 import ShareSidebar from "@/components/share/ShareSidebar";
 import ClientDiscussionView from "@/components/dyskusje/ClientDiscussionView";
 import ShareListClient from "@/components/listy/ShareListClient";
+import ModuleGuideSlider from "@/components/share/ModuleGuideSlider";
 import { getRoomIcon } from "@/lib/roomIcons";
 import { ChevronLeft, ChevronRight, MessageSquare, FileText, Folder, User, Mail, Lock, Info, ScrollText, Pencil, X, Eye, EyeOff, UserCircle } from "@/components/ui/icons";
 import Image from "next/image";
@@ -371,13 +372,17 @@ export default function ClientProjectPage() {
   const pageContent = (
     <>
       {view === "home" && (
-        <div className="flex flex-col items-start justify-start">
+        <div className="flex flex-col items-start justify-start w-full">
           <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
             Witaj{authorName && authorName !== "Klient" ? `, ${authorName}` : ""}!
           </h2>
           <p className="text-sm text-muted-foreground mt-2">
             {project.clientWelcomeMessage ?? "Wybierz moduł z paska bocznego, aby przeglądać projekt."}
           </p>
+          <ModuleGuideSlider
+            hiddenModules={project.hiddenModules}
+            hasDiscussion={project.hasDiscussion}
+          />
         </div>
       )}
 

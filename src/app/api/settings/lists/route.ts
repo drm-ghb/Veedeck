@@ -8,12 +8,13 @@ export async function GET() {
 
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
-    select: { listsCategoryOrder: true, customCategories: true },
+    select: { listsCategoryOrder: true, customCategories: true, pdfListTemplate: true },
   });
 
   return NextResponse.json({
     listsCategoryOrder: user?.listsCategoryOrder ?? [],
     customCategories: user?.customCategories ?? [],
+    pdfListTemplate: user?.pdfListTemplate ?? "violet",
   });
 }
 

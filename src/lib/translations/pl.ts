@@ -249,6 +249,15 @@ export const pl = {
     pinLimitError: "Podaj liczbę większą od 0 lub pozostaw puste",
   },
   listSettings: {
+    pdfTemplate: "Szablon PDF listy zakupowej",
+    pdfTemplateDesc: "Wybierz wygląd dokumentu PDF generowanego dla klienta.",
+    pdfTemplates: {
+      violet: { name: "Violet", desc: "Domyślny — spójny z motywem aplikacji." },
+      editorial: { name: "Editorial Mono", desc: "Czarno-biały magazyn, ponadczasowy." },
+      atelier: { name: "Atelier Warm", desc: "Kremowy butik z bronze akcentem." },
+      architect: { name: "Architect Grid", desc: "Gridowy, technical-luxury." },
+      linen: { name: "Soft Linen", desc: "Minimalistyczny, miękkie karty." },
+    },
     categoryOrder: "Hierarchia kategorii",
     categoryOrderDesc: "Ustaw kolejność kategorii używaną przy sortowaniu produktów w sekcjach listy. Przeciągnij kategorie, aby zmienić ich kolejność.",
     restoreDefault: "Przywróć domyślną kolejność",

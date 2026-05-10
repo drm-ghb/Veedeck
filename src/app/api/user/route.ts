@@ -51,6 +51,11 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: "Nieprawidłowy motyw kolorystyczny" }, { status: 400 });
   }
 
+  const VALID_PDF_TEMPLATES = ["violet", "editorial", "atelier", "architect", "linen"] as const;
+  if (body.pdfListTemplate !== undefined && !VALID_PDF_TEMPLATES.includes(body.pdfListTemplate)) {
+    return NextResponse.json({ error: "Nieprawidłowy szablon PDF" }, { status: 400 });
+  }
+
   const data: Record<string, unknown> = {};
   if (name !== undefined) data.name = name;
   if (email !== undefined) data.email = email;
@@ -59,6 +64,7 @@ export async function PATCH(req: NextRequest) {
   for (const f of stringFields) if (body[f] !== undefined) data[f] = body[f] || null;
   if (body.globalHiddenModules !== undefined) data.globalHiddenModules = body.globalHiddenModules;
   if (body.colorTheme !== undefined) data.colorTheme = body.colorTheme;
+  if (body.pdfListTemplate !== undefined) data.pdfListTemplate = body.pdfListTemplate;
 
   const user = await prisma.user.update({
     where: { id: session.user.id },

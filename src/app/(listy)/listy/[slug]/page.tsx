@@ -3,6 +3,7 @@ import { redirect, notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getWorkspaceUserId } from "@/lib/workspace";
 import ListDetail from "@/components/listy/ListDetail";
+import type { PdfTemplate } from "@/lib/pdf-templates";
 
 export default async function ListPage({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<{ product?: string }> }) {
   const session = await auth();
@@ -14,7 +15,7 @@ export default async function ListPage({ params, searchParams }: { params: Promi
   const userId = getWorkspaceUserId(session);
 
   const [userSettings, list] = await Promise.all([
-    prisma.user.findUnique({ where: { id: userId }, select: { listsCategoryOrder: true, clientLogoUrl: true, customCategories: true } }),
+    prisma.user.findUnique({ where: { id: userId }, select: { listsCategoryOrder: true, clientLogoUrl: true, customCategories: true, pdfListTemplate: true } }),
     prisma.shoppingList.findFirst({
       where: {
         userId,
@@ -60,6 +61,7 @@ export default async function ListPage({ params, searchParams }: { params: Promi
       initialOpenProductId={initialOpenProductId}
       categoryOrder={userSettings?.listsCategoryOrder ?? []}
       customCategories={userSettings?.customCategories ?? []}
+      pdfTemplate={(userSettings?.pdfListTemplate as PdfTemplate) ?? "violet"}
       list={{
         id: list.id,
         name: list.name,

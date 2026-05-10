@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Settings, ScrollText, ChevronLeft, Users, Puzzle, PictureInPicture } from "@/components/ui/icons";
+import { Settings, ScrollText, ChevronLeft, Users, Puzzle, PictureInPicture, BookOpen } from "@/components/ui/icons";
 import { useT } from "@/lib/i18n";
 
 export default function SettingsSidebar() {
@@ -39,6 +39,12 @@ export default function SettingsSidebar() {
       href: "/settings/wtyczka",
       label: "Wtyczka",
       icon: <Puzzle size={16} />,
+      module: null,
+    },
+    {
+      href: "/settings/instrukcja",
+      label: "Instrukcja",
+      icon: <BookOpen size={16} />,
       module: null,
     },
   ];

@@ -50,26 +50,21 @@ export const Users            = icon("group");
 export function PictureInPicture({ size = 20, className, color, style }: IconProps): ReactElement {
   const px = typeof size === "number" ? size : parseInt(size as string, 10) || 20;
   return (
-    <span
+    <svg
+      width={px}
+      height={px}
+      viewBox="0 0 417 417"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
       className={className}
       aria-hidden="true"
-      style={{
-        display: "inline-block",
-        flexShrink: 0,
-        width: px,
-        height: px,
-        backgroundColor: color ?? "currentColor",
-        WebkitMaskImage: "url('/renderflow-icon.png')",
-        maskImage: "url('/renderflow-icon.png')",
-        WebkitMaskSize: "contain",
-        maskSize: "contain",
-        WebkitMaskRepeat: "no-repeat",
-        maskRepeat: "no-repeat",
-        WebkitMaskPosition: "center",
-        maskPosition: "center",
-        ...style,
-      }}
-    />
+      style={{ color: color ?? undefined, flexShrink: 0, ...style }}
+    >
+      <path d="M364.875 173.75V121.625C364.875 112.409 361.214 103.57 354.697 97.053C348.18 90.5361 339.341 86.875 330.125 86.875H208.5" stroke="currentColor" strokeWidth="20" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M52.125 243.25V278C52.125 287.216 55.7861 296.055 62.303 302.572C68.8199 309.089 77.6587 312.75 86.875 312.75H139" stroke="currentColor" strokeWidth="20" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M81.2134 65.433L125.797 110.017L147.415 110.053C148.687 110.056 149.88 110.296 150.993 110.775C152.107 111.254 153.088 111.918 153.937 112.767L157.599 116.429C159.404 118.234 160.308 120.355 160.313 122.792C160.317 125.229 159.42 127.347 157.621 129.146L132.231 154.536L169.49 191.795C171.295 193.6 172.199 195.721 172.203 198.158C172.207 200.595 171.31 202.713 169.512 204.512C167.713 206.31 165.595 207.207 163.158 207.203C160.721 207.199 158.6 206.295 156.795 204.49L119.536 167.231L94.1459 192.621C92.3474 194.419 90.2295 195.316 87.7922 195.312C85.3548 195.308 83.2339 194.404 81.4293 192.599L77.767 188.937C76.9178 188.088 76.2538 187.106 75.7751 185.993C75.2963 184.879 75.0559 183.687 75.0537 182.415L75.017 160.797L30.4332 116.213C28.6348 118.012 26.5169 118.909 24.0795 118.905C21.6422 118.9 19.5212 117.996 17.7166 116.192C15.912 114.387 15.0077 112.266 15.0035 109.829C14.9994 107.391 15.8966 105.273 17.695 103.475L68.4751 52.6948C70.2736 50.8963 72.3915 49.9992 74.8289 50.0033C77.2662 50.0074 79.3872 50.9118 81.1918 52.7164C82.9963 54.521 83.9007 56.6419 83.9048 59.0793C83.909 61.5166 83.0118 63.6345 81.2134 65.433ZM93.1506 168.14L133.14 128.15L118.516 128.126L68.5183 78.128L43.1283 103.518L93.1258 153.516L93.1506 168.14Z" fill="currentColor"/>
+      <path d="M282.557 223H212.318C206.795 223 202.318 227.477 202.318 233V260.5V266M202.318 266H211.945C217.467 266 221.945 270.477 221.945 276V278.5C221.945 284.023 226.422 288.5 231.945 288.5H344.137C349.66 288.5 354.137 284.023 354.137 278.5V276C354.137 270.477 358.614 266 364.137 266H371.743M202.318 266H192C188.134 266 185 269.134 185 273V316C185 319.866 188.134 323 192 323H210.399M210.399 323V347.5M210.399 323H363.95M363.95 323H379.35C384.873 323 389.35 318.523 389.35 313V276C389.35 270.477 384.873 266 379.35 266H371.743M363.95 323V347.5M371.743 266V230C371.743 226.134 368.609 223 364.743 223H277.729" stroke="currentColor" strokeWidth="16" strokeLinecap="round"/>
+    </svg>
   );
 }
 export const ScrollText       = icon("list_alt");
@@ -78,6 +73,7 @@ export const CalendarDays     = icon("calendar_month");
 export const NotebookText     = icon("note_stack");
 export const NotebookPen      = icon("note_stack_add");
 export const MessageSquare    = icon("forum");
+export const ChatBubble       = icon("chat");
 
 // ── Pins ───────────────────────────────────────────────────────────────────
 export const Pin              = icon("keep");
