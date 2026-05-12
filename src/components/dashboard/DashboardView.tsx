@@ -98,6 +98,31 @@ interface ListMessage {
   listSlug: string | null;
 }
 
+interface RenderReply {
+  id: string;
+  content: string;
+  author: string;
+  createdAt: string;
+  commentId: string;
+  renderId: string;
+  renderName: string;
+  projectId: string;
+  projectTitle: string;
+}
+
+interface ListReply {
+  id: string;
+  content: string;
+  author: string;
+  createdAt: string;
+  commentId: string;
+  productId: string;
+  productName: string;
+  listId: string;
+  listName: string;
+  listSlug: string | null;
+}
+
 interface RecentList {
   id: string;
   slug: string | null;
@@ -128,6 +153,8 @@ interface DashboardViewProps {
   versionRequests: VersionRequest[];
   renderDiscussions: RenderDiscussion[];
   listMessages: ListMessage[];
+  renderReplies: RenderReply[];
+  listReplies: ListReply[];
   todayEvents: TodayEvent[];
 }
 
@@ -177,6 +204,8 @@ export default function DashboardView({
   versionRequests,
   renderDiscussions,
   listMessages,
+  renderReplies,
+  listReplies,
   todayEvents,
 }: DashboardViewProps) {
   const t = useT();
@@ -238,6 +267,24 @@ export default function DashboardView({
   function markListMessageViewed(commentId: string) {
     setViewedMessageIds((prev) => new Set([...prev, commentId]));
     fetch(`/api/list-comments/${commentId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ viewedByDesigner: true }),
+    });
+  }
+
+  function markRenderReplyViewed(reply: RenderReply) {
+    setViewedMessageIds((prev) => new Set([...prev, reply.id]));
+    fetch(`/api/comments/${reply.commentId}/replies/${reply.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ viewedByDesigner: true }),
+    });
+  }
+
+  function markListReplyViewed(reply: ListReply) {
+    setViewedMessageIds((prev) => new Set([...prev, reply.id]));
+    fetch(`/api/list-comments/${reply.commentId}/replies/${reply.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ viewedByDesigner: true }),
@@ -526,10 +573,18 @@ export default function DashboardView({
             {(() => {
               const visibleD = renderDiscussions.filter((c) => !viewedMessageIds.has(c.id));
               const visibleL = listMessages.filter((c) => !viewedMessageIds.has(c.id));
-              type MI = { type: "discussion"; data: RenderDiscussion } | { type: "list"; data: ListMessage };
+              const visibleRR = renderReplies.filter((r) => !viewedMessageIds.has(r.id));
+              const visibleLR = listReplies.filter((r) => !viewedMessageIds.has(r.id));
+              type MI =
+                | { type: "discussion"; data: RenderDiscussion }
+                | { type: "list"; data: ListMessage }
+                | { type: "renderReply"; data: RenderReply }
+                | { type: "listReply"; data: ListReply };
               const msgs: MI[] = [
                 ...visibleD.map((d) => ({ type: "discussion" as const, data: d })),
                 ...visibleL.map((m) => ({ type: "list" as const, data: m })),
+                ...visibleRR.map((r) => ({ type: "renderReply" as const, data: r })),
+                ...visibleLR.map((r) => ({ type: "listReply" as const, data: r })),
               ].sort((a, b) => new Date(b.data.createdAt).getTime() - new Date(a.data.createdAt).getTime());
               if (msgs.length === 0) return (
                 <div className="rounded-xl border border-border bg-card p-6 text-center">
@@ -555,6 +610,38 @@ export default function DashboardView({
                               <span className="shrink-0 text-xs text-muted-foreground mr-2">{timeAgo(d.createdAt)}</span>
                             </Link>
                             <button onClick={() => markDiscussionViewed(d.id)} title="Oznacz jako przeczytane" className="shrink-0 mr-3 p-1 rounded-md text-muted-foreground/40 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-950/30 transition-colors"><CheckCircle2 size={16} /></button>
+                          </div>
+                        );
+                      }
+                      if (item.type === "listReply") {
+                        const r = item.data;
+                        return (
+                          <div key={r.id} className="flex items-center hover:bg-muted/50 transition-colors">
+                            <Link href={`/listy/${r.listSlug ?? r.listId}?product=${r.productId}`} onClick={() => markListReplyViewed(r)} className="flex items-start gap-3 px-4 py-3 flex-1 min-w-0">
+                              <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 mt-0.5"><ScrollText size={15} className="text-primary" /></div>
+                              <div className="min-w-0 flex-1">
+                                <p className="text-sm font-medium truncate">{r.content}</p>
+                                <p className="text-xs text-muted-foreground truncate">{r.author} · {r.productName} · {r.listName}</p>
+                              </div>
+                              <span className="shrink-0 text-xs text-muted-foreground mr-2">{timeAgo(r.createdAt)}</span>
+                            </Link>
+                            <button onClick={() => markListReplyViewed(r)} title="Oznacz jako przeczytane" className="shrink-0 mr-3 p-1 rounded-md text-muted-foreground/40 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-950/30 transition-colors"><CheckCircle2 size={16} /></button>
+                          </div>
+                        );
+                      }
+                      if (item.type === "renderReply") {
+                        const r = item.data;
+                        return (
+                          <div key={r.id} className="flex items-center hover:bg-muted/50 transition-colors">
+                            <Link href={`/projects/${r.projectId}/renders/${r.renderId}`} onClick={() => markRenderReplyViewed(r)} className="flex items-start gap-3 px-4 py-3 flex-1 min-w-0">
+                              <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 mt-0.5"><MessageSquare size={15} className="text-primary" /></div>
+                              <div className="min-w-0 flex-1">
+                                <p className="text-sm font-medium truncate">{r.content}</p>
+                                <p className="text-xs text-muted-foreground truncate">{r.author} · {r.renderName} · {r.projectTitle}</p>
+                              </div>
+                              <span className="shrink-0 text-xs text-muted-foreground mr-2">{timeAgo(r.createdAt)}</span>
+                            </Link>
+                            <button onClick={() => markRenderReplyViewed(r)} title="Oznacz jako przeczytane" className="shrink-0 mr-3 p-1 rounded-md text-muted-foreground/40 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-950/30 transition-colors"><CheckCircle2 size={16} /></button>
                           </div>
                         );
                       }

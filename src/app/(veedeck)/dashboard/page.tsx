@@ -87,7 +87,7 @@ export default async function DashboardPage() {
   todayEnd.setUTCHours(23, 59, 59, 999);
   todayEnd.setUTCDate(todayEnd.getUTCDate() + 1);
 
-  const [renderflowProjectCount, listCount, notificationCount, todayEvents, pins, statusRequests, versionRequests, renderDiscussions, listMessages] =
+  const [renderflowProjectCount, listCount, notificationCount, todayEvents, pins, statusRequests, versionRequests, renderDiscussions, listMessages, renderReplies, listReplies] =
     await Promise.all([
       prisma.project.count({ where: { userId, archived: false, modules: { has: "renderflow" } } }),
       prisma.shoppingList.count({ where: { userId, archived: false } }),
@@ -202,6 +202,71 @@ export default async function DashboardPage() {
         orderBy: { createdAt: "desc" },
         take: 10,
       }),
+
+      // Unread render discussion replies
+      prisma.reply.findMany({
+        where: {
+          viewedByDesigner: false,
+          comment: {
+            isInternal: false,
+            render: { project: { userId }, archived: false },
+          },
+        },
+        select: {
+          id: true,
+          content: true,
+          author: true,
+          createdAt: true,
+          commentId: true,
+          comment: {
+            select: {
+              renderId: true,
+              render: {
+                select: {
+                  name: true,
+                  project: { select: { id: true, title: true } },
+                },
+              },
+            },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+        take: 10,
+      }),
+
+      // Unread list product replies
+      prisma.listProductReply.findMany({
+        where: {
+          viewedByDesigner: false,
+          comment: {
+            product: { section: { list: { userId } } },
+          },
+        },
+        select: {
+          id: true,
+          content: true,
+          author: true,
+          createdAt: true,
+          commentId: true,
+          comment: {
+            select: {
+              productId: true,
+              product: {
+                select: {
+                  name: true,
+                  section: {
+                    select: {
+                      list: { select: { id: true, name: true, slug: true } },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+        take: 10,
+      }),
     ]);
 
   const todayEventsFormatted = todayEvents.map((e) => ({
@@ -283,6 +348,29 @@ export default async function DashboardPage() {
         projectTitle: c.render.project.title,
       }))}
       todayEvents={todayEventsFormatted}
+      renderReplies={renderReplies.map((r) => ({
+        id: r.id,
+        content: r.content,
+        author: r.author,
+        createdAt: r.createdAt.toISOString(),
+        commentId: r.commentId,
+        renderId: r.comment.renderId,
+        renderName: r.comment.render.name,
+        projectId: r.comment.render.project.id,
+        projectTitle: r.comment.render.project.title,
+      }))}
+      listReplies={listReplies.map((r) => ({
+        id: r.id,
+        content: r.content,
+        author: r.author,
+        createdAt: r.createdAt.toISOString(),
+        commentId: r.commentId,
+        productId: r.comment.productId,
+        productName: r.comment.product.name,
+        listId: r.comment.product.section.list.id,
+        listName: r.comment.product.section.list.name,
+        listSlug: r.comment.product.section.list.slug,
+      }))}
       listMessages={listMessages.map((c) => ({
         id: c.id,
         content: c.content,

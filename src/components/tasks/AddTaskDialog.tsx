@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { X } from "@/components/ui/icons";
 import TaskSelectField, { TaskSelectOption } from "./TaskSelectField";
 import DatePicker from "@/components/ui/DatePicker";
+import { TaskDescriptionEditor } from "./TaskDescriptionEditor";
 
 interface Project {
   id: string;
@@ -171,12 +172,12 @@ export default function AddTaskDialog({ trigger, parentId, onCreated }: AddTaskD
 
               <div className="space-y-1">
                 <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Opis</label>
-                <textarea
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
+                <TaskDescriptionEditor
+                  content={description}
+                  contentKey="new"
+                  onChange={setDescription}
+                  onBlur={() => {}}
                   placeholder="Opcjonalny opis..."
-                  rows={4}
-                  className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary/20 resize-none"
                 />
               </div>
 

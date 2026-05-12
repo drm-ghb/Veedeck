@@ -317,12 +317,13 @@ model ListProductComment {
 }
 
 model ListProductReply {
-  id        String             @id @default(cuid())
-  content   String
-  author    String
-  createdAt DateTime           @default(now())
-  commentId String
-  comment   ListProductComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  id               String             @id @default(cuid())
+  content          String
+  author           String
+  createdAt        DateTime           @default(now())
+  viewedByDesigner Boolean            @default(false)
+  commentId        String
+  comment          ListProductComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
 }
 
 model Room {
@@ -442,16 +443,17 @@ model Comment {
 }
 
 model Reply {
-  id             String   @id @default(cuid())
-  content        String
-  author         String
-  voiceUrl       String?
-  replyToId      String?
-  replyToContent String?
-  replyToAuthor  String?
-  createdAt      DateTime @default(now())
-  commentId      String
-  comment        Comment  @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  id               String   @id @default(cuid())
+  content          String
+  author           String
+  voiceUrl         String?
+  replyToId        String?
+  replyToContent   String?
+  replyToAuthor    String?
+  createdAt        DateTime @default(now())
+  viewedByDesigner Boolean  @default(false)
+  commentId        String
+  comment          Comment  @relation(fields: [commentId], references: [id], onDelete: Cascade)
 }
 
 model Notification {

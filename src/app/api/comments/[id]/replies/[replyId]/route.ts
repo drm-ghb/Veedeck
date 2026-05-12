@@ -7,15 +7,18 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string; replyId: string }> }
 ) {
   const { id, replyId } = await params;
-  const { content } = await req.json();
-  if (!content?.trim()) return NextResponse.json({ error: "Brak treści" }, { status: 400 });
+  const { content, viewedByDesigner } = await req.json();
+  if (content !== undefined && !content?.trim()) return NextResponse.json({ error: "Brak treści" }, { status: 400 });
 
   const comment = await prisma.comment.findUnique({ where: { id } });
   if (!comment) return NextResponse.json({ error: "Nie znaleziono komentarza" }, { status: 404 });
 
   const reply = await prisma.reply.update({
     where: { id: replyId },
-    data: { content: content.trim() },
+    data: {
+      ...(content !== undefined ? { content: content.trim() } : {}),
+      ...(viewedByDesigner !== undefined ? { viewedByDesigner } : {}),
+    },
   });
 
   await pusherServer.trigger(`render-${comment.renderId}`, "reply-updated", {
