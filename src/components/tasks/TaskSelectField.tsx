@@ -49,7 +49,7 @@ export default function TaskSelectField({
 }: TaskSelectFieldProps) {
   const [open, setOpen] = useState(initialOpen);
   const ref = useRef<HTMLDivElement>(null);
-  const triggerRef = useRef<HTMLButtonElement | HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
 
@@ -114,7 +114,7 @@ export default function TaskSelectField({
         />
       ) : (
         <button
-          ref={triggerRef}
+          ref={triggerRef as React.RefObject<HTMLButtonElement>}
           type="button"
           onClick={handleToggle}
           className={
