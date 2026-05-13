@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
+import bcrypt from "bcryptjs";
 
 export async function GET(
   req: NextRequest,
@@ -80,11 +81,15 @@ export async function GET(
     return NextResponse.json({ error: "Link wygasł", expired: true }, { status: 410 });
   }
 
-  // Check share password
+  // Check share password (stored as bcrypt hash)
   const providedPassword = req.headers.get("x-share-password");
   if (project.sharePassword) {
-    if (!providedPassword || providedPassword !== project.sharePassword) {
+    if (!providedPassword) {
       return NextResponse.json({ error: "Wymagane hasło", passwordRequired: true }, { status: 401 });
+    }
+    const isValid = await bcrypt.compare(providedPassword, project.sharePassword);
+    if (!isValid) {
+      return NextResponse.json({ error: "Nieprawidłowe hasło", passwordRequired: true }, { status: 401 });
     }
   }
 

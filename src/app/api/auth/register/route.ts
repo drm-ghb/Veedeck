@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
-
-function validatePassword(pwd: string): boolean {
-  return pwd.length >= 8 && /[a-z]/.test(pwd) && /[A-Z]/.test(pwd) && /[0-9]/.test(pwd);
-}
+import { validatePassword } from "@/lib/validation";
+import { rateLimit, getClientIp } from "@/lib/rate-limit";
 
 export async function POST(req: NextRequest) {
+  // 5 registration attempts per IP per minute
+  if (!rateLimit(`register:${getClientIp(req)}`, 5)) {
+    return NextResponse.json({ error: "Za dużo prób. Spróbuj ponownie za chwilę." }, { status: 429 });
+  }
+
   const { fullName, name, email, password } = await req.json();
 
   if (!fullName || !email || !password) {

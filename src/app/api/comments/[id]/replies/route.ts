@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { pusherServer } from "@/lib/pusher";
+import { MAX_LENGTHS } from "@/lib/validation";
 
 export async function POST(
   req: NextRequest,
@@ -12,6 +13,10 @@ export async function POST(
 
   if (!finalContent || !author) {
     return NextResponse.json({ error: "Brakujące pola" }, { status: 400 });
+  }
+
+  if (finalContent.length > MAX_LENGTHS.reply) {
+    return NextResponse.json({ error: "Odpowiedź jest zbyt długa" }, { status: 400 });
   }
 
   const comment = await prisma.comment.findUnique({ where: { id } });

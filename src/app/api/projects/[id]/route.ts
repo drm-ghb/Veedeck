@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { uniqueSlug } from "@/lib/slug";
 import { getWorkspaceUserId } from "@/lib/workspace";
+import bcrypt from "bcryptjs";
 
 export async function GET(
   _req: NextRequest,
@@ -86,7 +87,11 @@ export async function PATCH(
       ...(body.clientName !== undefined && { clientName: body.clientName || null }),
       ...(body.clientEmail !== undefined && { clientEmail: body.clientEmail || null }),
       ...(body.description !== undefined && { description: body.description || null }),
-      ...(body.sharePassword !== undefined && { sharePassword: body.sharePassword || null }),
+      ...(body.sharePassword !== undefined && {
+        sharePassword: body.sharePassword
+          ? await bcrypt.hash(body.sharePassword, 10)
+          : null,
+      }),
       ...(body.shareExpiresAt !== undefined && { shareExpiresAt: body.shareExpiresAt ? new Date(body.shareExpiresAt) : null }),
       ...(body.pinned !== undefined && { pinned: body.pinned }),
       ...(body.hiddenModules !== undefined && { hiddenModules: body.hiddenModules }),

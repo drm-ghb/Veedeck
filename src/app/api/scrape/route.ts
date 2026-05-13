@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@/lib/auth";
 
 function getMetaTag(html: string, property: string): string | null {
   const patterns = [
@@ -385,12 +386,41 @@ function extractColorFromHtml(html: string): string | null {
   return null;
 }
 
+/** Hostnames/patterns that must never be fetched server-side (SSRF prevention) */
+const BLOCKED_HOST = /^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|169\.254\.|::1|0\.0\.0\.0)/i;
+
 export async function POST(req: NextRequest) {
-  const { url } = await req.json();
-  if (!url) return NextResponse.json({ error: "Brak URL" }, { status: 400 });
+  // Require authentication — unauthenticated callers must not trigger server-side fetches
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const body = await req.json();
+  const url: unknown = body?.url;
+
+  if (!url || typeof url !== "string") {
+    return NextResponse.json({ error: "Brak URL" }, { status: 400 });
+  }
+
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return NextResponse.json({ error: "Nieprawidłowy URL" }, { status: 400 });
+  }
+
+  // Only allow public HTTP(S) — block file://, ftp://, etc.
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+    return NextResponse.json({ error: "Niedozwolony protokół" }, { status: 400 });
+  }
+
+  // Block requests to private/internal network addresses
+  if (BLOCKED_HOST.test(parsed.hostname)) {
+    return NextResponse.json({ error: "Niedozwolony host" }, { status: 400 });
+  }
 
   try {
-    const parsed = new URL(url);
     const res = await fetch(url, {
       redirect: "follow",
       headers: {

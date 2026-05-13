@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { pusherServer } from "@/lib/pusher";
+import { validatePassword } from "@/lib/validation";
 
 // GET — walidacja tokenu zaproszenia (publiczny)
 export async function GET(
@@ -36,10 +37,7 @@ export async function POST(
   const { token } = await params;
   const { password, name } = await req.json();
 
-  if (!password || password.length < 6) {
-    return NextResponse.json({ error: "Hasło musi mieć co najmniej 6 znaków" }, { status: 400 });
-  }
-
+  // Validate the token first — user should see "invite expired" before "bad password"
   const invitation = await prisma.invitation.findUnique({
     where: { token },
     include: { designer: { select: { name: true, email: true } } },
@@ -51,6 +49,13 @@ export async function POST(
 
   if (new Date() > invitation.expiresAt) {
     return NextResponse.json({ error: "Zaproszenie wygasło" }, { status: 410 });
+  }
+
+  if (!password || !validatePassword(password)) {
+    return NextResponse.json(
+      { error: "Hasło musi mieć min. 8 znaków, zawierać małą i dużą literę oraz cyfrę" },
+      { status: 400 }
+    );
   }
 
   const bcrypt = await import("bcryptjs");

@@ -14,7 +14,7 @@ vi.mock("@/lib/prisma", () => ({
 
 import { prisma } from "@/lib/prisma";
 
-const mockProject = { id: "proj-1", shareToken: "tok-abc" };
+const mockProject = { id: "proj-1", shareToken: "tok-abc", user: { allowDirectStatusChange: true } };
 const mockRender = { id: "r1", projectId: "proj-1", status: "REVIEW" };
 
 beforeEach(() => vi.clearAllMocks());

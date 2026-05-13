@@ -1,4 +1,5 @@
 import nodemailer from "nodemailer";
+import { escapeHtml } from "@/lib/validation";
 
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST,
@@ -23,16 +24,17 @@ export async function sendInvitationEmail({
   token: string;
 }) {
   const link = `${APP_URL}/invite/${token}`;
+  const safeDesignerName = escapeHtml(designerName);
 
   await transporter.sendMail({
     from: FROM,
     to,
-    subject: `Zaproszenie do panelu projektanta — ${designerName}`,
+    subject: `Zaproszenie do panelu projektanta — ${safeDesignerName}`,
     html: `
       <div style="font-family: sans-serif; max-width: 520px; margin: 0 auto; padding: 32px 24px; color: #111;">
         <h2 style="margin-bottom: 8px;">Zaproszenie do współpracy</h2>
         <p style="color: #555; margin-bottom: 24px;">
-          <strong>${designerName}</strong> zaprasza Cię do swojego panelu projektanta.
+          <strong>${safeDesignerName}</strong> zaprasza Cię do swojego panelu projektanta.
           Kliknij poniższy przycisk, aby ustawić hasło i rozpocząć współpracę.
         </p>
         <a href="${link}"

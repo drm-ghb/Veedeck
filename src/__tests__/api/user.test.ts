@@ -183,7 +183,7 @@ describe("PATCH /api/user/password", () => {
     vi.mocked(bcrypt.compare).mockResolvedValue(true as never);
     vi.mocked(prisma.user.update).mockResolvedValue(mockUser as any);
 
-    const res = await PatchPassword(makeRequest("PATCH", { currentPassword: "stare", newPassword: "nowe-haslo-123" }));
+    const res = await PatchPassword(makeRequest("PATCH", { currentPassword: "stare", newPassword: "NoweHaslo123" }));
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.success).toBe(true);

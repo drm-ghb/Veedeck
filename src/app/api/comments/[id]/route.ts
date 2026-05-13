@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { pusherServer } from "@/lib/pusher";
 import { getWorkspaceUserId } from "@/lib/workspace";
+import { MAX_LENGTHS } from "@/lib/validation";
 
 export async function PATCH(
   req: NextRequest,
@@ -18,6 +19,10 @@ export async function PATCH(
   const body = await req.json();
   const { viewedByDesigner, status, content, authorName } = body;
 
+  if (content !== undefined && typeof content === "string" && content.length > MAX_LENGTHS.comment) {
+    return NextResponse.json({ error: "Komentarz jest zbyt długi" }, { status: 400 });
+  }
+
   const comment = await prisma.comment.findUnique({
     where: { id },
     select: {
@@ -32,7 +37,9 @@ export async function PATCH(
   }
 
   const isOwner = comment.render.project.userId === userId;
-  const isAuthor = content !== undefined && comment.author === authorName;
+  // Use the session user's own name — never trust the client-supplied authorName for auth
+  const sessionName = session.user.name ?? session.user.email ?? "";
+  const isAuthor = content !== undefined && sessionName !== "" && comment.author === sessionName;
 
   if (!isOwner && !isAuthor) {
     return NextResponse.json({ error: "Brak dostępu" }, { status: 403 });
@@ -56,17 +63,22 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  req: NextRequest,
+  _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // Session is always required — anonymous deletion is not permitted
   const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const { id } = await params;
+  const userId = getWorkspaceUserId(session);
 
   const comment = await prisma.comment.findUnique({
     where: { id },
     select: {
       renderId: true,
-      author: true,
       render: { select: { project: { select: { userId: true } } } },
     },
   });
@@ -75,19 +87,10 @@ export async function DELETE(
     return NextResponse.json({ error: "Nie znaleziono" }, { status: 404 });
   }
 
-  // Allow: project owner (designer) OR authorName match from body (for clients)
-  if (session?.user?.id) {
-    const userId = getWorkspaceUserId(session);
-    if (comment.render.project.userId !== userId) {
-      // Check if client user authored it — no userId on Comment, check via body
-      let body: { authorName?: string } = {};
-      try { body = await req.json(); } catch { /* no body */ }
-      if (body.authorName !== comment.author) {
-        return NextResponse.json({ error: "Brak dostępu" }, { status: 403 });
-      }
-    }
+  // Only the project owner (or workspace member) may delete comments
+  if (comment.render.project.userId !== userId) {
+    return NextResponse.json({ error: "Brak dostępu" }, { status: 403 });
   }
-  // No session: allow (share-link clients — frontend gating is the protection)
 
   await prisma.comment.delete({ where: { id } });
   await pusherServer.trigger(`render-${comment.renderId}`, "comment-deleted", { id });

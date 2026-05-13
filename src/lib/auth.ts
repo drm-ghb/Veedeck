@@ -108,10 +108,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         try {
           const dbUser = await prisma.user.findUnique({
             where: { id: userId },
-            select: { ownerId: true, role: true },
+            select: { ownerId: true, role: true, isAdmin: true },
           });
           token.ownerId = dbUser?.ownerId ?? null;
           token.role = dbUser?.role ?? "designer";
+          token.isAdmin = dbUser?.isAdmin ?? false;
         } catch (e) {
           console.error("[auth] JWT callback prisma error (refresh):", e);
           token.ownerId = null;
@@ -122,12 +123,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         try {
           const dbUser = await prisma.user.findUnique({
             where: { id: userId },
-            select: { needsNameSetup: true, name: true, ownerId: true, role: true },
+            select: { needsNameSetup: true, name: true, ownerId: true, role: true, isAdmin: true },
           });
           token.needsNameSetup = dbUser?.needsNameSetup ?? false;
           token.name = dbUser?.name ?? token.name;
           token.ownerId = dbUser?.ownerId ?? null;
           token.role = dbUser?.role ?? "designer";
+          token.isAdmin = dbUser?.isAdmin ?? false;
         } catch (e) {
           console.error("[auth] JWT callback prisma error (update):", e);
         }
