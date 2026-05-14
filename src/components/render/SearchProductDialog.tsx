@@ -73,7 +73,7 @@ export default function SearchProductDialog({ open, onClose, onSelect, projectId
     manufacturers: "",
     colors: "",
   });
-  const [activeTab, setActiveTab] = useState<Tab>(projectId ? "list" : "recent");
+  const [activeTab, setActiveTab] = useState<Tab>("all");
   const [localQuery, setLocalQuery] = useState("");
   const [listProducts, setListProducts] = useState<Product[]>([]);
   const [listLoading, setListLoading] = useState(false);
@@ -83,10 +83,10 @@ export default function SearchProductDialog({ open, onClose, onSelect, projectId
   // Reset tab and local query when dialog opens
   useEffect(() => {
     if (open) {
-      setActiveTab(projectId ? "list" : "recent");
+      setActiveTab("all");
       setLocalQuery("");
     }
-  }, [open, projectId]);
+  }, [open]);
 
   // Reset local query on tab change
   useEffect(() => {
@@ -104,16 +104,16 @@ export default function SearchProductDialog({ open, onClose, onSelect, projectId
       .finally(() => setListLoading(false));
   }, [open, projectId, activeTab]);
 
-  // Fetch recent products
+  // Fetch recent pin products for this project
   useEffect(() => {
-    if (!open || activeTab !== "recent") return;
+    if (!open || activeTab !== "recent" || !projectId) return;
     setRecentLoading(true);
-    fetch("/api/products/recent")
+    fetch(`/api/projects/${projectId}/recent-pin-products`)
       .then((r) => r.json())
       .then((data) => setRecentProducts(data.products ?? []))
       .catch(() => setRecentProducts([]))
       .finally(() => setRecentLoading(false));
-  }, [open, activeTab]);
+  }, [open, activeTab, projectId]);
 
   const toggleSection = (key: string) =>
     setExpandedFilters((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -140,12 +140,11 @@ export default function SearchProductDialog({ open, onClose, onSelect, projectId
 
   const tabs: { key: Tab; label: string }[] = projectId
     ? [
+        { key: "all", label: "Wszystkie produkty" },
         { key: "list", label: "Produkty z listy" },
         { key: "recent", label: "Ostatnio dodane" },
-        { key: "all", label: "Wszystkie produkty" },
       ]
     : [
-        { key: "recent", label: "Ostatnio dodane" },
         { key: "all", label: "Wszystkie produkty" },
       ];
 
@@ -261,7 +260,7 @@ export default function SearchProductDialog({ open, onClose, onSelect, projectId
                 {!recentLoading && recentProducts.length === 0 && (
                   <div className="flex flex-col items-center justify-center gap-2 py-12 text-muted-foreground">
                     <Package size={28} className="opacity-30" />
-                    <p className="text-sm">Brak produktów w katalogu</p>
+                    <p className="text-sm">Brak przypiętych produktów w tym projekcie</p>
                   </div>
                 )}
                 {!recentLoading && recentProducts.length > 0 && (() => {
