@@ -3510,7 +3510,6 @@ export default function RenderViewer({
           if (!pendingProductPos) return;
           addProductPin(product, { x: pendingProductPos.x, y: pendingProductPos.y }, pendingProductPos.renderId);
           setPendingProductPos(null);
-          setProductPinMode(false);
         }}
         projectId={projectId}
       />
