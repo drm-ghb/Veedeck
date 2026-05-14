@@ -337,6 +337,16 @@ export default function RenderViewer({
   const [sidebarUploading, setSidebarUploading] = useState(false);
   const sidebarDragCounterRef = useRef(0);
 
+  const draggingPinRef = useRef<{
+    pinId: string;
+    type: "comment" | "product";
+    imgEl: HTMLDivElement;
+  } | null>(null);
+  const dragPosRef = useRef<{ id: string; x: number; y: number } | null>(null);
+  const [dragPos, setDragPos] = useState<{ id: string; x: number; y: number } | null>(null);
+  const didDragRef = useRef(false);
+  const dragStartPxRef = useRef<{ x: number; y: number } | null>(null);
+
   const [visualVP, setVisualVP] = useState({ height: 0, offsetTop: 0 });
   useEffect(() => {
     if (sessionStorage.getItem("renderflow_showComments") === "true") {
@@ -761,6 +771,69 @@ export default function RenderViewer({
     return () => document.removeEventListener("mousedown", handleMouseDown);
   }, [pending]);
 
+  useEffect(() => {
+    function onPinMouseMove(e: MouseEvent) {
+      if (!draggingPinRef.current) return;
+      if (dragStartPxRef.current) {
+        const dx = Math.abs(e.clientX - dragStartPxRef.current.x);
+        const dy = Math.abs(e.clientY - dragStartPxRef.current.y);
+        if (dx > 5 || dy > 5) {
+          didDragRef.current = true;
+          document.body.style.cursor = "grabbing";
+        }
+      }
+      const rect = draggingPinRef.current.imgEl.getBoundingClientRect();
+      const x = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
+      const y = Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100));
+      const pos = { id: draggingPinRef.current.pinId, x, y };
+      dragPosRef.current = pos;
+      setDragPos({ ...pos });
+    }
+
+    async function onPinMouseUp() {
+      if (!draggingPinRef.current) return;
+      const { pinId, type } = draggingPinRef.current;
+      const pos = dragPosRef.current ? { ...dragPosRef.current } : null;
+      draggingPinRef.current = null;
+      dragPosRef.current = null;
+      dragStartPxRef.current = null;
+      setDragPos(null);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+
+      if (!didDragRef.current || !pos) return;
+
+      if (type === "comment") {
+        const res = await fetch(`/api/comments/${pinId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ posX: pos.x, posY: pos.y }),
+        });
+        if (res.ok) {
+          setComments((prev) => prev.map((c) => c.id === pinId ? { ...c, posX: pos.x, posY: pos.y } : c));
+          setLightboxComments((prev) => prev.map((c) => c.id === pinId ? { ...c, posX: pos.x, posY: pos.y } : c));
+        }
+      } else {
+        const res = await fetch(`/api/renders/${renderId}/product-pins/${pinId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ posX: pos.x, posY: pos.y }),
+        });
+        if (res.ok) {
+          setProductPins((prev) => prev.map((p) => p.id === pinId ? { ...p, posX: pos.x, posY: pos.y } : p));
+          setLightboxProductPins((prev) => prev.map((p) => p.id === pinId ? { ...p, posX: pos.x, posY: pos.y } : p));
+        }
+      }
+    }
+
+    document.addEventListener("mousemove", onPinMouseMove);
+    document.addEventListener("mouseup", onPinMouseUp);
+    return () => {
+      document.removeEventListener("mousemove", onPinMouseMove);
+      document.removeEventListener("mouseup", onPinMouseUp);
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   async function startChatRecording() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -976,6 +1049,27 @@ export default function RenderViewer({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status }),
     });
+  }
+
+  function startPinDrag(
+    e: React.MouseEvent,
+    pinId: string,
+    type: "comment" | "product",
+    imgEl: HTMLDivElement | null
+  ) {
+    if (!imgEl) return;
+    e.stopPropagation();
+    e.preventDefault();
+    didDragRef.current = false;
+    dragStartPxRef.current = { x: e.clientX, y: e.clientY };
+    draggingPinRef.current = { pinId, type, imgEl };
+    document.body.style.userSelect = "none";
+    const rect = imgEl.getBoundingClientRect();
+    const x = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
+    const y = Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100));
+    const pos = { id: pinId, x, y };
+    dragPosRef.current = pos;
+    setDragPos(pos);
   }
 
   function handleSidebarDragEnter(e: React.DragEvent) {
@@ -1719,42 +1813,50 @@ export default function RenderViewer({
             )}
 
             {/* Comment pins */}
-            {!hidePins && pinComments.map((c, i) => (
-              <button
-                key={c.id}
-                className={`absolute w-7 h-7 rounded-full border-2 border-white text-white text-xs font-bold flex items-center justify-center shadow-lg z-10 transition-transform hover:scale-110 ${c.isInternal ? "bg-slate-500" : STATUS_PIN_COLOR[c.status]} ${
-                  selectedId === c.id ? "scale-125 ring-2 ring-white ring-offset-1" : ""
-                }`}
-                style={{
-                  left: `calc(${c.posX!}% - 14px)`,
-                  top: `calc(${c.posY!}% - 14px)`,
-                }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setSelectedId(c.id === selectedId ? null : c.id);
-                  cancelPending();
-                  setReplyContent("");
-                }}
-                title={c.isInternal ? "Notatka wewnętrzna — niewidoczna dla klienta" : undefined}
-              >
-                {i + 1}
-                {c.isInternal && (
-                  <Lock size={8} className="absolute -top-1 -right-1 bg-slate-700 rounded-full p-[1px] text-white" />
-                )}
-              </button>
-            ))}
+            {!hidePins && pinComments.map((c, i) => {
+              const canDrag = c.author === authorName && selectedId !== c.id;
+              const pinX = dragPos?.id === c.id ? dragPos.x : c.posX!;
+              const pinY = dragPos?.id === c.id ? dragPos.y : c.posY!;
+              return (
+                <button
+                  key={c.id}
+                  className={`absolute w-7 h-7 rounded-full border-2 border-white text-white text-xs font-bold flex items-center justify-center shadow-lg z-10 ${dragPos?.id === c.id ? "transition-none cursor-grabbing" : `transition-transform hover:scale-110 ${canDrag ? "cursor-grab" : ""}`} ${c.isInternal ? "bg-slate-500" : STATUS_PIN_COLOR[c.status]} ${selectedId === c.id ? "scale-125 ring-2 ring-white ring-offset-1" : ""}`}
+                  style={{ left: `calc(${pinX}% - 14px)`, top: `calc(${pinY}% - 14px)` }}
+                  onMouseDown={canDrag ? (e) => startPinDrag(e, c.id, "comment", imgRef.current) : undefined}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (didDragRef.current) { didDragRef.current = false; return; }
+                    setSelectedId(c.id === selectedId ? null : c.id);
+                    cancelPending();
+                    setReplyContent("");
+                  }}
+                  title={c.isInternal ? "Notatka wewnętrzna — niewidoczna dla klienta" : undefined}
+                >
+                  {i + 1}
+                  {c.isInternal && (
+                    <Lock size={8} className="absolute -top-1 -right-1 bg-slate-700 rounded-full p-[1px] text-white" />
+                  )}
+                </button>
+              );
+            })}
 
             {/* Product pins */}
-            {!hidePins && productPins.map((pin) => (
+            {!hidePins && productPins.map((pin) => {
+              const pinX = dragPos?.id === pin.id ? dragPos.x : pin.posX;
+              const pinY = dragPos?.id === pin.id ? dragPos.y : pin.posY;
+              return (
               <div
                 key={pin.id}
                 className="absolute z-10"
-                style={{ left: `calc(${pin.posX}% - 13px)`, top: `calc(${pin.posY}% - 13px)` }}
-                onMouseEnter={() => handleProductPinMouseEnter(pin.id)}
+                style={{ left: `calc(${pinX}% - 13px)`, top: `calc(${pinY}% - 13px)` }}
+                onMouseEnter={() => !draggingPinRef.current && handleProductPinMouseEnter(pin.id)}
                 onMouseLeave={handleProductPinMouseLeave}
                 onClick={(e) => e.stopPropagation()}
               >
-                <div className={`w-[26px] h-[26px] rounded-lg bg-black/60 backdrop-blur-sm border border-white/20 shadow-lg cursor-pointer flex items-center justify-center transition-transform hover:scale-110 hover:bg-black/80 ${productPinsPulsing ? "animate-pulse" : ""}`}>
+                <div
+                  className={`w-[26px] h-[26px] rounded-lg bg-black/60 backdrop-blur-sm border border-white/20 shadow-lg flex items-center justify-center ${dragPos?.id === pin.id ? "transition-none cursor-grabbing" : `transition-transform hover:scale-110 hover:bg-black/80 ${isDesigner ? "cursor-grab" : "cursor-pointer"}`} ${productPinsPulsing && !draggingPinRef.current ? "animate-pulse" : ""}`}
+                  onMouseDown={isDesigner ? (e) => startPinDrag(e, pin.id, "product", imgRef.current) : undefined}
+                >
                   <Armchair size={14} className="text-white" />
                 </div>
                 {hoveredProductPinId === pin.id && (
@@ -1794,7 +1896,8 @@ export default function RenderViewer({
                   </div>
                 )}
               </div>
-            ))}
+              );
+            })}
 
             {/* Pending pin */}
             {pending && (
@@ -2889,16 +2992,22 @@ export default function RenderViewer({
               />
 
               {/* Product pins in lightbox */}
-              {!hidePins && (lightboxRender.id === renderId ? productPins : lightboxProductPins).map((pin) => (
+              {!hidePins && (lightboxRender.id === renderId ? productPins : lightboxProductPins).map((pin) => {
+                const pinX = dragPos?.id === pin.id ? dragPos.x : pin.posX;
+                const pinY = dragPos?.id === pin.id ? dragPos.y : pin.posY;
+                return (
                 <div
                   key={pin.id}
                   className="absolute z-10"
-                  style={{ left: `calc(${pin.posX}% - 13px)`, top: `calc(${pin.posY}% - 13px)` }}
-                  onMouseEnter={() => handleProductPinMouseEnter(pin.id)}
+                  style={{ left: `calc(${pinX}% - 13px)`, top: `calc(${pinY}% - 13px)` }}
+                  onMouseEnter={() => !draggingPinRef.current && handleProductPinMouseEnter(pin.id)}
                   onMouseLeave={handleProductPinMouseLeave}
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <div className={`w-[26px] h-[26px] rounded-lg bg-black/60 backdrop-blur-sm border border-white/20 shadow-lg cursor-pointer flex items-center justify-center transition-transform hover:scale-110 hover:bg-black/80 ${productPinsPulsing ? "animate-pulse" : ""}`}>
+                  <div
+                    className={`w-[26px] h-[26px] rounded-lg bg-black/60 backdrop-blur-sm border border-white/20 shadow-lg flex items-center justify-center ${dragPos?.id === pin.id ? "transition-none cursor-grabbing" : `transition-transform hover:scale-110 hover:bg-black/80 ${isDesigner ? "cursor-grab" : "cursor-pointer"}`} ${productPinsPulsing && !draggingPinRef.current ? "animate-pulse" : ""}`}
+                    onMouseDown={isDesigner ? (e) => startPinDrag(e, pin.id, "product", lightboxImgRef.current) : undefined}
+                  >
                     <Armchair size={14} className="text-white" />
                   </div>
                   {hoveredProductPinId === pin.id && (
@@ -2938,29 +3047,32 @@ export default function RenderViewer({
                     </div>
                   )}
                 </div>
-              ))}
+                );
+              })}
 
               {/* Pins overlay — interactive */}
-              {!hidePins && (lightboxRender.id === renderId ? pinComments : lightboxComments.filter(c => c.posX !== null)).map((c, i) => (
-                <button
-                  key={c.id}
-                  className={`absolute w-7 h-7 rounded-full border-2 border-white text-white text-xs font-bold flex items-center justify-center shadow-lg z-10 transition-transform hover:scale-110 ${STATUS_PIN_COLOR[c.status]} ${
-                    selectedId === c.id ? "scale-125 ring-2 ring-white ring-offset-1" : ""
-                  }`}
-                  style={{
-                    left: `calc(${c.posX!}% - 14px)`,
-                    top: `calc(${c.posY!}% - 14px)`,
-                  }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setSelectedId(c.id === selectedId ? null : c.id);
-                    cancelPending();
-                    setReplyContent("");
-                  }}
-                >
-                  {i + 1}
-                </button>
-              ))}
+              {!hidePins && (lightboxRender.id === renderId ? pinComments : lightboxComments.filter(c => c.posX !== null)).map((c, i) => {
+                const canDrag = c.author === authorName && selectedId !== c.id;
+                const pinX = dragPos?.id === c.id ? dragPos.x : c.posX!;
+                const pinY = dragPos?.id === c.id ? dragPos.y : c.posY!;
+                return (
+                  <button
+                    key={c.id}
+                    className={`absolute w-7 h-7 rounded-full border-2 border-white text-white text-xs font-bold flex items-center justify-center shadow-lg z-10 ${dragPos?.id === c.id ? "transition-none cursor-grabbing" : `transition-transform hover:scale-110 ${canDrag ? "cursor-grab" : ""}`} ${STATUS_PIN_COLOR[c.status]} ${selectedId === c.id ? "scale-125 ring-2 ring-white ring-offset-1" : ""}`}
+                    style={{ left: `calc(${pinX}% - 14px)`, top: `calc(${pinY}% - 14px)` }}
+                    onMouseDown={canDrag ? (e) => startPinDrag(e, c.id, "comment", lightboxImgRef.current) : undefined}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (didDragRef.current) { didDragRef.current = false; return; }
+                      setSelectedId(c.id === selectedId ? null : c.id);
+                      cancelPending();
+                      setReplyContent("");
+                    }}
+                  >
+                    {i + 1}
+                  </button>
+                );
+              })}
 
               {/* Pending pin */}
               {pending && (

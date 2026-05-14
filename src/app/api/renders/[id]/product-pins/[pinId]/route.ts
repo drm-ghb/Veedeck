@@ -3,6 +3,37 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getWorkspaceUserId } from "@/lib/workspace";
 
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string; pinId: string }> }
+) {
+  const session = await auth();
+  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const userId = getWorkspaceUserId(session);
+  const { id, pinId } = await params;
+
+  const pin = await prisma.renderProductPin.findUnique({
+    where: { id: pinId },
+    include: { render: { include: { project: { select: { userId: true } } } } },
+  });
+
+  if (!pin || pin.renderId !== id || pin.render.project.userId !== userId) {
+    return NextResponse.json({ error: "Brak dostępu" }, { status: 403 });
+  }
+
+  const { posX, posY } = await req.json();
+  if (posX == null || posY == null) {
+    return NextResponse.json({ error: "Brakujące pola" }, { status: 400 });
+  }
+
+  const updated = await prisma.renderProductPin.update({
+    where: { id: pinId },
+    data: { posX, posY },
+  });
+
+  return NextResponse.json(updated);
+}
+
 export async function DELETE(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string; pinId: string }> }

@@ -17,7 +17,7 @@ export async function PATCH(
 
   const { id } = await params;
   const body = await req.json();
-  const { viewedByDesigner, status, content, title, authorName } = body;
+  const { viewedByDesigner, status, content, title, authorName, posX, posY } = body;
 
   if (content !== undefined && typeof content === "string" && content.length > MAX_LENGTHS.comment) {
     return NextResponse.json({ error: "Komentarz jest zbyt długi" }, { status: 400 });
@@ -39,11 +39,13 @@ export async function PATCH(
   const isOwner = comment.render.project.userId === userId;
   // Use the session user's own name — never trust the client-supplied authorName for auth
   const sessionName = session.user.name ?? session.user.email ?? "";
-  const isAuthor = content !== undefined && sessionName !== "" && comment.author === sessionName;
+  const isAuthor = sessionName !== "" && comment.author === sessionName;
 
   if (!isOwner && !isAuthor) {
     return NextResponse.json({ error: "Brak dostępu" }, { status: 403 });
   }
+
+  const isMovingPin = posX !== undefined && posY !== undefined;
 
   const updated = await prisma.comment.update({
     where: { id },
@@ -51,7 +53,8 @@ export async function PATCH(
       ...(isOwner && viewedByDesigner !== undefined ? { viewedByDesigner } : {}),
       ...(isOwner && status !== undefined ? { status } : {}),
       ...(isOwner && title !== undefined ? { title: title ? title.trim() : null } : {}),
-      ...(content !== undefined ? { content: content.trim() } : {}),
+      ...(isAuthor && content !== undefined ? { content: content.trim() } : {}),
+      ...(isAuthor && isMovingPin ? { posX, posY } : {}),
     },
     include: { replies: true },
   });
