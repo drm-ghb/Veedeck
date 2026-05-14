@@ -8,20 +8,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuItem,
-} from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { ChevronDown } from "@/components/ui/icons";
-import { ROOM_TYPE_LABELS, ICON_OPTIONS, getRoomIcon, type RoomType } from "@/lib/roomIcons";
-
-const ROOM_TYPES = Object.entries(ROOM_TYPE_LABELS) as [RoomType, string][];
+import { ICON_OPTIONS, getRoomIcon } from "@/lib/roomIcons";
 
 interface EditRoomDialogProps {
   room: {
@@ -40,7 +31,6 @@ export default function EditRoomDialog({
   onOpenChange,
 }: EditRoomDialogProps) {
   const [name, setName] = useState(room.name);
-  const [type, setType] = useState<RoomType>(room.type as RoomType);
   const [icon, setIcon] = useState<string>(room.icon || room.type);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
@@ -48,7 +38,6 @@ export default function EditRoomDialog({
   useEffect(() => {
     if (open) {
       setName(room.name);
-      setType(room.type as RoomType);
       setIcon(room.icon || room.type);
     }
   }, [open, room]);
@@ -63,7 +52,7 @@ export default function EditRoomDialog({
       const res = await fetch(`/api/rooms/${room.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: name.trim(), type, icon }),
+        body: JSON.stringify({ name: name.trim(), icon }),
       });
 
       if (!res.ok) throw new Error();
@@ -101,27 +90,6 @@ export default function EditRoomDialog({
               autoFocus
               onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleSubmit(); } }}
             />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label>Typ pomieszczenia</Label>
-            <DropdownMenu>
-              <DropdownMenuTrigger type="button" className="w-full flex items-center justify-between gap-2 px-3 py-2 border border-gray-200 rounded-lg bg-white text-sm hover:border-gray-400 transition-colors">
-                <span className="text-gray-700">{ROOM_TYPE_LABELS[type]}</span>
-                <ChevronDown size={14} className="text-gray-400 flex-shrink-0" />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-[--radix-dropdown-menu-trigger-width]">
-                {ROOM_TYPES.map(([value, label]) => (
-                  <DropdownMenuItem
-                    key={value}
-                    onClick={() => setType(value)}
-                    className={type === value ? "bg-gray-100 font-medium" : ""}
-                  >
-                    {label}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
           </div>
 
           <div className="space-y-1.5">
