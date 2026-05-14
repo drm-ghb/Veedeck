@@ -135,11 +135,11 @@ export default function EditRoomDialog({
                   onClick={() => setIcon(key)}
                   className={`flex flex-col items-center gap-1 p-2 rounded-lg border transition-all text-xs ${
                     icon === key
-                      ? "border-gray-900 bg-gray-900 text-white"
-                      : "border-gray-200 bg-white text-gray-500 hover:border-gray-400"
+                      ? "border-foreground bg-foreground text-background"
+                      : "border-border bg-card text-muted-foreground hover:border-foreground/40"
                   }`}
                 >
-                  <Icon size={20} className={icon === key ? "text-white" : "text-primary"} />
+                  <Icon size={20} className={icon === key ? "text-background" : "text-primary"} />
                   <span className="truncate w-full text-center leading-tight">{label}</span>
                 </button>
               ))}
