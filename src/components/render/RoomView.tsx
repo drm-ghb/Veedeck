@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useViewPreference } from "@/hooks/useViewPreference";
 import { ArchiveRestore, CopyCheck, Eye, FileText, Folder, LayoutGrid, List, Pin, Trash2, GripVertical, Upload } from "@/components/ui/icons";
@@ -73,6 +73,7 @@ export default function RoomView({ projectId, roomId, renders, archivedRenders, 
   const [bulkLoading, setBulkLoading] = useState(false);
   const [moveOpen, setMoveOpen] = useState(false);
   const [localFolders, setLocalFolders] = useState(folders);
+  useEffect(() => { setLocalFolders(folders); }, [folders]);
   const [isDragOver, setIsDragOver] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const dragCounterRef = useRef(0);

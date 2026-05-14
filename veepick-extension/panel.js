@@ -1,7 +1,7 @@
 // Veepick Panel — injected into the page on extension icon click
 (function () {
   const PANEL_ID = "veepick-panel";
-  const PANEL_VERSION = "2.3";
+  const PANEL_VERSION = "2.4";
 
   // Toggle if already exists and version matches; replace if outdated
   const existing = document.getElementById(PANEL_ID);
@@ -125,8 +125,9 @@
 
     /* ── Tabs ── */
     #veepick-panel .vp-tabs { display: flex; border-bottom: 1px solid #f0f0f0; flex-shrink: 0; }
-    #veepick-panel .vp-tab { flex: 1; padding: 10px 8px; font-size: 12px; font-weight: 600; text-align: center; cursor: pointer; border: none; background: none; border-bottom: 2px solid transparent; color: #999; transition: color .15s, border-color .15s; position: relative; }
-    #veepick-panel .vp-tab.vp-tab-active { color: #6366f1; border-bottom-color: #6366f1; }
+    #veepick-panel .vp-tab { flex: 1 !important; padding: 7px 8px !important; font-size: 12px !important; font-weight: 600 !important; text-align: center !important; cursor: pointer !important; border: none !important; border-bottom: 2px solid transparent !important; border-radius: 0 !important; outline: none !important; background: none !important; box-shadow: none !important; color: #999 !important; transition: color .15s, border-color .15s !important; position: relative !important; }
+    #veepick-panel .vp-tab:focus, #veepick-panel .vp-tab:active { background: none !important; box-shadow: none !important; outline: none !important; }
+    #veepick-panel .vp-tab.vp-tab-active { color: #6366f1 !important; border-bottom-color: #6366f1 !important; background: none !important; }
     #veepick-panel .vp-tab-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; background: #9ca3af; color: #fff; font-size: 10px; font-weight: 700; margin-left: 5px; vertical-align: middle; }
 
     /* ── Section preview button ── */
@@ -248,8 +249,8 @@
             <span class="vp-img-placeholder" id="vp-previewImgPlaceholder">🛍</span>
             <img id="vp-previewImg" class="vp-hidden" alt="" />
           </div>
-          <div class="vp-pname" id="vp-previewName">Ładowanie...</div>
-          <div class="vp-pprice" id="vp-previewPrice"></div>
+          <div class="vp-pname vp-hidden" id="vp-previewName"></div>
+          <div class="vp-pprice vp-hidden" id="vp-previewPrice"></div>
         </div>
         <p class="vp-hint" id="vp-imagePickerHint">Najedź na zdjęcie na stronie aby wybrać inne</p>
         <div class="vp-field"><label>Lista zakupowa</label><select id="vp-selectList"><option value="">Wybierz listę...</option></select></div>
@@ -615,7 +616,7 @@
     const ld = getJsonLd();
     const name = (ld?.name || getMeta("og:title") || document.title || "").replace(/\s+/g, " ").trim();
     const ogImage = getMeta("og:image");
-    const imageUrl = (ld?.image && (Array.isArray(ld.image) ? ld.image[0] : ld.image))
+    const imageUrl = (ld?.image && (() => { const img = Array.isArray(ld.image) ? ld.image[0] : ld.image; return typeof img === "string" ? img : (img?.url || img?.contentUrl || null); })())
       || (ogImage && ogImage.startsWith("http") ? ogImage : null)
       || (() => {
         const selectors = [
@@ -641,7 +642,17 @@
       if (!raw) return null;
       const num = parseFloat(raw.replace(",", "."));
       return isNaN(num) ? null : `${num} ${curLabel}`;
-    })() || queryText(['[itemprop="price"]', '#product-price', '.product-price', '[class*="product__price"]', '[class*="product-price"]:not([class*="list"])']) || null;
+    })() || (() => {
+      const raw = queryText(['[itemprop="price"]', '#product-price', '.product-price', '[class*="product__price"]', '[class*="product-price"]:not([class*="list"])', '.price__value', '[class*="price-value"]', '.product__price-value']);
+      if (!raw) return null;
+      if (/zł|PLN|EUR|USD|GBP/i.test(raw)) return raw;
+      const cur = document.querySelector('[itemprop="priceCurrency"]')?.getAttribute("content") ||
+                  document.querySelector('[itemprop="priceCurrency"]')?.textContent?.trim() || "zł";
+      const num = parseFloat(raw.replace(/[\s\u00a0]/g, "").replace(",", "."));
+      if (isNaN(num)) return null;
+      const label = cur === "PLN" ? "zł" : cur;
+      return `${Number.isInteger(num) ? num : num.toFixed(2).replace(".", ",")} ${label}`;
+    })() || null;
 
     let manufacturer = (ld?.brand && (typeof ld.brand === "string" ? ld.brand : ld.brand?.name)) || null;
     if (!manufacturer) manufacturer = queryText(['[itemprop="brand"] [itemprop="name"]', '[itemprop="brand"]', '[itemprop="manufacturer"]', '.product-brand', '.product__brand', '.brand-name', '.manufacturer-name', '[data-testid="brand"]', '.product-manufacturer', 'a[class*="brand"]']);

@@ -17,7 +17,7 @@ export async function PATCH(
 
   const { id } = await params;
   const body = await req.json();
-  const { viewedByDesigner, status, content, authorName } = body;
+  const { viewedByDesigner, status, content, title, authorName } = body;
 
   if (content !== undefined && typeof content === "string" && content.length > MAX_LENGTHS.comment) {
     return NextResponse.json({ error: "Komentarz jest zbyt długi" }, { status: 400 });
@@ -50,6 +50,7 @@ export async function PATCH(
     data: {
       ...(isOwner && viewedByDesigner !== undefined ? { viewedByDesigner } : {}),
       ...(isOwner && status !== undefined ? { status } : {}),
+      ...(isOwner && title !== undefined ? { title: title ? title.trim() : null } : {}),
       ...(content !== undefined ? { content: content.trim() } : {}),
     },
     include: { replies: true },

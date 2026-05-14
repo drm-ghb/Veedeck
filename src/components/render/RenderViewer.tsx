@@ -244,9 +244,10 @@ export default function RenderViewer({
   const [editingCommentText, setEditingCommentText] = useState("");
   const [editingReplyId, setEditingReplyId] = useState<string | null>(null);
   const [editingReplyText, setEditingReplyText] = useState("");
-  const [openCommentMenu, setOpenCommentMenu] = useState(false);
-  const [openReplyMenuId, setOpenReplyMenuId] = useState<string | null>(null);
   const [chatOpenMenuId, setChatOpenMenuId] = useState<string | null>(null);
+  const [openPinMenu, setOpenPinMenu] = useState(false);
+  const [editingTitleMode, setEditingTitleMode] = useState(false);
+  const [editingTitleText, setEditingTitleText] = useState("");
   const [editingChatId, setEditingChatId] = useState<string | null>(null);
   const [editingChatText, setEditingChatText] = useState("");
   const [replyingToMsg, setReplyingToMsg] = useState<{ id: string; content: string; author: string } | null>(null);
@@ -301,6 +302,15 @@ export default function RenderViewer({
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pendingActionsRef = useRef<{
+    submit: () => void;
+    cancel: () => void;
+    hasContent: () => boolean;
+  }>({
+    submit: () => {},
+    cancel: () => {},
+    hasContent: () => false,
+  });
 
   const [isChatRecording, setIsChatRecording] = useState(false);
   const [chatRecordingSeconds, setChatRecordingSeconds] = useState(0);
@@ -322,6 +332,10 @@ export default function RenderViewer({
   const replyMediaRecorderRef = useRef<MediaRecorder | null>(null);
   const replyAudioChunksRef = useRef<Blob[]>([]);
   const replyRecordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const [isDragOverSidebar, setIsDragOverSidebar] = useState(false);
+  const [sidebarUploading, setSidebarUploading] = useState(false);
+  const sidebarDragCounterRef = useRef(0);
 
   const [visualVP, setVisualVP] = useState({ height: 0, offsetTop: 0 });
   useEffect(() => {
@@ -493,6 +507,35 @@ export default function RenderViewer({
       }
     },
     onUploadError: () => { toast.error("Błąd przesyłania pliku"); },
+  });
+
+  const { startUpload: startSidebarUpload } = useUploadThing("renderUploader", {
+    onClientUploadComplete: async (res) => {
+      await Promise.all(res.map(async (file) => {
+        const ext = file.name.split(".").pop()?.toLowerCase();
+        const fileType = ext === "pdf" ? "pdf" : "image";
+        await fetch("/api/renders", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            projectId,
+            roomId,
+            folderId,
+            name: file.name.replace(/\.[^.]+$/, ""),
+            fileUrl: file.url,
+            fileKey: file.key,
+            fileType,
+          }),
+        });
+      }));
+      setSidebarUploading(false);
+      toast.success(res.length > 1 ? `Dodano ${res.length} pliki` : "Plik dodany");
+      router.refresh();
+    },
+    onUploadError: () => {
+      setSidebarUploading(false);
+      toast.error("Błąd przesyłania pliku");
+    },
   });
 
   useEffect(() => {
@@ -694,6 +737,29 @@ export default function RenderViewer({
       setAdding(false);
     }
   }
+
+  // Keep ref in sync so the mousedown handler always calls latest closures
+  pendingActionsRef.current = {
+    submit: submitComment,
+    cancel: cancelPending,
+    hasContent: () => !!(newContent.trim() || pendingVoiceUrl),
+  };
+
+  // Submit (or cancel if empty) when user clicks outside the new-pin popup
+  useEffect(() => {
+    if (!pending) return;
+    function handleMouseDown(e: MouseEvent) {
+      const popup = document.querySelector("[data-new-pin-popup]");
+      if (popup?.contains(e.target as Node)) return;
+      if (pendingActionsRef.current.hasContent()) {
+        pendingActionsRef.current.submit();
+      } else {
+        pendingActionsRef.current.cancel();
+      }
+    }
+    document.addEventListener("mousedown", handleMouseDown);
+    return () => document.removeEventListener("mousedown", handleMouseDown);
+  }, [pending]);
 
   async function startChatRecording() {
     try {
@@ -910,6 +976,50 @@ export default function RenderViewer({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status }),
     });
+  }
+
+  function handleSidebarDragEnter(e: React.DragEvent) {
+    e.preventDefault();
+    sidebarDragCounterRef.current++;
+    setIsDragOverSidebar(true);
+  }
+  function handleSidebarDragLeave(e: React.DragEvent) {
+    e.preventDefault();
+    sidebarDragCounterRef.current--;
+    if (sidebarDragCounterRef.current === 0) setIsDragOverSidebar(false);
+  }
+  function handleSidebarDragOver(e: React.DragEvent) {
+    e.preventDefault();
+  }
+  function handleSidebarDrop(e: React.DragEvent) {
+    e.preventDefault();
+    sidebarDragCounterRef.current = 0;
+    setIsDragOverSidebar(false);
+    const files = Array.from(e.dataTransfer.files).filter(
+      (f) => f.type.startsWith("image/") || f.type === "application/pdf"
+    );
+    if (!files.length) {
+      toast.error("Akceptowane są tylko obrazy i PDF");
+      return;
+    }
+    setSidebarUploading(true);
+    startSidebarUpload(files);
+  }
+
+  async function handleEditTitle(id: string, title: string) {
+    const res = await fetch(`/api/comments/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title: title.trim() || null }),
+    });
+    if (res.ok) {
+      const updated = await res.json();
+      setComments((prev) => prev.map((c) => c.id === id ? { ...c, title: updated.title } : c));
+      setLightboxComments((prev) => prev.map((c) => c.id === id ? { ...c, title: updated.title } : c));
+      setEditingTitleMode(false);
+    } else {
+      toast.error("Nie udało się edytować tytułu");
+    }
   }
 
   async function handleEditComment(id: string, content: string) {
@@ -1481,13 +1591,33 @@ export default function RenderViewer({
       <div className="flex flex-1 min-h-0">
         {/* Thumbnails sidebar */}
         {(isDesigner || (onRenderSelect && roomRenders.length > 0)) && (
-          <div className="hidden md:flex w-44 border-r bg-card flex-col flex-shrink-0 overflow-hidden">
+          <div
+            className="hidden md:flex w-44 border-r bg-card flex-col flex-shrink-0 overflow-hidden relative"
+            onDragEnter={isDesigner && projectId && roomId ? handleSidebarDragEnter : undefined}
+            onDragLeave={isDesigner && projectId && roomId ? handleSidebarDragLeave : undefined}
+            onDragOver={isDesigner && projectId && roomId ? handleSidebarDragOver : undefined}
+            onDrop={isDesigner && projectId && roomId ? handleSidebarDrop : undefined}
+          >
+            {/* Drag-over overlay */}
+            {isDragOverSidebar && (
+              <div className="absolute inset-0 z-20 bg-blue-500/10 border-2 border-dashed border-blue-400 rounded flex flex-col items-center justify-center gap-1 pointer-events-none">
+                <Upload size={20} className="text-blue-500" />
+                <span className="text-xs text-blue-600 font-medium text-center px-2">Upuść pliki tutaj</span>
+              </div>
+            )}
+            {/* Upload in progress overlay */}
+            {sidebarUploading && !isDragOverSidebar && (
+              <div className="absolute inset-0 z-20 bg-card/80 flex flex-col items-center justify-center gap-1 pointer-events-none">
+                <Loader2 size={20} className="text-blue-500 animate-spin" />
+                <span className="text-xs text-gray-500">Przesyłanie…</span>
+              </div>
+            )}
             <div className="px-3 py-2.5 border-b flex-shrink-0 flex items-center justify-between gap-2">
               <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
                 Pliki ({roomRenders.length})
               </p>
               {isDesigner && projectId && roomId && (
-                <RenderUploader projectId={projectId} roomId={roomId} compact />
+                <RenderUploader projectId={projectId} roomId={roomId} folderId={folderId} compact />
               )}
             </div>
             <div className="flex-1 overflow-y-auto p-2 space-y-1.5">
@@ -1682,9 +1812,11 @@ export default function RenderViewer({
             {/* New comment popup */}
             {pending && (
               <div
+                data-new-pin-popup=""
                 className="fixed z-50 bg-card rounded-xl shadow-xl border border-border p-4 w-64"
                 style={getPopupStyle(pending.x, pending.y, imgRef.current, 256, visualVP.height || undefined, visualVP.offsetTop)}
                 onClick={(e) => e.stopPropagation()}
+                onMouseDown={(e) => e.stopPropagation()}
               >
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Nowy pin</h3>
@@ -1796,20 +1928,63 @@ export default function RenderViewer({
                   >
                     {selectedIndex + 1}
                   </span>
-                  <span className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate flex-1">
-                    {selectedComment.title || `Pin #${selectedIndex + 1}`}
-                  </span>
-                  {isDesigner && (
-                    <button
-                      onClick={handleToggleInternal}
-                      className="text-gray-400 hover:text-gray-700 flex-shrink-0 transition-colors"
-                      title={selectedComment.isInternal ? "Pokaż klientowi" : "Ukryj przed klientem"}
-                    >
-                      {selectedComment.isInternal ? <LockOpen size={13} /> : <Lock size={13} />}
-                    </button>
+                  {editingTitleMode ? (
+                    <>
+                      <Input
+                        autoFocus
+                        value={editingTitleText}
+                        onChange={(e) => setEditingTitleText(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === "Enter") handleEditTitle(selectedComment.id, editingTitleText); if (e.key === "Escape") setEditingTitleMode(false); }}
+                        placeholder="Tytuł pinu..."
+                        className="flex-1 h-7 text-sm min-w-0"
+                      />
+                      <button onClick={() => setEditingTitleMode(false)} className="text-xs text-gray-400 hover:text-gray-700 flex-shrink-0 transition-colors">Anuluj</button>
+                      <button onClick={() => handleEditTitle(selectedComment.id, editingTitleText)} className="text-xs text-primary font-medium hover:opacity-80 flex-shrink-0 transition-colors">Zapisz</button>
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate flex-1">
+                        {selectedComment.title || `Pin #${selectedIndex + 1}`}
+                      </span>
+                      {isDesigner && (
+                        <button
+                          onClick={handleToggleInternal}
+                          className="text-gray-400 hover:text-gray-700 flex-shrink-0 transition-colors"
+                          title={selectedComment.isInternal ? "Pokaż klientowi" : "Ukryj przed klientem"}
+                        >
+                          {selectedComment.isInternal ? <LockOpen size={13} /> : <Lock size={13} />}
+                        </button>
+                      )}
+                      {isDesigner && (
+                        <div className="relative flex-shrink-0">
+                          <button
+                            onClick={() => setOpenPinMenu((v) => !v)}
+                            className="p-1 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-muted transition-colors"
+                          >
+                            <MoreVertical size={14} />
+                          </button>
+                          {openPinMenu && (
+                            <div className="absolute right-0 top-full mt-1 bg-popover border border-border rounded-xl shadow-lg z-[60] py-1 min-w-[130px]">
+                              <button
+                                onClick={() => { setEditingTitleText(selectedComment.title ?? ""); setEditingTitleMode(true); setOpenPinMenu(false); }}
+                                className="w-full text-left px-3 py-2 text-xs hover:bg-muted flex items-center gap-2 transition-colors"
+                              >
+                                <Edit2 size={12} className="text-muted-foreground" /> Edytuj tytuł
+                              </button>
+                              <button
+                                onClick={() => { deleteComment(selectedComment.id); setOpenPinMenu(false); }}
+                                className="w-full text-left px-3 py-2 text-xs text-destructive hover:bg-destructive/10 flex items-center gap-2 transition-colors"
+                              >
+                                <Trash2 size={12} /> Usuń pin
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </>
                   )}
                   <button
-                    onClick={() => { setSelectedId(null); setReplyContent(""); }}
+                    onClick={() => { setSelectedId(null); setReplyContent(""); setOpenPinMenu(false); setEditingTitleMode(false); }}
                     className="text-gray-400 hover:text-gray-700 flex-shrink-0"
                   >
                     <X size={14} />
@@ -1844,7 +2019,6 @@ export default function RenderViewer({
                       <SwipeableMessage
                         isOwn={selectedComment.author === authorName}
                         onReply={() => setReplyingToMsg({ id: selectedComment.id, content: selectedComment.content, author: selectedComment.author })}
-                        onLongPress={(isDesigner || selectedComment.author === authorName) ? () => setOpenCommentMenu(true) : undefined}
                       >
                       <div className="flex items-center gap-1">
                         <div className="flex-1">
@@ -1863,33 +2037,23 @@ export default function RenderViewer({
                           >
                             <CornerDownLeft size={13} />
                           </button>
-                          {(isDesigner || selectedComment.author === authorName) && (
-                            <div className="relative">
-                              <button
-                                onClick={() => setOpenCommentMenu(v => !v)}
-                                className="p-1 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-muted transition-colors"
-                              >
-                                <MoreVertical size={13} />
-                              </button>
-                              {openCommentMenu && (
-                                <div className="absolute right-0 top-full mt-1 bg-popover border border-border rounded-xl shadow-lg z-50 py-1 min-w-[110px]">
-                                  {selectedComment.content !== "[wiadomość głosowa]" && (
-                                    <button
-                                      onClick={() => { setEditingCommentText(selectedComment.content); setEditingCommentMode(true); setOpenCommentMenu(false); }}
-                                      className="w-full text-left px-3 py-2 text-xs hover:bg-muted flex items-center gap-2 transition-colors"
-                                    >
-                                      <Edit2 size={12} className="text-muted-foreground" /> Edytuj
-                                    </button>
-                                  )}
-                                  <button
-                                    onClick={() => { deleteComment(selectedComment.id); setOpenCommentMenu(false); }}
-                                    className="w-full text-left px-3 py-2 text-xs text-destructive hover:bg-destructive/10 flex items-center gap-2 transition-colors"
-                                  >
-                                    <Trash2 size={12} /> Usuń
-                                  </button>
-                                </div>
-                              )}
-                            </div>
+                          {(isDesigner || selectedComment.author === authorName) && selectedComment.content !== "[wiadomość głosowa]" && (
+                            <button
+                              onClick={() => { setEditingCommentText(selectedComment.content); setEditingCommentMode(true); }}
+                              title="Edytuj"
+                              className="p-1 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-muted transition-colors"
+                            >
+                              <Edit2 size={13} />
+                            </button>
+                          )}
+                          {!isDesigner && selectedComment.author === authorName && (
+                            <button
+                              onClick={() => deleteComment(selectedComment.id)}
+                              title="Usuń"
+                              className="p-1 rounded-lg text-gray-400 hover:text-destructive hover:bg-destructive/10 transition-colors"
+                            >
+                              <Trash2 size={13} />
+                            </button>
                           )}
                         </div>
                       </div>
@@ -1929,7 +2093,6 @@ export default function RenderViewer({
                         <SwipeableMessage
                           isOwn={r.author === authorName}
                           onReply={() => setReplyingToMsg({ id: r.id, content: r.content, author: r.author })}
-                          onLongPress={(isDesigner || r.author === authorName) ? () => setOpenReplyMenuId(r.id) : undefined}
                         >
                         <div className="flex items-center gap-1">
                           <div className="flex-1">
@@ -1948,33 +2111,23 @@ export default function RenderViewer({
                             >
                               <CornerDownLeft size={13} />
                             </button>
+                            {(isDesigner || r.author === authorName) && r.content !== "[wiadomość głosowa]" && (
+                              <button
+                                onClick={() => { setEditingReplyText(r.content); setEditingReplyId(r.id); }}
+                                title="Edytuj"
+                                className="p-1 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-muted transition-colors"
+                              >
+                                <Edit2 size={13} />
+                              </button>
+                            )}
                             {(isDesigner || r.author === authorName) && (
-                              <div className="relative">
-                                <button
-                                  onClick={() => setOpenReplyMenuId(openReplyMenuId === r.id ? null : r.id)}
-                                  className="p-1 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-muted transition-colors"
-                                >
-                                  <MoreVertical size={13} />
-                                </button>
-                                {openReplyMenuId === r.id && (
-                                  <div className="absolute right-0 top-full mt-1 bg-popover border border-border rounded-xl shadow-lg z-50 py-1 min-w-[110px]">
-                                    {r.content !== "[wiadomość głosowa]" && (
-                                      <button
-                                        onClick={() => { setEditingReplyText(r.content); setEditingReplyId(r.id); setOpenReplyMenuId(null); }}
-                                        className="w-full text-left px-3 py-2 text-xs hover:bg-muted flex items-center gap-2 transition-colors"
-                                      >
-                                        <Edit2 size={12} className="text-muted-foreground" /> Edytuj
-                                      </button>
-                                    )}
-                                    <button
-                                      onClick={() => { deleteReply(selectedComment.id, r.id); setOpenReplyMenuId(null); }}
-                                      className="w-full text-left px-3 py-2 text-xs text-destructive hover:bg-destructive/10 flex items-center gap-2 transition-colors"
-                                    >
-                                      <Trash2 size={12} /> Usuń
-                                    </button>
-                                  </div>
-                                )}
-                              </div>
+                              <button
+                                onClick={() => deleteReply(selectedComment.id, r.id)}
+                                title="Usuń"
+                                className="p-1 rounded-lg text-gray-400 hover:text-destructive hover:bg-destructive/10 transition-colors"
+                              >
+                                <Trash2 size={13} />
+                              </button>
                             )}
                           </div>
                         </div>
@@ -1984,7 +2137,7 @@ export default function RenderViewer({
                   ))}
                 </div>
 
-                {/* Status dropdown + delete */}
+                {/* Status dropdown */}
                 {isDesigner && (
                   <div className="px-4 py-2 border-t flex items-center gap-2 flex-shrink-0">
                     <DropdownMenu>
@@ -2825,9 +2978,11 @@ export default function RenderViewer({
               {/* New comment popup */}
               {pending && (
                 <div
+                  data-new-pin-popup=""
                   className="fixed z-50 bg-card rounded-xl shadow-xl border border-border p-4 w-64"
                   style={getPopupStyle(pending.x, pending.y, lightboxImgRef.current, 256, visualVP.height || undefined, visualVP.offsetTop)}
                   onClick={(e) => e.stopPropagation()}
+                  onMouseDown={(e) => e.stopPropagation()}
                 >
                   <div className="flex items-center justify-between mb-3">
                     <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Nowy pin</h3>
@@ -2922,11 +3077,54 @@ export default function RenderViewer({
                     <span className={`w-5 h-5 rounded-full text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0 ${STATUS_PIN_COLOR[selectedComment.status]}`}>
                       {selectedIndex + 1}
                     </span>
-                    <span className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate flex-1">
-                      {selectedComment.title || `Pin #${selectedIndex + 1}`}
-                    </span>
+                    {editingTitleMode ? (
+                      <>
+                        <Input
+                          autoFocus
+                          value={editingTitleText}
+                          onChange={(e) => setEditingTitleText(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === "Enter") handleEditTitle(selectedComment.id, editingTitleText); if (e.key === "Escape") setEditingTitleMode(false); }}
+                          placeholder="Tytuł pinu..."
+                          className="flex-1 h-7 text-sm min-w-0"
+                        />
+                        <button onClick={() => setEditingTitleMode(false)} className="text-xs text-gray-400 hover:text-gray-700 flex-shrink-0 transition-colors">Anuluj</button>
+                        <button onClick={() => handleEditTitle(selectedComment.id, editingTitleText)} className="text-xs text-primary font-medium hover:opacity-80 flex-shrink-0 transition-colors">Zapisz</button>
+                      </>
+                    ) : (
+                      <>
+                        <span className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate flex-1">
+                          {selectedComment.title || `Pin #${selectedIndex + 1}`}
+                        </span>
+                        {isDesigner && (
+                          <div className="relative flex-shrink-0">
+                            <button
+                              onClick={() => setOpenPinMenu((v) => !v)}
+                              className="p-1 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-muted transition-colors"
+                            >
+                              <MoreVertical size={14} />
+                            </button>
+                            {openPinMenu && (
+                              <div className="absolute right-0 top-full mt-1 bg-popover border border-border rounded-xl shadow-lg z-[60] py-1 min-w-[130px]">
+                                <button
+                                  onClick={() => { setEditingTitleText(selectedComment.title ?? ""); setEditingTitleMode(true); setOpenPinMenu(false); }}
+                                  className="w-full text-left px-3 py-2 text-xs hover:bg-muted flex items-center gap-2 transition-colors"
+                                >
+                                  <Edit2 size={12} className="text-muted-foreground" /> Edytuj tytuł
+                                </button>
+                                <button
+                                  onClick={() => { deleteComment(selectedComment.id); setOpenPinMenu(false); }}
+                                  className="w-full text-left px-3 py-2 text-xs text-destructive hover:bg-destructive/10 flex items-center gap-2 transition-colors"
+                                >
+                                  <Trash2 size={12} /> Usuń pin
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </>
+                    )}
                     <button
-                      onClick={() => { setSelectedId(null); setReplyContent(""); }}
+                      onClick={() => { setSelectedId(null); setReplyContent(""); setOpenPinMenu(false); setEditingTitleMode(false); }}
                       className="text-gray-400 hover:text-gray-700 flex-shrink-0"
                     >
                       <X size={14} />
@@ -2953,7 +3151,6 @@ export default function RenderViewer({
                         <SwipeableMessage
                           isOwn={selectedComment.author === authorName}
                           onReply={() => setReplyingToMsg({ id: selectedComment.id, content: selectedComment.content, author: selectedComment.author })}
-                          onLongPress={(isDesigner || selectedComment.author === authorName) ? () => setOpenCommentMenu(true) : undefined}
                         >
                         <div className="flex items-center gap-1">
                           <div className="flex-1">
@@ -2972,30 +3169,23 @@ export default function RenderViewer({
                             >
                               <CornerDownLeft size={13} />
                             </button>
-                            {(isDesigner || selectedComment.author === authorName) && (
-                              <div className="relative">
-                                <button onClick={() => setOpenCommentMenu(v => !v)} className="p-1 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-muted transition-colors">
-                                  <MoreVertical size={13} />
-                                </button>
-                                {openCommentMenu && (
-                                  <div className="absolute right-0 top-full mt-1 bg-popover border border-border rounded-xl shadow-lg z-50 py-1 min-w-[110px]">
-                                    {selectedComment.content !== "[wiadomość głosowa]" && (
-                                      <button
-                                        onClick={() => { setEditingCommentMode(true); setEditingCommentText(selectedComment.content); setOpenCommentMenu(false); }}
-                                        className="w-full text-left px-3 py-2 text-xs hover:bg-muted flex items-center gap-2 transition-colors"
-                                      >
-                                        <Edit2 size={12} className="text-muted-foreground" /> Edytuj
-                                      </button>
-                                    )}
-                                    <button
-                                      onClick={() => { deleteComment(selectedComment.id); setOpenCommentMenu(false); }}
-                                      className="w-full text-left px-3 py-2 text-xs text-destructive hover:bg-destructive/10 flex items-center gap-2 transition-colors"
-                                    >
-                                      <Trash2 size={12} /> Usuń
-                                    </button>
-                                  </div>
-                                )}
-                              </div>
+                            {(isDesigner || selectedComment.author === authorName) && selectedComment.content !== "[wiadomość głosowa]" && (
+                              <button
+                                onClick={() => { setEditingCommentText(selectedComment.content); setEditingCommentMode(true); }}
+                                title="Edytuj"
+                                className="p-1 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-muted transition-colors"
+                              >
+                                <Edit2 size={13} />
+                              </button>
+                            )}
+                            {!isDesigner && selectedComment.author === authorName && (
+                              <button
+                                onClick={() => deleteComment(selectedComment.id)}
+                                title="Usuń"
+                                className="p-1 rounded-lg text-gray-400 hover:text-destructive hover:bg-destructive/10 transition-colors"
+                              >
+                                <Trash2 size={13} />
+                              </button>
                             )}
                           </div>
                         </div>
@@ -3029,7 +3219,6 @@ export default function RenderViewer({
                           <SwipeableMessage
                             isOwn={r.author === authorName}
                             onReply={() => setReplyingToMsg({ id: r.id, content: r.content, author: r.author })}
-                            onLongPress={(isDesigner || r.author === authorName) ? () => setOpenReplyMenuId(r.id) : undefined}
                           >
                           <div className="flex items-center gap-1">
                             <div className="flex-1">
@@ -3048,30 +3237,23 @@ export default function RenderViewer({
                               >
                                 <CornerDownLeft size={13} />
                               </button>
+                              {(isDesigner || r.author === authorName) && r.content !== "[wiadomość głosowa]" && (
+                                <button
+                                  onClick={() => { setEditingReplyId(r.id); setEditingReplyText(r.content); }}
+                                  title="Edytuj"
+                                  className="p-1 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-muted transition-colors"
+                                >
+                                  <Edit2 size={13} />
+                                </button>
+                              )}
                               {(isDesigner || r.author === authorName) && (
-                                <div className="relative">
-                                  <button onClick={() => setOpenReplyMenuId(openReplyMenuId === r.id ? null : r.id)} className="p-1 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-muted transition-colors">
-                                    <MoreVertical size={13} />
-                                  </button>
-                                  {openReplyMenuId === r.id && (
-                                    <div className="absolute right-0 top-full mt-1 bg-popover border border-border rounded-xl shadow-lg z-50 py-1 min-w-[110px]">
-                                      {r.content !== "[wiadomość głosowa]" && (
-                                        <button
-                                          onClick={() => { setEditingReplyId(r.id); setEditingReplyText(r.content); setOpenReplyMenuId(null); }}
-                                          className="w-full text-left px-3 py-2 text-xs hover:bg-muted flex items-center gap-2 transition-colors"
-                                        >
-                                          <Edit2 size={12} className="text-muted-foreground" /> Edytuj
-                                        </button>
-                                      )}
-                                      <button
-                                        onClick={() => { deleteReply(selectedComment.id, r.id); setOpenReplyMenuId(null); }}
-                                        className="w-full text-left px-3 py-2 text-xs text-destructive hover:bg-destructive/10 flex items-center gap-2 transition-colors"
-                                      >
-                                        <Trash2 size={12} /> Usuń
-                                      </button>
-                                    </div>
-                                  )}
-                                </div>
+                                <button
+                                  onClick={() => deleteReply(selectedComment.id, r.id)}
+                                  title="Usuń"
+                                  className="p-1 rounded-lg text-gray-400 hover:text-destructive hover:bg-destructive/10 transition-colors"
+                                >
+                                  <Trash2 size={13} />
+                                </button>
                               )}
                             </div>
                           </div>
@@ -3205,6 +3387,7 @@ export default function RenderViewer({
           setPendingProductPos(null);
           setProductPinMode(false);
         }}
+        projectId={projectId}
       />
 
       {/* Version History Modal */}

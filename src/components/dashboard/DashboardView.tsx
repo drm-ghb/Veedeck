@@ -432,7 +432,7 @@ export default function DashboardView({
               <div className="rounded-xl border border-dashed border-border bg-card p-8 text-center">
                 <Layers size={32} className="mx-auto mb-3 text-muted-foreground/40" />
                 <p className="text-sm text-muted-foreground mb-3">Nie masz jeszcze żadnych projektów</p>
-                <NewProjectDialog />
+                <NewProjectDialog module="renderflow" />
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">

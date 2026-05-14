@@ -7,14 +7,19 @@ chrome.runtime.onInstalled.addListener(() => {
     chrome.contextMenus.create({
       id: "veepick-pick-image",
       title: "Wybierz zdjęcie dla veepick",
-      contexts: ["image"],
+      contexts: ["all"],
     });
   });
 });
 
-chrome.contextMenus.onClicked.addListener((info) => {
-  if (info.menuItemId === "veepick-pick-image" && info.srcUrl) {
+chrome.contextMenus.onClicked.addListener((info, tab) => {
+  if (info.menuItemId !== "veepick-pick-image") return;
+  if (info.srcUrl) {
+    // Right-clicked directly on an image — use it immediately
     chrome.storage.local.set({ veepick_picked_image: info.srcUrl });
+  } else if (tab?.id) {
+    // Right-clicked elsewhere — inject image-picker so user can hover over images
+    chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["image-picker.js"] }).catch(() => {});
   }
 });
 

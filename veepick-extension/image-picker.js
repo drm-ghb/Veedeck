@@ -87,16 +87,34 @@
   let currentSrc = null;
   let hideTimer = null;
 
+  function resolveUrl(url) {
+    if (!url) return null;
+    if (url.startsWith("http")) return url;
+    if (url.startsWith("//")) return "https:" + url;
+    return null;
+  }
+
+  function looksLikeImage(url) {
+    if (!url) return false;
+    const u = url.split("?")[0].split("#")[0].toLowerCase();
+    return /\.(jpg|jpeg|png|webp|gif|svg|avif)$/.test(u) || u.includes("/cdn/") || u.includes("/images/") || u.includes("/files/") || u.includes("/media/");
+  }
+
+  function getPickableSrc(img) {
+    // Prefer data-src (lazy-loaded real URL) over src which may be a placeholder or page URL
+    const rawDataSrc = img.dataset.src || img.getAttribute("data-lazy-src") || img.getAttribute("data-original");
+    const dataSrc = resolveUrl(rawDataSrc);
+    if (dataSrc) return dataSrc;
+
+    const src = resolveUrl(img.src);
+    if (src && !src.startsWith("data:") && looksLikeImage(src)) return src;
+    return null;
+  }
+
   function isPickable(img) {
     if (img.closest("#veepick-panel")) return false;
     const rect = img.getBoundingClientRect();
-    return (
-      rect.width >= 80 &&
-      rect.height >= 80 &&
-      img.src &&
-      !img.src.startsWith("data:") &&
-      img.src.startsWith("http")
-    );
+    return rect.width >= 80 && rect.height >= 80 && !!getPickableSrc(img);
   }
 
   function updatePickerPosition() {
@@ -118,7 +136,7 @@
 
   function showPicker(img) {
     currentImg = img;
-    currentSrc = img.src;
+    currentSrc = getPickableSrc(img);
     clearTimeout(hideTimer);
     updatePickerPosition();
     picker.classList.add("vp-visible");
@@ -136,7 +154,12 @@
   window.addEventListener("scroll", updatePickerPosition, true);
 
   document.addEventListener("mouseover", (e) => {
-    const img = e.target.closest("img");
+    let img = e.target.closest("img");
+    // Fallback: Shopify/Swiper often puts transparent overlays on top of images
+    if (!img) {
+      const els = document.elementsFromPoint(e.clientX, e.clientY);
+      img = els.find(el => el.tagName === "IMG") || null;
+    }
     if (!img || !isPickable(img)) return;
     showPicker(img);
   }, true);
