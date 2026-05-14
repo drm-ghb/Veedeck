@@ -749,8 +749,8 @@ export default function RenderViewer({
   useEffect(() => {
     if (!pending) return;
     function handleMouseDown(e: MouseEvent) {
-      const popup = document.querySelector("[data-new-pin-popup]");
-      if (popup?.contains(e.target as Node)) return;
+      const popups = document.querySelectorAll("[data-new-pin-popup]");
+      if (Array.from(popups).some((p) => p.contains(e.target as Node))) return;
       if (pendingActionsRef.current.hasContent()) {
         pendingActionsRef.current.submit();
       } else {
