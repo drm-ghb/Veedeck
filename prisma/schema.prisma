@@ -70,6 +70,7 @@ model User {
   createdTasks               Task[]         @relation("TaskCreator")
   assignedTasks              Task[]         @relation("TaskAssignee")
   taskComments               TaskComment[]  @relation("TaskCommentAuthor")
+  models3d                   Model3D[]
 }
 
 model Invitation {
@@ -670,4 +671,19 @@ enum TaskPriority {
   LOW
   MEDIUM
   HIGH
+}
+
+model Model3D {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name         String
+  category     String
+  meshyTaskId  String?
+  thumbnailUrl String?
+  urlGlb       String?
+  urlObj       String?
+  urlStl       String?
+  urlFbx       String?
+  createdAt    DateTime @default(now())
 }

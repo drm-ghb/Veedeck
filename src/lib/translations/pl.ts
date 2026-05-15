@@ -52,6 +52,7 @@ export const pl = {
     notes: "Notatnik",
     discussions: "Dyskusje",
     tasks: "Zadania",
+    generator3d: "Generator 3D",
     help: "Pomoc",
     settings: "Ustawienia",
     logout: "Wyloguj",
