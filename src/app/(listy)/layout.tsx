@@ -39,19 +39,21 @@ export default async function ListyLayout({
   return (
     <div className="h-dvh flex flex-col bg-muted/60">
       <nav className="relative z-10">
-        <div className="px-4 flex items-center gap-4 py-3 relative">
-          {/* Left: home + logo */}
-          <div className="flex items-center gap-2 shrink-0">
+        <div className="px-4 flex items-center gap-2 py-3">
+          {/* Left: logo */}
+          <div className="shrink-0 sm:flex-1 flex items-center gap-2">
             <LogoBrand />
           </div>
 
-          {/* Search - centered */}
-          <div className="absolute left-1/2 -translate-x-1/2 w-full max-w-sm px-4 hidden sm:block">
-            <GlobalSearch />
+          {/* Search - centered on full screen width (sm+) */}
+          <div className="hidden sm:flex flex-1 justify-center px-2 min-w-0">
+            <div className="w-full max-w-sm">
+              <GlobalSearch />
+            </div>
           </div>
 
           {/* Right: bell + avatar + logout */}
-          <div className="flex items-center gap-2 shrink-0 ml-auto">
+          <div className="ml-auto sm:ml-0 shrink-0 sm:flex-1 flex items-center gap-2 justify-end">
             <div className="md:hidden"><MobileSearch /></div>
             <QuickNoteButton />
             <NotificationBell userId={session.user.id!} iconOnly />
