@@ -1520,7 +1520,7 @@ export default function RenderViewer({
             </>
           )}
           {/* Breadcrumb */}
-          <nav className="flex items-center gap-1 min-w-0 flex-1 text-sm">
+          <nav className="hidden lg:flex items-center gap-1 min-w-0 flex-1 text-sm">
             {onBack ? (
               <>
                 {projectTitle && <span className="hidden sm:block flex-shrink-0 text-gray-500 dark:text-gray-400 font-medium truncate max-w-[120px]">{projectTitle}</span>}

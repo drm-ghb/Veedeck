@@ -32,7 +32,7 @@ export function Breadcrumb({ items, backHref }: BreadcrumbProps) {
       )}
 
       {/* Crumbs */}
-      <ol className="flex items-center gap-1 text-sm min-w-0">
+      <ol className="flex items-center gap-1 text-sm min-w-0 overflow-hidden">
         {items.map((item, i) => {
           const isLast = i === items.length - 1;
           return (
@@ -41,13 +41,13 @@ export function Breadcrumb({ items, backHref }: BreadcrumbProps) {
                 <ChevronRight size={13} className="flex-shrink-0 text-gray-300 dark:text-gray-600" />
               )}
               {isLast || !item.href ? (
-                <span className="text-gray-900 dark:text-gray-100 truncate">
+                <span className="text-gray-900 dark:text-gray-100 truncate max-w-[140px]" title={item.label}>
                   {item.label}
                 </span>
               ) : (
                 <Link
                   href={item.href}
-                  className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors truncate max-w-[160px]"
+                  className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors truncate max-w-[120px]"
                   title={item.label}
                 >
                   {item.label}
