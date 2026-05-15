@@ -20,7 +20,7 @@ export default async function KlienciLayout({
 
   const dbUser = await prisma.user.findUnique({
     where: { id: session.user.id! },
-    select: { name: true, email: true, globalHiddenModules: true, clientLogoUrl: true, ownerId: true },
+    select: { name: true, fullName: true, email: true, globalHiddenModules: true, clientLogoUrl: true, ownerId: true },
   });
 
   const ownerId = dbUser?.ownerId;
@@ -31,7 +31,8 @@ export default async function KlienciLayout({
       })
     : null;
 
-  const displayName = dbUser?.name || dbUser?.email || null;
+  const fullName = dbUser?.fullName ?? null;
+  const displayName = fullName ? fullName.split(" ")[0] : (dbUser?.name || dbUser?.email || null);
   const hiddenModules = (ownerSettings ?? dbUser)?.globalHiddenModules ?? [];
   const logoUrl = (ownerSettings ?? dbUser)?.clientLogoUrl ?? null;
 

@@ -20,7 +20,7 @@ export default async function ProjektyLayout({
 
   const dbUser = await prisma.user.findUnique({
     where: { id: session.user.id! },
-    select: { name: true, email: true, globalHiddenModules: true, clientLogoUrl: true, ownerId: true },
+    select: { name: true, fullName: true, email: true, globalHiddenModules: true, clientLogoUrl: true, ownerId: true },
   });
 
   // Jeśli to członek zespołu — pobierz ustawienia projektanta
@@ -32,7 +32,8 @@ export default async function ProjektyLayout({
       })
     : null;
 
-  const displayName = dbUser?.name || dbUser?.email || null;
+  const fullName = dbUser?.fullName ?? null;
+  const displayName = fullName ? fullName.split(" ")[0] : (dbUser?.name || dbUser?.email || null);
   const hiddenModules = (ownerSettings ?? dbUser)?.globalHiddenModules ?? [];
   const logoUrl = (ownerSettings ?? dbUser)?.clientLogoUrl ?? null;
 
