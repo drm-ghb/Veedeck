@@ -35,7 +35,7 @@ export default async function DashboardLayout({
     : null;
 
   const fullName = dbUser?.fullName ?? null;
-  const firstName = fullName ? fullName.split(" ")[0] : (dbUser?.name || dbUser?.email || null);
+  const firstName = (fullName || dbUser?.name)?.split(" ")[0] ?? dbUser?.email ?? null;
   const avatarUrl = dbUser?.avatarUrl ?? null;
   const hiddenModules = (ownerSettings ?? dbUser)?.globalHiddenModules ?? [];
   const logoUrl = (ownerSettings ?? dbUser)?.clientLogoUrl ?? null;

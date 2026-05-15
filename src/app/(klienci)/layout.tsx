@@ -32,7 +32,7 @@ export default async function KlienciLayout({
     : null;
 
   const fullName = dbUser?.fullName ?? null;
-  const displayName = fullName ? fullName.split(" ")[0] : (dbUser?.name || dbUser?.email || null);
+  const displayName = (fullName || dbUser?.name)?.split(" ")[0] ?? dbUser?.email ?? null;
   const hiddenModules = (ownerSettings ?? dbUser)?.globalHiddenModules ?? [];
   const logoUrl = (ownerSettings ?? dbUser)?.clientLogoUrl ?? null;
 
