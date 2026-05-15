@@ -108,7 +108,7 @@ export default function NavSidebar({ hiddenModules, isAdmin }: NavSidebarProps) 
     { label: t.nav.calendar, href: "/kalendarz", icon: <CalendarDays size={18} />, slug: null, badge: 0, matchPrefixes: [] as string[] },
     { label: t.nav.notes, href: "/notatnik", icon: <NotebookText size={18} />, slug: null, badge: 0, matchPrefixes: [] as string[] },
     { label: t.nav.discussions, href: "/dyskusje", icon: <ChatBubble size={18} />, slug: null, badge: discussionUnread, matchPrefixes: [] as string[] },
-    { label: t.nav.generator3d, href: "/generator3d", icon: <ViewInAr size={18} />, slug: null, badge: 0, matchPrefixes: [] as string[] },
+    { label: t.nav.generator3d, href: "/generator3d", icon: <ViewInAr size={18} />, slug: null, badge: 0, matchPrefixes: [] as string[], soon: true },
   ];
 
   function toggle() {
@@ -150,6 +150,11 @@ export default function NavSidebar({ hiddenModules, isAdmin }: NavSidebarProps) 
                 )}
               </span>
               {!isCollapsed && <span className="flex-1">{item.label}</span>}
+              {!isCollapsed && "soon" in item && item.soon && (
+                <span className="ml-auto text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 leading-none">
+                  Wkrótce
+                </span>
+              )}
               {!isCollapsed && badge !== null && (
                 <span className="ml-auto min-w-[20px] h-5 px-1.5 rounded-full bg-primary text-primary-foreground text-[11px] font-bold flex items-center justify-center leading-none">
                   {badge > 99 ? "99+" : badge}

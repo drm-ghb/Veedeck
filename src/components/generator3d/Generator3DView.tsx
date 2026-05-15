@@ -53,25 +53,6 @@ const EXPORT_FORMATS = [
   { label: "FBX", key: "fbx" },
 ] as const;
 
-// ── JSX type for model-viewer web component ──────────────────────────────────
-
-declare global {
-  // eslint-disable-next-line @typescript-eslint/no-namespace
-  namespace JSX {
-    interface IntrinsicElements {
-      "model-viewer": React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement>, HTMLElement> & {
-        src?: string;
-        "camera-controls"?: boolean | string;
-        "auto-rotate"?: boolean | string;
-        "shadow-intensity"?: string;
-        "environment-image"?: string;
-        exposure?: string;
-        ar?: boolean | string;
-      };
-    }
-  }
-}
-
 // ── Main component ───────────────────────────────────────────────────────────
 
 export default function Generator3DView({ initialModels }: { initialModels: Model3D[] }) {
