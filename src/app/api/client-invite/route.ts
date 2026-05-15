@@ -6,7 +6,8 @@ import { sendClientInvitationEmail } from "@/lib/email";
 export async function POST(req: NextRequest) {
   try {
     const session = await auth();
-    if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const userId = session.user.id;
 
     const { email, projectId } = await req.json();
     if (!email || typeof email !== "string") {
@@ -16,7 +17,7 @@ export async function POST(req: NextRequest) {
     // Verify projectId belongs to this designer
     if (projectId) {
       const project = await prisma.project.findFirst({
-        where: { id: projectId, userId: session.user.id },
+        where: { id: projectId, userId: userId },
       });
       if (!project) {
         return NextResponse.json({ error: "Projekt nie istnieje" }, { status: 403 });
@@ -24,7 +25,7 @@ export async function POST(req: NextRequest) {
     }
 
     const designer = await prisma.user.findUnique({
-      where: { id: session.user.id },
+      where: { id: userId },
       select: { name: true, fullName: true, email: true },
     });
     const designerName =
@@ -34,7 +35,7 @@ export async function POST(req: NextRequest) {
     await prisma.invitation.updateMany({
       where: {
         email,
-        designerId: session.user.id,
+        designerId: userId,
         type: "client",
         status: "PENDING",
       },
@@ -47,7 +48,7 @@ export async function POST(req: NextRequest) {
     const invitation = await prisma.invitation.create({
       data: {
         email,
-        designerId: session.user.id,
+        designerId: userId,
         type: "client",
         projectId: projectId ?? null,
         status: "PENDING",
