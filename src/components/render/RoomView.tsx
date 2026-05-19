@@ -107,7 +107,7 @@ export default function RoomView({ projectId, roomId, renders, archivedRenders, 
       setLocalFolders((prev) => [...prev, { id: f.id, name: f.name, renderCount: 0, pinned: false }]);
     }
     function onRendersCreated(e: Event) {
-      const newRenders = (e as CustomEvent).detail as Array<{ id: string; name: string; fileUrl: string; fileType: string | null; status: string; folderId: string | null; viewCount: number }>;
+      const newRenders = (e as CustomEvent).detail as Array<{ id: string; name: string; fileUrl: string; fileType: string | undefined; status: string; folderId: string | null; viewCount: number }>;
       for (const r of newRenders) pendingRenderIds.current.add(r.id);
       setLocalRenders((prev) => [
         ...prev,
@@ -115,7 +115,7 @@ export default function RoomView({ projectId, roomId, renders, archivedRenders, 
           id: r.id,
           name: r.name,
           fileUrl: r.fileUrl,
-          fileType: r.fileType ?? null,
+          fileType: r.fileType ?? undefined,
           commentCount: 0,
           viewCount: r.viewCount ?? 0,
           status: (r.status ?? "REVIEW") as "REVIEW" | "ACCEPTED",
