@@ -92,11 +92,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         try {
           const dbUser = await prisma.user.findUnique({
             where: { id: user.id as string },
-            select: { needsNameSetup: true, ownerId: true, role: true },
+            select: { needsNameSetup: true, ownerId: true, role: true, trialEndsAt: true, isFree: true, subscription: { select: { status: true } } },
           });
           token.needsNameSetup = dbUser?.needsNameSetup ?? false;
           token.ownerId = dbUser?.ownerId ?? null;
           token.role = dbUser?.role ?? "designer";
+          token.trialEndsAt = dbUser?.trialEndsAt?.toISOString() ?? null;
+          token.isFree = dbUser?.isFree ?? false;
+          token.hasActiveSubscription = dbUser?.subscription?.status === "active";
         } catch (e) {
           console.error("[auth] JWT callback prisma error:", e);
           token.needsNameSetup = false;
@@ -108,11 +111,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         try {
           const dbUser = await prisma.user.findUnique({
             where: { id: userId },
-            select: { ownerId: true, role: true, isAdmin: true },
+            select: { ownerId: true, role: true, isAdmin: true, trialEndsAt: true, isFree: true, subscription: { select: { status: true } } },
           });
           token.ownerId = dbUser?.ownerId ?? null;
           token.role = dbUser?.role ?? "designer";
           token.isAdmin = dbUser?.isAdmin ?? false;
+          token.trialEndsAt = dbUser?.trialEndsAt?.toISOString() ?? null;
+          token.isFree = dbUser?.isFree ?? false;
+          token.hasActiveSubscription = dbUser?.subscription?.status === "active";
         } catch (e) {
           console.error("[auth] JWT callback prisma error (refresh):", e);
           token.ownerId = null;
@@ -123,13 +129,16 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         try {
           const dbUser = await prisma.user.findUnique({
             where: { id: userId },
-            select: { needsNameSetup: true, name: true, ownerId: true, role: true, isAdmin: true },
+            select: { needsNameSetup: true, name: true, ownerId: true, role: true, isAdmin: true, trialEndsAt: true, isFree: true, subscription: { select: { status: true } } },
           });
           token.needsNameSetup = dbUser?.needsNameSetup ?? false;
           token.name = dbUser?.name ?? token.name;
           token.ownerId = dbUser?.ownerId ?? null;
           token.role = dbUser?.role ?? "designer";
           token.isAdmin = dbUser?.isAdmin ?? false;
+          token.trialEndsAt = dbUser?.trialEndsAt?.toISOString() ?? null;
+          token.isFree = dbUser?.isFree ?? false;
+          token.hasActiveSubscription = dbUser?.subscription?.status === "active";
         } catch (e) {
           console.error("[auth] JWT callback prisma error (update):", e);
         }
@@ -143,6 +152,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         (session.user as any).needsNameSetup = token.needsNameSetup as boolean;
         (session.user as any).ownerId = token.ownerId ?? null;
         (session.user as any).role = token.role ?? "designer";
+        (session.user as any).trialEndsAt = token.trialEndsAt ?? null;
+        (session.user as any).isFree = token.isFree ?? false;
+        (session.user as any).hasActiveSubscription = token.hasActiveSubscription ?? false;
       }
       return session;
     },

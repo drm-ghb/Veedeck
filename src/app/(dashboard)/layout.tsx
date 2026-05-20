@@ -9,8 +9,10 @@ import MobileMenu from "@/components/dashboard/MobileMenu";
 import MobileSearch from "@/components/dashboard/MobileSearch";
 import NavSidebar from "@/components/dashboard/NavSidebar";
 import GlobalSearch from "@/components/dashboard/GlobalSearch";
+import TrialBadge from "@/components/dashboard/TrialBadge";
 import { QuickNoteButton } from "@/components/notatnik/QuickNoteButton";
 import { prisma } from "@/lib/prisma";
+import TrialCheck from "@/components/dashboard/TrialCheck";
 
 export default async function DashboardLayout({
   children,
@@ -22,7 +24,7 @@ export default async function DashboardLayout({
 
   const dbUser = await prisma.user.findUnique({
     where: { id: session.user.id! },
-    select: { name: true, fullName: true, email: true, isAdmin: true, globalHiddenModules: true, clientLogoUrl: true, avatarUrl: true, ownerId: true },
+    select: { name: true, fullName: true, email: true, isAdmin: true, globalHiddenModules: true, clientLogoUrl: true, avatarUrl: true, ownerId: true, trialEndsAt: true, isFree: true },
   });
 
   // Jeśli to członek zespołu — pobierz ustawienia projektanta
@@ -64,6 +66,9 @@ export default async function DashboardLayout({
 
           {/* Right: bell + avatar + logout */}
           <div className="ml-auto sm:ml-0 shrink-0 sm:flex-1 flex items-center gap-2 justify-end">
+            {dbUser?.trialEndsAt && !dbUser.isFree && (
+              <TrialBadge trialEndsAt={dbUser.trialEndsAt.toISOString()} />
+            )}
             <div className="md:hidden"><MobileSearch /></div>
             <QuickNoteButton />
             <NotificationBell userId={session.user.id!} iconOnly />
@@ -91,6 +96,7 @@ export default async function DashboardLayout({
           {children}
         </main>
       </div>
+      <TrialCheck />
     </div>
   );
 }

@@ -1,3 +1,4 @@
+import TrialCheck from "@/components/dashboard/TrialCheck";
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import GlobalSearch from "@/components/dashboard/GlobalSearch";
@@ -82,6 +83,7 @@ export default async function ProjektyLayout({
           {children}
         </main>
       </div>
+      <TrialCheck />
     </div>
   );
 }

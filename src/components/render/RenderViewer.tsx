@@ -296,6 +296,8 @@ export default function RenderViewer({
   const [productPinsPulsing, setProductPinsPulsing] = useState(true);
   const [lightboxProductPins, setLightboxProductPins] = useState<ProductPin[]>([]);
   const productPinHoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [hoveredCommentPinId, setHoveredCommentPinId] = useState<string | null>(null);
+  const commentPinHoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [isRecording, setIsRecording] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
@@ -1271,6 +1273,13 @@ export default function RenderViewer({
   function handleProductPinMouseLeave() {
     productPinHoverTimer.current = setTimeout(() => setHoveredProductPinId(null), 150);
   }
+  function handleCommentPinMouseEnter(id: string) {
+    if (commentPinHoverTimer.current) clearTimeout(commentPinHoverTimer.current);
+    setHoveredCommentPinId(id);
+  }
+  function handleCommentPinMouseLeave() {
+    commentPinHoverTimer.current = setTimeout(() => setHoveredCommentPinId(null), 150);
+  }
 
   async function addProductPin(
     product: { id: string; name: string; imageUrl: string | null; url: string | null; price: string | null },
@@ -1894,25 +1903,50 @@ export default function RenderViewer({
               const pinX = dragPos?.id === c.id ? dragPos.x : c.posX!;
               const pinY = dragPos?.id === c.id ? dragPos.y : c.posY!;
               return (
-                <button
+                <div
                   key={c.id}
-                  className={`absolute w-7 h-7 rounded-full border-2 border-white text-white text-xs font-bold flex items-center justify-center shadow-lg z-10 ${dragPos?.id === c.id ? "transition-none cursor-grabbing" : `transition-transform hover:scale-110 ${canDrag ? "cursor-grab" : ""}`} ${c.isInternal ? "bg-slate-500" : STATUS_PIN_COLOR[c.status]} ${selectedId === c.id ? "scale-125 ring-2 ring-white ring-offset-1" : ""}`}
+                  className="absolute z-10"
                   style={{ left: `calc(${pinX}% - 14px)`, top: `calc(${pinY}% - 14px)` }}
-                  onMouseDown={canDrag ? (e) => startPinDrag(e, c.id, "comment", imgRef.current) : undefined}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (didDragRef.current) { didDragRef.current = false; return; }
-                    setSelectedId(c.id === selectedId ? null : c.id);
-                    cancelPending();
-                    setReplyContent("");
-                  }}
-                  title={c.isInternal ? "Notatka wewnętrzna — niewidoczna dla klienta" : undefined}
+                  onMouseEnter={() => !draggingPinRef.current && handleCommentPinMouseEnter(c.id)}
+                  onMouseLeave={handleCommentPinMouseLeave}
                 >
-                  {i + 1}
-                  {c.isInternal && (
-                    <Lock size={8} className="absolute -top-1 -right-1 bg-slate-700 rounded-full p-[1px] text-white" />
+                  <button
+                    className={`w-7 h-7 rounded-full border-2 border-white text-white text-xs font-bold flex items-center justify-center shadow-lg ${dragPos?.id === c.id ? "transition-none cursor-grabbing" : `transition-transform hover:scale-110 ${canDrag ? "cursor-grab" : ""}`} ${c.isInternal ? "bg-slate-500" : STATUS_PIN_COLOR[c.status]} ${selectedId === c.id ? "scale-125 ring-2 ring-white ring-offset-1" : ""}`}
+                    onMouseDown={canDrag ? (e) => startPinDrag(e, c.id, "comment", imgRef.current) : undefined}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (didDragRef.current) { didDragRef.current = false; return; }
+                      setSelectedId(c.id === selectedId ? null : c.id);
+                      cancelPending();
+                      setReplyContent("");
+                    }}
+                    title={c.isInternal ? "Notatka wewnętrzna — niewidoczna dla klienta" : undefined}
+                  >
+                    {i + 1}
+                    {c.isInternal && (
+                      <Lock size={8} className="absolute -top-1 -right-1 bg-slate-700 rounded-full p-[1px] text-white" />
+                    )}
+                  </button>
+                  {hoveredCommentPinId === c.id && selectedId !== c.id && (
+                    <div
+                      className="fixed z-50 bg-card rounded-xl shadow-xl border border-border p-3 w-56"
+                      style={getPopupStyle(c.posX!, c.posY!, imgRef.current, 224, visualVP.height || undefined, visualVP.offsetTop)}
+                      onMouseEnter={() => handleCommentPinMouseEnter(c.id)}
+                      onMouseLeave={handleCommentPinMouseLeave}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <p className="text-xs font-medium text-muted-foreground mb-1 truncate">{c.author}</p>
+                      <p className="text-sm text-foreground leading-snug line-clamp-3">
+                        {c.title || c.content}
+                      </p>
+                      {c.replies.length > 0 && (
+                        <p className="text-xs text-muted-foreground mt-1.5">
+                          {c.replies.length} {c.replies.length === 1 ? "odpowiedź" : c.replies.length < 5 ? "odpowiedzi" : "odpowiedzi"}
+                        </p>
+                      )}
+                    </div>
                   )}
-                </button>
+                </div>
               );
             })}
 
@@ -2990,6 +3024,13 @@ export default function RenderViewer({
                 </button>
               )}
               <button
+                onClick={() => setHidePins((v) => !v)}
+                title={hidePins ? "Pokaż piny" : "Ukryj piny"}
+                className={`p-2 rounded-md transition-colors ${hidePins ? "bg-white/20 text-white" : "text-white/60 hover:text-white hover:bg-white/10"}`}
+              >
+                <Pin size={18} />
+              </button>
+              <button
                 onClick={() => {
                   setLightboxOpen(false);
                   setMode("view");
@@ -3157,21 +3198,46 @@ export default function RenderViewer({
                 const pinX = dragPos?.id === c.id ? dragPos.x : c.posX!;
                 const pinY = dragPos?.id === c.id ? dragPos.y : c.posY!;
                 return (
-                  <button
+                  <div
                     key={c.id}
-                    className={`absolute w-7 h-7 rounded-full border-2 border-white text-white text-xs font-bold flex items-center justify-center shadow-lg z-10 ${dragPos?.id === c.id ? "transition-none cursor-grabbing" : `transition-transform hover:scale-110 ${canDrag ? "cursor-grab" : ""}`} ${STATUS_PIN_COLOR[c.status]} ${selectedId === c.id ? "scale-125 ring-2 ring-white ring-offset-1" : ""}`}
+                    className="absolute z-10"
                     style={{ left: `calc(${pinX}% - 14px)`, top: `calc(${pinY}% - 14px)` }}
-                    onMouseDown={canDrag ? (e) => startPinDrag(e, c.id, "comment", lightboxImgRef.current) : undefined}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (didDragRef.current) { didDragRef.current = false; return; }
-                      setSelectedId(c.id === selectedId ? null : c.id);
-                      cancelPending();
-                      setReplyContent("");
-                    }}
+                    onMouseEnter={() => !draggingPinRef.current && handleCommentPinMouseEnter(c.id)}
+                    onMouseLeave={handleCommentPinMouseLeave}
                   >
-                    {i + 1}
-                  </button>
+                    <button
+                      className={`w-7 h-7 rounded-full border-2 border-white text-white text-xs font-bold flex items-center justify-center shadow-lg ${dragPos?.id === c.id ? "transition-none cursor-grabbing" : `transition-transform hover:scale-110 ${canDrag ? "cursor-grab" : ""}`} ${STATUS_PIN_COLOR[c.status]} ${selectedId === c.id ? "scale-125 ring-2 ring-white ring-offset-1" : ""}`}
+                      onMouseDown={canDrag ? (e) => startPinDrag(e, c.id, "comment", lightboxImgRef.current) : undefined}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (didDragRef.current) { didDragRef.current = false; return; }
+                        setSelectedId(c.id === selectedId ? null : c.id);
+                        cancelPending();
+                        setReplyContent("");
+                      }}
+                    >
+                      {i + 1}
+                    </button>
+                    {hoveredCommentPinId === c.id && selectedId !== c.id && (
+                      <div
+                        className="fixed z-50 bg-card rounded-xl shadow-xl border border-border p-3 w-56"
+                        style={getPopupStyle(c.posX!, c.posY!, lightboxImgRef.current, 224)}
+                        onMouseEnter={() => handleCommentPinMouseEnter(c.id)}
+                        onMouseLeave={handleCommentPinMouseLeave}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <p className="text-xs font-medium text-muted-foreground mb-1 truncate">{c.author}</p>
+                        <p className="text-sm text-foreground leading-snug line-clamp-3">
+                          {c.title || c.content}
+                        </p>
+                        {c.replies.length > 0 && (
+                          <p className="text-xs text-muted-foreground mt-1.5">
+                            {c.replies.length} {c.replies.length === 1 ? "odpowiedź" : "odpowiedzi"}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 );
               })}
 

@@ -51,9 +51,13 @@ model User {
   extensionKey               String?        @unique
   customCategories           String[]       @default([])
   viewPreferences            Json?
+  trialEndsAt                DateTime?                           // null = brak trialu (isFree lub stary user)
+  isFree                     Boolean        @default(false)      // admin może oznaczyć usera jako darmowego
   ownerId                    String?
   owner                      User?          @relation("TeamMembers", fields: [ownerId], references: [id])
   teamMembers                User[]         @relation("TeamMembers")
+  subscription               Subscription?
+  discounts                  Discount[]
   accounts                   Account[]
   calendarEvents             CalendarEvent[]
   calendarGuestEntries       CalendarGuest[]
@@ -84,6 +88,33 @@ model Invitation {
   createdAt  DateTime @default(now())
   type       String   @default("team") // "team" | "client"
   projectId  String?
+}
+
+model Subscription {
+  id           String    @id @default(cuid())
+  userId       String    @unique
+  plan         String    // "standard" | "commercial" | "enterprise"
+  status       String    @default("active") // "active" | "cancelled"
+  billingName  String?
+  billingEmail String?
+  cardLast4    String?
+  cardBrand    String?
+  cancelAt     DateTime?                    // ustawione przy anulowaniu — dostęp do tej daty
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Discount {
+  id         String    @id @default(cuid())
+  userId     String
+  type       String    // "percent" | "amount"
+  value      Float
+  validFrom  DateTime  @default(now())
+  validUntil DateTime?
+  note       String?
+  createdAt  DateTime  @default(now())
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Note {

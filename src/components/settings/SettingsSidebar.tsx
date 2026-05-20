@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Settings, LocalMall, ChevronLeft, Users, Puzzle, PushPin, BookOpen } from "@/components/ui/icons";
+import { Settings, LocalMall, ChevronLeft, Users, Puzzle, PushPin, BookOpen, Wallet } from "@/components/ui/icons";
 import { useT } from "@/lib/i18n";
 
 export default function SettingsSidebar() {
@@ -45,6 +45,12 @@ export default function SettingsSidebar() {
       href: "/settings/instrukcja",
       label: "Instrukcja",
       icon: <BookOpen size={16} />,
+      module: null,
+    },
+    {
+      href: "/settings/subskrypcja",
+      label: "Subskrypcja",
+      icon: <Wallet size={16} />,
       module: null,
     },
   ];

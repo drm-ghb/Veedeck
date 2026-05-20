@@ -200,7 +200,7 @@ export default function SearchProductDialog({ open, onClose, onSelect, projectId
     <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center sm:p-4">
       <div className="absolute inset-0 bg-black/50" onClick={handleClose} />
 
-      <div className="relative w-full sm:max-w-3xl bg-background rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden h-[90svh] sm:h-[85vh]">
+      <div className="relative w-full sm:max-w-3xl bg-background rounded-none sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden h-full sm:h-[85vh]">
         {/* Header — tabs */}
         <div className="flex items-center gap-2 px-4 border-b border-border flex-shrink-0">
           <div className="flex-1 flex items-center overflow-x-auto">

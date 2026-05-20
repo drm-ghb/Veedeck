@@ -11,6 +11,8 @@ import { QuickNoteButton } from "@/components/notatnik/QuickNoteButton";
 import { prisma } from "@/lib/prisma";
 import { ColorThemeSync } from "@/components/dashboard/ColorThemeSync";
 import type { ColorTheme } from "@/lib/theme";
+import TrialBadge from "@/components/dashboard/TrialBadge";
+import TrialCheck from "@/components/dashboard/TrialCheck";
 
 export default async function VeedeckLayout({
   children,
@@ -22,7 +24,7 @@ export default async function VeedeckLayout({
 
   const dbUser = await prisma.user.findUnique({
     where: { id: session.user.id! },
-    select: { name: true, fullName: true, email: true, globalHiddenModules: true, clientLogoUrl: true, avatarUrl: true, ownerId: true, colorTheme: true },
+    select: { name: true, fullName: true, email: true, globalHiddenModules: true, clientLogoUrl: true, avatarUrl: true, ownerId: true, colorTheme: true, trialEndsAt: true, isFree: true, subscription: { select: { status: true, cancelAt: true } } },
   });
 
   // Jeśli to członek zespołu — pobierz ustawienia projektanta
@@ -60,6 +62,9 @@ export default async function VeedeckLayout({
 
           {/* Right: bell + avatar + logout */}
           <div className="ml-auto sm:ml-0 shrink-0 sm:flex-1 flex items-center gap-2 justify-end">
+            {dbUser?.trialEndsAt && !dbUser.isFree && dbUser.subscription?.status !== "active" && (
+              <TrialBadge trialEndsAt={dbUser.trialEndsAt.toISOString()} />
+            )}
             <div className="md:hidden"><MobileSearch /></div>
             <QuickNoteButton />
             <NotificationBell userId={session.user.id!} iconOnly />
@@ -88,6 +93,7 @@ export default async function VeedeckLayout({
           {children}
         </main>
       </div>
+      <TrialCheck />
     </div>
   );
 }

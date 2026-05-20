@@ -38,6 +38,35 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Podaj adres e-mail" }, { status: 400 });
   }
 
+  // Sprawdź ograniczenia planu
+  const owner = await prisma.user.findUnique({
+    where: { id: ownerId },
+    select: { isFree: true, subscription: { select: { plan: true, status: true } } },
+  });
+
+  const activePlan = owner?.subscription?.status === "active" ? owner.subscription.plan : null;
+  const isFree = owner?.isFree ?? false;
+
+  if (!isFree && activePlan !== "commercial" && activePlan !== "enterprise") {
+    return NextResponse.json(
+      { error: "Twój plan nie obejmuje możliwości dodawania członków zespołu. Wybierz plan Commercial lub Enterprise." },
+      { status: 403 }
+    );
+  }
+
+  if (activePlan === "commercial") {
+    const [memberCount, pendingCount] = await Promise.all([
+      prisma.user.count({ where: { ownerId } }),
+      prisma.invitation.count({ where: { designerId: ownerId, status: "PENDING" } }),
+    ]);
+    if (memberCount + pendingCount >= 5) {
+      return NextResponse.json(
+        { error: "Plan Commercial pozwala na maksymalnie 5 członków zespołu." },
+        { status: 403 }
+      );
+    }
+  }
+
   const normalized = email.toLowerCase().trim();
 
   // Sprawdź czy użytkownik już istnieje w systemie
