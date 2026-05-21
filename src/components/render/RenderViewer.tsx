@@ -1532,45 +1532,45 @@ export default function RenderViewer({
             </>
           )}
           {/* Breadcrumb */}
-          <nav className="flex items-center gap-1 min-w-0 flex-1 text-sm">
+          <nav className="flex items-center gap-1 min-w-0 flex-1 text-sm overflow-hidden">
             {onBack ? (
               <>
-                {projectTitle && <span className="hidden sm:block flex-shrink-0 text-gray-500 dark:text-gray-400 font-medium truncate max-w-[120px]">{projectTitle}</span>}
-                {projectTitle && roomName && <ChevronLeft size={13} className="hidden sm:block flex-shrink-0 text-gray-300 rotate-180" />}
-                {roomName && <span className="hidden sm:block flex-shrink-0 text-gray-500 dark:text-gray-400 font-medium truncate max-w-[120px]">{roomName}</span>}
-                {roomName && folderName && <ChevronLeft size={13} className="hidden sm:block flex-shrink-0 text-gray-300 rotate-180" />}
-                {folderName && <span className="hidden sm:block flex-shrink-0 text-gray-500 dark:text-gray-400 font-medium truncate max-w-[120px]">{folderName}</span>}
-                {(projectTitle || roomName || folderName) && renderName && <ChevronLeft size={13} className="hidden sm:block flex-shrink-0 text-gray-300 rotate-180" />}
-                {renderName && <span className="text-gray-900 dark:text-gray-100 font-semibold truncate min-w-0">{renderName}</span>}
+                {projectTitle && <span className="min-w-0 shrink text-gray-500 dark:text-gray-400 font-medium truncate max-w-[120px]">{projectTitle}</span>}
+                {projectTitle && roomName && <ChevronLeft size={13} className="flex-shrink-0 text-gray-300 rotate-180" />}
+                {roomName && <span className="min-w-0 shrink text-gray-500 dark:text-gray-400 font-medium truncate max-w-[120px]">{roomName}</span>}
+                {roomName && folderName && <ChevronLeft size={13} className="flex-shrink-0 text-gray-300 rotate-180" />}
+                {folderName && <span className="min-w-0 shrink text-gray-500 dark:text-gray-400 font-medium truncate max-w-[120px]">{folderName}</span>}
+                {(projectTitle || roomName || folderName) && renderName && <ChevronLeft size={13} className="flex-shrink-0 text-gray-300 rotate-180" />}
+                {renderName && <span className="text-gray-900 dark:text-gray-100 font-semibold truncate min-w-0 shrink">{renderName}</span>}
               </>
             ) : projectId ? (
               <>
                 {projectTitle && (
                   <>
-                    <Link href={`/projects/${projectId}`} className="hidden sm:block flex-shrink-0 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors font-medium truncate max-w-[120px]" title={projectTitle}>
+                    <Link href={`/projects/${projectId}`} className="min-w-0 shrink text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors font-medium truncate max-w-[120px]" title={projectTitle}>
                       {projectTitle}
                     </Link>
-                    <ChevronLeft size={13} className="hidden sm:block flex-shrink-0 text-gray-300 rotate-180" />
+                    <ChevronLeft size={13} className="flex-shrink-0 text-gray-300 rotate-180" />
                   </>
                 )}
                 {roomId && roomName && (
                   <>
-                    <Link href={`/projects/${projectId}/rooms/${roomId}`} className="hidden sm:block flex-shrink-0 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors font-medium truncate max-w-[120px]" title={roomName}>
+                    <Link href={`/projects/${projectId}/rooms/${roomId}`} className="min-w-0 shrink text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors font-medium truncate max-w-[120px]" title={roomName}>
                       {roomName}
                     </Link>
-                    <ChevronLeft size={13} className="hidden sm:block flex-shrink-0 text-gray-300 rotate-180" />
+                    <ChevronLeft size={13} className="flex-shrink-0 text-gray-300 rotate-180" />
                   </>
                 )}
                 {folderId && folderName && roomId && (
                   <>
-                    <Link href={`/projects/${projectId}/rooms/${roomId}/folders/${folderId}`} className="flex-shrink-0 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors font-medium truncate max-w-[120px]" title={folderName}>
+                    <Link href={`/projects/${projectId}/rooms/${roomId}/folders/${folderId}`} className="min-w-0 shrink text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors font-medium truncate max-w-[120px]" title={folderName}>
                       {folderName}
                     </Link>
                     <ChevronLeft size={13} className="flex-shrink-0 text-gray-300 rotate-180" />
                   </>
                 )}
                 {renderName && (
-                  <span className="text-gray-900 dark:text-gray-100 font-semibold truncate min-w-0" title={renderName}>
+                  <span className="text-gray-900 dark:text-gray-100 font-semibold truncate min-w-0 shrink" title={renderName}>
                     {renderName}
                   </span>
                 )}
