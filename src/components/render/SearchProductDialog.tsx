@@ -113,6 +113,22 @@ export default function SearchProductDialog({ open, onClose, onSelect, projectId
   useEffect(() => { selectedListIdRef.current = selectedListId; }, [selectedListId]);
   const [allLists, setAllLists] = useState<ShoppingList[]>([]);
   const sectionScrollRef = useRef<HTMLDivElement>(null);
+  const [sectionCanScrollLeft, setSectionCanScrollLeft] = useState(false);
+  const [sectionCanScrollRight, setSectionCanScrollRight] = useState(false);
+
+  function checkSectionScroll() {
+    const el = sectionScrollRef.current;
+    if (!el) return;
+    setSectionCanScrollLeft(el.scrollLeft > 2);
+    setSectionCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 2);
+  }
+
+  useEffect(() => {
+    // double rAF — ensures layout is fully calculated before measuring
+    requestAnimationFrame(() => requestAnimationFrame(checkSectionScroll));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [listSections]);
+
   const [projectDropdownOpen, setProjectDropdownOpen] = useState(false);
   const [projectDropdownPos, setProjectDropdownPos] = useState({ top: 0, left: 0 });
   const [projectSearch, setProjectSearch] = useState("");
@@ -312,14 +328,16 @@ export default function SearchProductDialog({ open, onClose, onSelect, projectId
                 {!listLoading && listSections.length > 1 && (
                   <>
                     <div className="w-px h-4 bg-border flex-shrink-0" />
-                    <button
-                      type="button"
-                      onClick={() => sectionScrollRef.current?.scrollBy({ left: -150, behavior: "smooth" })}
-                      className="flex-shrink-0 p-0.5 text-muted-foreground hover:text-foreground transition-colors"
-                    >
-                      <ChevronLeft size={14} />
-                    </button>
-                    <div ref={sectionScrollRef} className="flex gap-1.5 overflow-x-auto no-scrollbar flex-1 min-w-0">
+                    {sectionCanScrollLeft && (
+                      <button
+                        type="button"
+                        onClick={() => sectionScrollRef.current?.scrollBy({ left: -150, behavior: "smooth" })}
+                        className="flex-shrink-0 p-0.5 text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        <ChevronLeft size={14} />
+                      </button>
+                    )}
+                    <div ref={sectionScrollRef} onScroll={checkSectionScroll} className="flex gap-1.5 overflow-x-auto no-scrollbar flex-1 min-w-0">
                       <button
                         type="button"
                         onClick={() => setSelectedSectionId(null)}
@@ -346,13 +364,15 @@ export default function SearchProductDialog({ open, onClose, onSelect, projectId
                         </button>
                       ))}
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => sectionScrollRef.current?.scrollBy({ left: 150, behavior: "smooth" })}
-                      className="flex-shrink-0 p-0.5 text-muted-foreground hover:text-foreground transition-colors"
-                    >
-                      <ChevronRight size={14} />
-                    </button>
+                    {sectionCanScrollRight && (
+                      <button
+                        type="button"
+                        onClick={() => sectionScrollRef.current?.scrollBy({ left: 150, behavior: "smooth" })}
+                        className="flex-shrink-0 p-0.5 text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        <ChevronRight size={14} />
+                      </button>
+                    )}
                   </>
                 )}
               </div>
