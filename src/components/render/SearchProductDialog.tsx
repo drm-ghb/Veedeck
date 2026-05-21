@@ -322,52 +322,50 @@ export default function SearchProductDialog({ open, onClose, onSelect, projectId
                 {!listLoading && listSections.length > 1 && (
                   <>
                     <div className="w-px h-4 bg-border flex-shrink-0" />
-                    <div className="relative flex-1 min-w-0">
-                      <div ref={sectionScrollRef} onScroll={handleSectionScroll} className="overflow-x-auto no-scrollbar w-full">
-                        <div className="flex gap-1.5">
+                    {sectionScrolled && (
+                      <button
+                        type="button"
+                        onClick={() => { sectionScrollRef.current?.scrollBy({ left: -150, behavior: "smooth" }); }}
+                        className="flex-shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        <ChevronLeft size={14} />
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => { sectionScrollRef.current?.scrollBy({ left: 150, behavior: "smooth" }); }}
+                      className="flex-shrink-0 order-last text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      <ChevronRight size={14} />
+                    </button>
+                    <div ref={sectionScrollRef} onScroll={handleSectionScroll} className="overflow-x-auto no-scrollbar flex-1 min-w-0">
+                      <div className="flex gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedSectionId(null)}
+                          className={`flex-shrink-0 px-3 py-1 rounded-full text-xs font-medium transition-colors whitespace-nowrap ${
+                            selectedSectionId === null
+                              ? "bg-foreground text-background"
+                              : "bg-muted text-muted-foreground hover:text-foreground"
+                          }`}
+                        >
+                          Wszystkie
+                        </button>
+                        {listSections.map((s) => (
                           <button
+                            key={s.id}
                             type="button"
-                            onClick={() => setSelectedSectionId(null)}
+                            onClick={() => setSelectedSectionId(s.id === selectedSectionId ? null : s.id)}
                             className={`flex-shrink-0 px-3 py-1 rounded-full text-xs font-medium transition-colors whitespace-nowrap ${
-                              selectedSectionId === null
+                              selectedSectionId === s.id
                                 ? "bg-foreground text-background"
                                 : "bg-muted text-muted-foreground hover:text-foreground"
                             }`}
                           >
-                            Wszystkie
+                            {s.name}
                           </button>
-                          {listSections.map((s) => (
-                            <button
-                              key={s.id}
-                              type="button"
-                              onClick={() => setSelectedSectionId(s.id === selectedSectionId ? null : s.id)}
-                              className={`flex-shrink-0 px-3 py-1 rounded-full text-xs font-medium transition-colors whitespace-nowrap ${
-                                selectedSectionId === s.id
-                                  ? "bg-foreground text-background"
-                                  : "bg-muted text-muted-foreground hover:text-foreground"
-                              }`}
-                            >
-                              {s.name}
-                            </button>
-                          ))}
-                        </div>
+                        ))}
                       </div>
-                      {sectionScrolled && (
-                        <button
-                          type="button"
-                          onClick={() => { sectionScrollRef.current?.scrollBy({ left: -150, behavior: "smooth" }); }}
-                          className="absolute left-0 top-0 bottom-0 flex items-center pr-3 pl-0.5 bg-gradient-to-r from-background to-transparent"
-                        >
-                          <ChevronLeft size={14} className="text-foreground" />
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => { sectionScrollRef.current?.scrollBy({ left: 150, behavior: "smooth" }); }}
-                        className="absolute right-0 top-0 bottom-0 flex items-center pl-3 pr-0.5 bg-gradient-to-l from-background to-transparent"
-                      >
-                        <ChevronRight size={14} className="text-foreground" />
-                      </button>
                     </div>
                   </>
                 )}
