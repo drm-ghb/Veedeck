@@ -134,37 +134,10 @@ export default function SearchProductDialog({ open, onClose, onSelect, projectId
       el.scrollLeft += e.deltaY;
     };
 
-    let isDragging = false;
-    let startX = 0;
-    let startScrollLeft = 0;
-
-    const onMouseDown = (e: MouseEvent) => {
-      isDragging = true;
-      startX = e.pageX;
-      startScrollLeft = el.scrollLeft;
-      el.style.cursor = "grabbing";
-      el.style.userSelect = "none";
-    };
-    const onMouseMove = (e: MouseEvent) => {
-      if (!isDragging) return;
-      el.scrollLeft = startScrollLeft - (e.pageX - startX);
-    };
-    const onMouseUp = () => {
-      isDragging = false;
-      el.style.cursor = "";
-      el.style.userSelect = "";
-    };
-
     el.addEventListener("wheel", onWheel, { passive: false });
-    el.addEventListener("mousedown", onMouseDown);
-    document.addEventListener("mousemove", onMouseMove);
-    document.addEventListener("mouseup", onMouseUp);
 
     return () => {
       el.removeEventListener("wheel", onWheel);
-      el.removeEventListener("mousedown", onMouseDown);
-      document.removeEventListener("mousemove", onMouseMove);
-      document.removeEventListener("mouseup", onMouseUp);
     };
   }, [listSections, listLoading]);
 
@@ -377,7 +350,7 @@ export default function SearchProductDialog({ open, onClose, onSelect, projectId
                       </button>
                     )}
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', flex: 1, minWidth: 0, alignItems: 'center', gap: '4px' }}>
-                    <div ref={sectionScrollRef} onScroll={handleSectionScroll} className="no-scrollbar cursor-grab" style={{ overflowX: 'scroll', scrollbarWidth: 'none' }}>
+                    <div ref={sectionScrollRef} onScroll={handleSectionScroll} className="no-scrollbar" style={{ overflowX: 'scroll', scrollbarWidth: 'none' }}>
                       <div style={{ display: 'flex', gap: '6px', width: 'max-content' }}>
                         <button
                           type="button"
