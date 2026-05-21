@@ -123,6 +123,51 @@ export default function SearchProductDialog({ open, onClose, onSelect, projectId
 
   useEffect(() => { setSectionScrolled(false); }, [listSections]);
 
+  useEffect(() => {
+    const el = sectionScrollRef.current;
+    if (!el) return;
+
+    const onWheel = (e: WheelEvent) => {
+      if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return; // already horizontal scroll
+      if (e.deltaY === 0) return;
+      e.preventDefault();
+      el.scrollLeft += e.deltaY;
+    };
+
+    let isDragging = false;
+    let startX = 0;
+    let startScrollLeft = 0;
+
+    const onMouseDown = (e: MouseEvent) => {
+      isDragging = true;
+      startX = e.pageX;
+      startScrollLeft = el.scrollLeft;
+      el.style.cursor = "grabbing";
+      el.style.userSelect = "none";
+    };
+    const onMouseMove = (e: MouseEvent) => {
+      if (!isDragging) return;
+      el.scrollLeft = startScrollLeft - (e.pageX - startX);
+    };
+    const onMouseUp = () => {
+      isDragging = false;
+      el.style.cursor = "";
+      el.style.userSelect = "";
+    };
+
+    el.addEventListener("wheel", onWheel, { passive: false });
+    el.addEventListener("mousedown", onMouseDown);
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("mouseup", onMouseUp);
+
+    return () => {
+      el.removeEventListener("wheel", onWheel);
+      el.removeEventListener("mousedown", onMouseDown);
+      document.removeEventListener("mousemove", onMouseMove);
+      document.removeEventListener("mouseup", onMouseUp);
+    };
+  }, [listSections]);
+
   const [projectDropdownOpen, setProjectDropdownOpen] = useState(false);
   const [projectDropdownPos, setProjectDropdownPos] = useState({ top: 0, left: 0 });
   const [projectSearch, setProjectSearch] = useState("");
@@ -332,7 +377,7 @@ export default function SearchProductDialog({ open, onClose, onSelect, projectId
                       </button>
                     )}
                     <div className="flex items-center flex-1 min-w-0">
-                    <div ref={sectionScrollRef} onScroll={handleSectionScroll} className="overflow-x-auto no-scrollbar flex-1 min-w-0">
+                    <div ref={sectionScrollRef} onScroll={handleSectionScroll} className="overflow-x-auto no-scrollbar flex-1 min-w-0 cursor-grab">
                       <div className="flex gap-1.5">
                         <button
                           type="button"
