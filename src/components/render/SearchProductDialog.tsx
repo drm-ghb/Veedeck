@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import { Search, X, Package, SlidersHorizontal, ChevronDown, ChevronRight, ChevronLeft, Loader2, LocalMall } from "@/components/ui/icons";
+import { Search, X, Package, SlidersHorizontal, ChevronDown, ChevronRight, Loader2, LocalMall } from "@/components/ui/icons";
 import { useProductSearch } from "@/components/produkty/useProductSearch";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -111,21 +111,10 @@ export default function SearchProductDialog({ open, onClose, onSelect, projectId
   const [recentLoading, setRecentLoading] = useState(false);
   const [selectedListId, setSelectedListId] = useState<string | null>(null);
   useEffect(() => { selectedListIdRef.current = selectedListId; }, [selectedListId]);
-  useEffect(() => { requestAnimationFrame(checkSectionScroll); }, [listSections]);
   const [allLists, setAllLists] = useState<ShoppingList[]>([]);
   const [projectDropdownOpen, setProjectDropdownOpen] = useState(false);
   const [projectDropdownPos, setProjectDropdownPos] = useState({ top: 0, left: 0 });
   const [projectSearch, setProjectSearch] = useState("");
-  const sectionScrollRef = useRef<HTMLDivElement>(null);
-  const [sectionCanScrollLeft, setSectionCanScrollLeft] = useState(false);
-  const [sectionCanScrollRight, setSectionCanScrollRight] = useState(false);
-
-  function checkSectionScroll() {
-    const el = sectionScrollRef.current;
-    if (!el) return;
-    setSectionCanScrollLeft(el.scrollLeft > 0);
-    setSectionCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 1);
-  }
 
   // On open: restore state if same render, otherwise full reset
   useEffect(() => {
@@ -322,56 +311,32 @@ export default function SearchProductDialog({ open, onClose, onSelect, projectId
                 {!listLoading && listSections.length > 1 && (
                   <>
                     <div className="w-px h-4 bg-border flex-shrink-0" />
-                    <div className="relative flex-1 min-w-0">
-                      {sectionCanScrollLeft && (
-                        <button
-                          type="button"
-                          onClick={() => { sectionScrollRef.current?.scrollBy({ left: -150, behavior: "smooth" }); }}
-                          className="absolute left-0 top-0 bottom-0 z-10 flex items-center pl-0.5 pr-3 bg-gradient-to-r from-background via-background/90 to-transparent"
-                        >
-                          <ChevronLeft size={13} className="text-muted-foreground" />
-                        </button>
-                      )}
-                      <div
-                        ref={sectionScrollRef}
-                        onScroll={checkSectionScroll}
-                        className="flex gap-1.5 overflow-x-auto no-scrollbar w-full"
+                    <div className="flex gap-1.5 overflow-x-auto flex-1 min-w-0 pb-0.5 [&::-webkit-scrollbar]:h-[3px] [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-border [&::-webkit-scrollbar-thumb]:rounded-full">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedSectionId(null)}
+                        className={`flex-shrink-0 px-3 py-1 rounded-full text-xs font-medium transition-colors whitespace-nowrap ${
+                          selectedSectionId === null
+                            ? "bg-foreground text-background"
+                            : "bg-muted text-muted-foreground hover:text-foreground"
+                        }`}
                       >
+                        Wszystkie
+                      </button>
+                      {listSections.map((s) => (
                         <button
+                          key={s.id}
                           type="button"
-                          onClick={() => setSelectedSectionId(null)}
+                          onClick={() => setSelectedSectionId(s.id === selectedSectionId ? null : s.id)}
                           className={`flex-shrink-0 px-3 py-1 rounded-full text-xs font-medium transition-colors whitespace-nowrap ${
-                            selectedSectionId === null
+                            selectedSectionId === s.id
                               ? "bg-foreground text-background"
                               : "bg-muted text-muted-foreground hover:text-foreground"
                           }`}
                         >
-                          Wszystkie
+                          {s.name}
                         </button>
-                        {listSections.map((s) => (
-                          <button
-                            key={s.id}
-                            type="button"
-                            onClick={() => setSelectedSectionId(s.id === selectedSectionId ? null : s.id)}
-                            className={`flex-shrink-0 px-3 py-1 rounded-full text-xs font-medium transition-colors whitespace-nowrap ${
-                              selectedSectionId === s.id
-                                ? "bg-foreground text-background"
-                                : "bg-muted text-muted-foreground hover:text-foreground"
-                            }`}
-                          >
-                            {s.name}
-                          </button>
-                        ))}
-                      </div>
-                      {sectionCanScrollRight && (
-                        <button
-                          type="button"
-                          onClick={() => { sectionScrollRef.current?.scrollBy({ left: 150, behavior: "smooth" }); }}
-                          className="absolute right-0 top-0 bottom-0 z-10 flex items-center pr-0.5 pl-3 bg-gradient-to-l from-background via-background/90 to-transparent"
-                        >
-                          <ChevronRight size={13} className="text-muted-foreground" />
-                        </button>
-                      )}
+                      ))}
                     </div>
                   </>
                 )}
