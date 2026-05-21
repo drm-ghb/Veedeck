@@ -111,7 +111,7 @@ export default function SearchProductDialog({ open, onClose, onSelect, projectId
   const [recentLoading, setRecentLoading] = useState(false);
   const [selectedListId, setSelectedListId] = useState<string | null>(null);
   useEffect(() => { selectedListIdRef.current = selectedListId; }, [selectedListId]);
-  useEffect(() => { setTimeout(checkSectionScroll, 0); }, [listSections]);
+  useEffect(() => { requestAnimationFrame(checkSectionScroll); }, [listSections]);
   const [allLists, setAllLists] = useState<ShoppingList[]>([]);
   const [projectDropdownOpen, setProjectDropdownOpen] = useState(false);
   const [projectDropdownPos, setProjectDropdownPos] = useState({ top: 0, left: 0 });
@@ -335,7 +335,7 @@ export default function SearchProductDialog({ open, onClose, onSelect, projectId
                       <div
                         ref={sectionScrollRef}
                         onScroll={checkSectionScroll}
-                        className="flex gap-1.5 overflow-x-auto no-scrollbar"
+                        className="flex gap-1.5 overflow-x-auto no-scrollbar w-full"
                       >
                         <button
                           type="button"
