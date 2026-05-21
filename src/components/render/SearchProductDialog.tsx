@@ -337,32 +337,34 @@ export default function SearchProductDialog({ open, onClose, onSelect, projectId
                         <ChevronLeft size={14} />
                       </button>
                     )}
-                    <div ref={sectionScrollRef} onScroll={checkSectionScroll} className="flex gap-1.5 overflow-x-auto no-scrollbar flex-1 min-w-0">
-                      <button
-                        type="button"
-                        onClick={() => setSelectedSectionId(null)}
-                        className={`flex-shrink-0 px-3 py-1 rounded-full text-xs font-medium transition-colors whitespace-nowrap ${
-                          selectedSectionId === null
-                            ? "bg-foreground text-background"
-                            : "bg-muted text-muted-foreground hover:text-foreground"
-                        }`}
-                      >
-                        Wszystkie
-                      </button>
-                      {listSections.map((s) => (
+                    <div ref={sectionScrollRef} onScroll={checkSectionScroll} className="overflow-x-auto no-scrollbar flex-1 min-w-0">
+                      <div className="flex gap-1.5">
                         <button
-                          key={s.id}
                           type="button"
-                          onClick={() => setSelectedSectionId(s.id === selectedSectionId ? null : s.id)}
+                          onClick={() => setSelectedSectionId(null)}
                           className={`flex-shrink-0 px-3 py-1 rounded-full text-xs font-medium transition-colors whitespace-nowrap ${
-                            selectedSectionId === s.id
+                            selectedSectionId === null
                               ? "bg-foreground text-background"
                               : "bg-muted text-muted-foreground hover:text-foreground"
                           }`}
                         >
-                          {s.name}
+                          Wszystkie
                         </button>
-                      ))}
+                        {listSections.map((s) => (
+                          <button
+                            key={s.id}
+                            type="button"
+                            onClick={() => setSelectedSectionId(s.id === selectedSectionId ? null : s.id)}
+                            className={`flex-shrink-0 px-3 py-1 rounded-full text-xs font-medium transition-colors whitespace-nowrap ${
+                              selectedSectionId === s.id
+                                ? "bg-foreground text-background"
+                                : "bg-muted text-muted-foreground hover:text-foreground"
+                            }`}
+                          >
+                            {s.name}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                     {sectionCanScrollRight && (
                       <button
