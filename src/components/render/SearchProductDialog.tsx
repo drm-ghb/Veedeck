@@ -113,20 +113,15 @@ export default function SearchProductDialog({ open, onClose, onSelect, projectId
   useEffect(() => { selectedListIdRef.current = selectedListId; }, [selectedListId]);
   const [allLists, setAllLists] = useState<ShoppingList[]>([]);
   const sectionScrollRef = useRef<HTMLDivElement>(null);
-  const [sectionCanScrollLeft, setSectionCanScrollLeft] = useState(false);
-  const [sectionAtEnd, setSectionAtEnd] = useState(false);
+  const [sectionScrolled, setSectionScrolled] = useState(false);
 
-  function checkSectionScroll() {
+  function handleSectionScroll() {
     const el = sectionScrollRef.current;
     if (!el) return;
-    setSectionCanScrollLeft(el.scrollLeft > 2);
-    setSectionAtEnd(el.scrollLeft + el.clientWidth >= el.scrollWidth - 2);
+    setSectionScrolled(el.scrollLeft > 2);
   }
 
-  useEffect(() => {
-    setSectionCanScrollLeft(false);
-    setSectionAtEnd(false);
-  }, [listSections]);
+  useEffect(() => { setSectionScrolled(false); }, [listSections]);
 
   const [projectDropdownOpen, setProjectDropdownOpen] = useState(false);
   const [projectDropdownPos, setProjectDropdownPos] = useState({ top: 0, left: 0 });
@@ -328,7 +323,7 @@ export default function SearchProductDialog({ open, onClose, onSelect, projectId
                   <>
                     <div className="w-px h-4 bg-border flex-shrink-0" />
                     <div className="relative flex-1 min-w-0">
-                      <div ref={sectionScrollRef} onScroll={checkSectionScroll} className="overflow-x-auto no-scrollbar w-full">
+                      <div ref={sectionScrollRef} onScroll={handleSectionScroll} className="overflow-x-auto no-scrollbar w-full">
                         <div className="flex gap-1.5">
                           <button
                             type="button"
@@ -357,24 +352,22 @@ export default function SearchProductDialog({ open, onClose, onSelect, projectId
                           ))}
                         </div>
                       </div>
-                      {sectionCanScrollLeft && (
+                      {sectionScrolled && (
                         <button
                           type="button"
                           onClick={() => { sectionScrollRef.current?.scrollBy({ left: -150, behavior: "smooth" }); }}
-                          className="absolute left-0 top-0 bottom-0 flex items-center pr-2 pl-0.5 bg-gradient-to-r from-background to-transparent"
+                          className="absolute left-0 top-0 bottom-0 flex items-center pr-3 pl-0.5 bg-gradient-to-r from-background to-transparent"
                         >
-                          <ChevronLeft size={14} className="text-muted-foreground" />
+                          <ChevronLeft size={14} className="text-foreground" />
                         </button>
                       )}
-                      {!sectionAtEnd && (
-                        <button
-                          type="button"
-                          onClick={() => { sectionScrollRef.current?.scrollBy({ left: 150, behavior: "smooth" }); }}
-                          className="absolute right-0 top-0 bottom-0 flex items-center pl-2 pr-0.5 bg-gradient-to-l from-background to-transparent"
-                        >
-                          <ChevronRight size={14} className="text-muted-foreground" />
-                        </button>
-                      )}
+                      <button
+                        type="button"
+                        onClick={() => { sectionScrollRef.current?.scrollBy({ left: 150, behavior: "smooth" }); }}
+                        className="absolute right-0 top-0 bottom-0 flex items-center pl-3 pr-0.5 bg-gradient-to-l from-background to-transparent"
+                      >
+                        <ChevronRight size={14} className="text-foreground" />
+                      </button>
                     </div>
                   </>
                 )}
