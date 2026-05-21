@@ -26,6 +26,7 @@ export async function POST(req: NextRequest) {
     where: {
       projectId,
       roomId: roomId || null,
+      folderId: folderId || null,
       name: { equals: name, mode: "insensitive" },
       archived: false,
     },

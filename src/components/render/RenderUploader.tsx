@@ -78,33 +78,30 @@ export default function RenderUploader({ projectId, roomId, folderId: fixedFolde
               }}
               onUploadBegin={() => setUploading(true)}
               onClientUploadComplete={async (res) => {
-                const results = await Promise.all(
-                  res.map(async (file) => {
-                    const name = file.name.replace(/\.[^.]+$/, "");
-                    const fileType = file.type?.includes("pdf") ? "pdf" : "image";
-                    const r = await fetch("/api/renders", {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({
-                        projectId,
-                        name,
-                        fileUrl: file.url,
-                        fileKey: file.key,
-                        roomId: roomId ?? null,
-                        folderId: fixedFolderId ?? (folderId || null),
-                        fileType,
-                      }),
-                    });
-                    return r.ok ? r.json() : null;
-                  })
-                );
-                const created = results.filter(Boolean);
+                const files = res.map((file) => ({
+                  name: file.name.replace(/\.[^.]+$/, ""),
+                  fileUrl: file.url,
+                  fileKey: file.key,
+                  fileType: file.type?.includes("pdf") ? "pdf" : "image",
+                }));
+                const r = await fetch("/api/renders/batch", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    projectId,
+                    roomId: roomId ?? null,
+                    folderId: fixedFolderId ?? (folderId || null),
+                    files,
+                  }),
+                });
+                const created = r.ok ? await r.json() : [];
                 if (created.length > 0) {
                   window.dispatchEvent(new CustomEvent("renderflow:renders-created", { detail: created }));
                 }
                 setUploading(false);
                 setOpen(false);
-                toast.success(`Dodano ${res.length} plik${res.length === 1 ? "" : res.length < 5 ? "i" : "ów"}`);
+                const n = created.length;
+                toast.success(`Dodano ${n} plik${n === 1 ? "" : n < 5 ? "i" : "ów"}`);
                 router.refresh();
               }}
               onUploadError={(err) => {
