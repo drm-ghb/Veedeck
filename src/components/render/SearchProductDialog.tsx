@@ -311,7 +311,10 @@ export default function SearchProductDialog({ open, onClose, onSelect, projectId
                 {!listLoading && listSections.length > 1 && (
                   <>
                     <div className="w-px h-4 bg-border flex-shrink-0" />
-                    <div className="overflow-x-auto flex-1 min-w-0 pb-0.5 [&::-webkit-scrollbar]:h-[3px] [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-border [&::-webkit-scrollbar-thumb]:rounded-full">
+                    <div
+                      className="flex-1 min-w-0 pb-1"
+                      style={{ overflowX: 'scroll', scrollbarWidth: 'thin', scrollbarColor: 'var(--border) transparent' }}
+                    >
                       <div className="flex gap-1.5">
                         <button
                           type="button"
