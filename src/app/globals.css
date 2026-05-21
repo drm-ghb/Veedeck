@@ -458,6 +458,14 @@
   --sidebar-ring: #EFEFEF;
 }
 
+@utility thin-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+  &::-webkit-scrollbar { height: 4px; width: 4px; }
+  &::-webkit-scrollbar-track { background: transparent; }
+  &::-webkit-scrollbar-thumb { background-color: var(--border); border-radius: 9999px; }
+}
+
 @utility no-scrollbar {
   scrollbar-width: none;
   &::-webkit-scrollbar { display: none; }
