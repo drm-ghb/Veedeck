@@ -954,7 +954,7 @@ async function renderAtelier(
       doc.setFontSize(12);
       doc.setTextColor(...DARK);
       doc.text(opts.designerName ?? "Projektant", ML + 11.5, ly + 6);
-      ly += 11;
+      ly += 14;
     } catch {
       doc.setFont(FONT, "bold");
       doc.setFontSize(12);
@@ -1058,7 +1058,7 @@ async function renderAtelier(
     doc.setFont(FONT, "bold");
     doc.setFontSize(8);
     doc.setTextColor(250, 247, 242);
-    doc.text(String(sectionIndex), CIRC_X, CIRC_Y + 2.5, { align: "center" });
+    doc.text(String(sectionIndex), CIRC_X, CIRC_Y + 1, { align: "center" });
 
     const nameX = ML + CIRC_R * 2 + 4;
     doc.setFont(FONT, "bold");
