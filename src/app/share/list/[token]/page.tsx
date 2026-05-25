@@ -88,7 +88,7 @@ export default async function PublicListPage({ params }: { params: Promise<{ tok
   const categoryOrder: string[] = (list.project?.user?.listsCategoryOrder as string[] | null) ?? [];
 
   function sortProductsForShare(
-    products: typeof list.sections[0]["products"],
+    products: NonNullable<typeof list>["sections"][0]["products"],
     sortBy: string | null,
   ) {
     if (!sortBy || sortBy === "manual") return products;
