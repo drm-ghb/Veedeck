@@ -45,6 +45,8 @@ interface ShareSidebarProps {
   mobileOpen?: boolean;
   /** Called when mobile sidebar open state changes (lifts state to parent) */
   onMobileOpenChange?: (v: boolean) => void;
+  /** When true, forces the sidebar to be collapsed (without saving to localStorage) */
+  forceCollapsed?: boolean;
 }
 
 export default function ShareSidebar({
@@ -64,6 +66,7 @@ export default function ShareSidebar({
   currentUserId,
   mobileOpen,
   onMobileOpenChange,
+  forceCollapsed,
 }: ShareSidebarProps) {
   const t = useT();
   const pathname = usePathname();
@@ -222,12 +225,13 @@ export default function ShareSidebar({
     localStorage.setItem("nav-sidebar-collapsed", String(next));
   }
 
-  const isCollapsed = collapsed;
+  const isCollapsed = forceCollapsed ?? collapsed;
 
   const homeHref = clientProjectId ? `/client/${clientProjectId}` : `/share/${token}/dashboard`;
   const renderHref = clientProjectId ? `/client/${clientProjectId}` : `/share/${token}`;
-  const listHref =
-    shoppingLists.length === 1
+  const listHref = clientProjectId
+    ? `/client/${clientProjectId}`
+    : shoppingLists.length === 1
       ? `/share/list/${shoppingLists[0].shareToken}`
       : homeHref;
   const dyskusjeHref = clientProjectId ? `/client/${clientProjectId}` : `/share/${token}/dyskusje`;

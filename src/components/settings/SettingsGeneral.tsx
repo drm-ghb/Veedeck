@@ -1,12 +1,15 @@
 "use client";
 
 import { useState, useRef, useCallback } from "react";
+import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
+import { SortableContext, verticalListSortingStrategy, arrayMove, useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { User, Mail, Lock, Info, Sun, Moon, Monitor, Palette, Image as ImageIcon, Layers, LocalMall, Package, Globe, PushPin, Pencil, X, Eye, EyeOff, Phone, UserCircle, Trash2 } from "@/components/ui/icons";
+import { User, Mail, Lock, Info, Sun, Moon, Monitor, Palette, Image as ImageIcon, Layers, LocalMall, Package, Globe, PushPin, Pencil, X, Eye, EyeOff, Phone, UserCircle, Trash2, GripVertical, LayoutDashboard, Users, CheckSquare, CalendarDays, NotebookText, ChatBubble, ViewInAr } from "@/components/ui/icons";
 import { useTheme, type Theme, type ColorTheme } from "@/lib/theme";
 import { useT, useLang } from "@/lib/i18n";
 import Cropper from "react-easy-crop";
@@ -29,6 +32,9 @@ interface Props {
   initialClientLogoUrl: string | null;
   initialClientWelcomeMessage: string | null;
   initialColorTheme: ColorTheme;
+  initialEmailNotifEnabled: boolean;
+  initialEmailNotifModules: string[];
+  initialSidebarOrder: string[];
 }
 
 const PHONE_PREFIXES = [
@@ -59,6 +65,20 @@ function validatePassword(pwd: string): boolean {
   return pwd.length >= 8 && /[a-z]/.test(pwd) && /[A-Z]/.test(pwd) && /[0-9]/.test(pwd);
 }
 
+function SortableSidebarItem({ id, label, icon: Icon }: { id: string; label: string; icon: React.ElementType }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
+  return (
+    <div ref={setNodeRef} style={style} className="flex items-center gap-3 px-3 py-2.5 bg-card border border-border rounded-xl">
+      <button type="button" {...attributes} {...listeners} className="text-muted-foreground hover:text-foreground cursor-grab active:cursor-grabbing touch-none">
+        <GripVertical size={16} />
+      </button>
+      <Icon size={15} className="text-muted-foreground shrink-0" />
+      <span className="text-sm font-medium">{label}</span>
+    </div>
+  );
+}
+
 export function SettingsGeneral({
   isDesigner,
   initialName,
@@ -73,6 +93,9 @@ export function SettingsGeneral({
   initialClientLogoUrl,
   initialClientWelcomeMessage,
   initialColorTheme,
+  initialEmailNotifEnabled,
+  initialEmailNotifModules,
+  initialSidebarOrder,
 }: Props) {
   const router = useRouter();
   const { theme, setTheme, colorTheme, setColorTheme } = useTheme();
@@ -114,6 +137,70 @@ export function SettingsGeneral({
 
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
+
+  const [emailNotifEnabled, setEmailNotifEnabled] = useState(initialEmailNotifEnabled);
+  const [emailNotifModules, setEmailNotifModules] = useState<string[]>(initialEmailNotifModules);
+  const [emailNotifLoading, setEmailNotifLoading] = useState(false);
+
+  const DEFAULT_SIDEBAR_ORDER = ["klienci", "renderflow", "listy", "zadania", "produkty", "kalendarz", "notatnik", "dyskusje", "generator3d"];
+  const SIDEBAR_ITEM_META: Record<string, { label: string; icon: React.ElementType }> = {
+    klienci:     { label: "Klienci",       icon: Users },
+    renderflow:  { label: "RenderFlow",    icon: PushPin },
+    listy:       { label: "Listy zakupowe",icon: LocalMall },
+    zadania:     { label: "Zadania",       icon: CheckSquare },
+    produkty:    { label: "Produkty",      icon: Package },
+    kalendarz:   { label: "Kalendarz",     icon: CalendarDays },
+    notatnik:    { label: "Notatnik",      icon: NotebookText },
+    dyskusje:    { label: "Dyskusje",      icon: ChatBubble },
+    generator3d: { label: "Generator 3D", icon: ViewInAr },
+  };
+  const initialOrder = initialSidebarOrder.length > 0 ? initialSidebarOrder : DEFAULT_SIDEBAR_ORDER;
+  const [sidebarOrder, setSidebarOrder] = useState<string[]>(initialOrder);
+  const [sidebarOrderSaving, setSidebarOrderSaving] = useState(false);
+  const sidebarSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+
+  function handleSidebarDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = sidebarOrder.indexOf(String(active.id));
+    const newIndex = sidebarOrder.indexOf(String(over.id));
+    setSidebarOrder(arrayMove(sidebarOrder, oldIndex, newIndex));
+  }
+
+  async function saveSidebarOrder() {
+    setSidebarOrderSaving(true);
+    try {
+      await fetch("/api/user/preferences", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sidebarOrder }),
+      });
+      toast.success("Kolejność sidebar zapisana");
+      router.refresh();
+    } catch {
+      toast.error("Błąd zapisu");
+    } finally {
+      setSidebarOrderSaving(false);
+    }
+  }
+
+  async function resetSidebarOrder() {
+    setSidebarOrder(DEFAULT_SIDEBAR_ORDER);
+    setSidebarOrderSaving(true);
+    try {
+      await fetch("/api/user/preferences", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sidebarOrder: DEFAULT_SIDEBAR_ORDER }),
+      });
+      toast.success("Przywrócono domyślną kolejność");
+      router.refresh();
+    } catch {
+      toast.error("Błąd zapisu");
+    } finally {
+      setSidebarOrderSaving(false);
+    }
+  }
 
   const [showProfileName, setShowProfileName] = useState(initialShowProfileName);
   const [showClientLogo, setShowClientLogo] = useState(initialShowClientLogo);
@@ -794,6 +881,109 @@ const COLOR_THEMES: {
                 </button>
               ))}
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Email notifications */}
+      <section className="space-y-4">
+        <SectionHeader title="Powiadomienia email" />
+        <div className="bg-card border border-border rounded-2xl p-6 space-y-5">
+          {/* Master toggle */}
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-sm font-medium text-foreground">Powiadomienia email</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Otrzymuj email gdy klient doda pin, komentarz lub złoży prośbę
+              </p>
+            </div>
+            <ToggleSwitch
+              checked={emailNotifEnabled}
+              onToggle={async () => {
+                const next = !emailNotifEnabled;
+                setEmailNotifEnabled(next);
+                setEmailNotifLoading(true);
+                try {
+                  await patchUser({ emailNotifEnabled: next });
+                } finally {
+                  setEmailNotifLoading(false);
+                }
+              }}
+            />
+          </div>
+
+          {/* Module checkboxes */}
+          {emailNotifEnabled && (
+            <div className="space-y-3 pt-1 border-t border-border">
+              <p className="text-xs text-muted-foreground pt-1">Wybierz moduły, z których chcesz otrzymywać powiadomienia:</p>
+              {[
+                { slug: "renderflow", label: "RenderFlow", desc: "Piny, komentarze, prośby o status i przywrócenie wersji" },
+                { slug: "listy", label: "Listy zakupowe", desc: "Komentarze do produktów na listach" },
+              ].map(({ slug, label, desc }) => {
+                const checked = emailNotifModules.includes(slug);
+                return (
+                  <label key={slug} className="flex items-start gap-3 cursor-pointer group">
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      disabled={emailNotifLoading}
+                      onChange={async () => {
+                        const next = checked
+                          ? emailNotifModules.filter((m) => m !== slug)
+                          : [...emailNotifModules, slug];
+                        setEmailNotifModules(next);
+                        setEmailNotifLoading(true);
+                        try {
+                          await patchUser({ emailNotifModules: next });
+                        } finally {
+                          setEmailNotifLoading(false);
+                        }
+                      }}
+                      className="mt-0.5 w-4 h-4 rounded accent-primary"
+                    />
+                    <div>
+                      <p className="text-sm font-medium text-foreground">{label}</p>
+                      <p className="text-xs text-muted-foreground">{desc}</p>
+                    </div>
+                  </label>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </section>
+
+      <section className="space-y-4">
+        <SectionHeader title="Kolejność sidebar" />
+        <div className="bg-card border border-border rounded-2xl p-6 space-y-4">
+          <p className="text-xs text-muted-foreground">Dashboard jest zawsze pierwszy. Przeciągnij pozostałe moduły aby zmienić kolejność.</p>
+
+          {/* Fixed Dashboard row */}
+          <div className="flex items-center gap-3 px-3 py-2.5 bg-muted/50 border border-border rounded-xl opacity-60">
+            <span className="w-4 h-4 shrink-0" />
+            <LayoutDashboard size={15} className="text-muted-foreground shrink-0" />
+            <span className="text-sm font-medium">Dashboard</span>
+          </div>
+
+          <DndContext sensors={sidebarSensors} collisionDetection={closestCenter} onDragEnd={handleSidebarDragEnd}>
+            <SortableContext items={sidebarOrder} strategy={verticalListSortingStrategy}>
+              <div className="space-y-2">
+                {sidebarOrder.map((key) => {
+                  const meta = SIDEBAR_ITEM_META[key];
+                  if (!meta) return null;
+                  return <SortableSidebarItem key={key} id={key} label={meta.label} icon={meta.icon} />;
+                })}
+              </div>
+            </SortableContext>
+          </DndContext>
+
+          <div className="flex gap-2 pt-1">
+            <Button size="sm" onClick={saveSidebarOrder} disabled={sidebarOrderSaving}>
+              {sidebarOrderSaving ? "Zapisywanie..." : "Zapisz"}
+            </Button>
+            <Button size="sm" variant="outline" onClick={resetSidebarOrder} disabled={sidebarOrderSaving}>
+              Przywróć domyślne
+            </Button>
           </div>
         </div>
       </section>

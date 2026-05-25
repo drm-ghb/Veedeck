@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Users, Image as ImageIcon, LocalMall, ChevronRight, SlidersHorizontal, Search, ArchiveRestore, Trash2, Pin } from "@/components/ui/icons";
+import { Users, Image as ImageIcon, LocalMall, ChevronRight, SlidersHorizontal, Search, ArchiveRestore, Trash2, Pin, KeyRound } from "@/components/ui/icons";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import NewProjectDialog from "@/components/dashboard/NewProjectDialog";
@@ -23,6 +23,7 @@ interface Project {
   createdAt: string;
   pinned: boolean;
   clientCanUpload?: boolean;
+  clientHasNoAccount?: boolean;
 }
 
 interface ProjektyViewProps {
@@ -68,7 +69,7 @@ export default function ProjektyView({ projects, archivedProjects }: ProjektyVie
   async function handleDelete(id: string, title: string) {
     if (!confirm(t.projekty.confirmDeleteProject.replace("{title}", title))) return;
     const res = await fetch(`/api/projects/${id}`, { method: "DELETE" });
-    if (res.ok) { toast.success(t.projekty.projectDeleted); router.refresh(); }
+    if (res.ok) { toast.success("Klient usunięty"); router.refresh(); }
     else toast.error(t.projekty.projectDeleteError);
   }
 
@@ -172,8 +173,8 @@ export default function ProjektyView({ projects, archivedProjects }: ProjektyVie
           ) : (
             <div className="bg-card border border-border rounded-xl overflow-hidden">
               <div className="hidden sm:grid grid-cols-[1fr_140px_200px_96px] gap-4 px-5 py-3 bg-muted/50 border-b border-border text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                <span>{t.projekty.colProject}</span>
-                <span>{t.projekty.colDate}</span>
+                <span>Klient</span>
+                <span>Data utworzenia</span>
                 <span>{t.projekty.colModules}</span>
                 <span className="text-right">{t.projekty.colActions}</span>
               </div>
@@ -184,7 +185,21 @@ export default function ProjektyView({ projects, archivedProjects }: ProjektyVie
                       {p.pinned && <Pin size={12} className="text-red-500 fill-red-500 flex-shrink-0" />}
                       {p.title}
                     </p>
-                    {p.clientName && <p className="text-xs text-muted-foreground truncate mt-0.5">{p.clientName}</p>}
+                    {p.clientName && (
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <p className="text-xs text-muted-foreground truncate">{p.clientName}</p>
+                        {p.clientHasNoAccount && (
+                          <Link
+                            href={`/klienci/${p.slug ?? p.id}?tab=contacts`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="flex items-center gap-1 text-amber-500 hover:text-amber-600 text-[11px] font-medium flex-shrink-0 transition-colors"
+                          >
+                            <KeyRound size={11} />
+                            Brak konta
+                          </Link>
+                        )}
+                      </div>
+                    )}
                     {p.description && <p className="text-xs text-muted-foreground truncate mt-0.5">{p.description}</p>}
                   </div>
                   <p className="hidden sm:block text-sm text-muted-foreground whitespace-nowrap">

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Card, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Pin, AlertTriangle, Check } from "@/components/ui/icons";
+import { Pin, AlertTriangle, Check, KeyRound } from "@/components/ui/icons";
 import { toast } from "sonner";
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -22,6 +22,7 @@ interface ProjectCardProps {
   pinned?: boolean;
   hiddenModules?: string[];
   hasClientAccounts?: boolean;
+  clientHasNoAccount?: boolean;
 }
 
 export default function ProjectCard({
@@ -36,6 +37,7 @@ export default function ProjectCard({
   pinned,
   hiddenModules = [],
   hasClientAccounts = false,
+  clientHasNoAccount = false,
 }: ProjectCardProps) {
   const [warningOpen, setWarningOpen] = useState(false);
 
@@ -79,9 +81,11 @@ export default function ProjectCard({
           </div>
 
           <div className="flex flex-col gap-0.5 mt-1 min-h-[2.5rem]">
-            <p className="text-sm text-gray-600 dark:text-gray-300 font-medium truncate">
-              {clientName ?? "\u00A0"}
-            </p>
+            <div className="flex items-center gap-1.5 min-w-0">
+              <p className="text-sm text-gray-600 dark:text-gray-300 font-medium truncate">
+                {clientName ?? "\u00A0"}
+              </p>
+            </div>
             <p className="text-xs text-gray-400 dark:text-gray-500 truncate">
               {clientEmail ?? "\u00A0"}
             </p>
@@ -99,6 +103,14 @@ export default function ProjectCard({
           <Button size="sm" variant="outline" onClick={copyShareLink}>
             Skopiuj link
           </Button>
+          {clientHasNoAccount && clientName && (
+            <Link href={`/klienci/${id}?tab=contacts`} onClick={(e) => e.stopPropagation()}>
+              <Button size="sm" variant="ghost" className="gap-1.5 text-amber-500 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/30">
+                <KeyRound size={13} />
+                Brak konta
+              </Button>
+            </Link>
+          )}
         </CardFooter>
       </Card>
     </Link>

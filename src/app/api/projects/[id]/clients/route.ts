@@ -57,37 +57,57 @@ export async function POST(
       return NextResponse.json({ error: "Hasło musi mieć co najmniej 4 znaki" }, { status: 400 });
     }
 
-    // Generate login
-    const baseLogin = customLogin?.trim() || generateClientLogin(name.trim());
-    if (!baseLogin) return NextResponse.json({ error: "Nie można wygenerować loginu z podanego imienia" }, { status: 400 });
+    if (email?.trim()) {
+      // New mechanism: email as login
+      const emailLogin = email.trim().toLowerCase();
+      const existingUser = await prisma.user.findFirst({
+        where: { OR: [{ email: emailLogin }, { login: emailLogin }] },
+      });
+      if (existingUser) {
+        clientUserId = existingUser.id;
+      } else {
+        const hashedPassword = await bcrypt.hash(password.trim(), 10);
+        const clientUser = await prisma.user.create({
+          data: {
+            name: name.trim(),
+            email: emailLogin,
+            login: emailLogin,
+            password: hashedPassword,
+            role: "client",
+            phone: phone?.trim() || null,
+            contactEmail: emailLogin,
+          },
+        });
+        clientUserId = clientUser.id;
+      }
+    } else {
+      // Old mechanism (backward compat): generated login + @client.internal
+      const baseLogin = customLogin?.trim() || generateClientLogin(name.trim());
+      if (!baseLogin) return NextResponse.json({ error: "Nie można wygenerować loginu z podanego imienia" }, { status: 400 });
 
-    // Ensure login is unique
-    const existingLogin = await prisma.user.findUnique({ where: { login: baseLogin } });
-    if (existingLogin) {
-      return NextResponse.json({ error: `Login "${baseLogin}" jest już zajęty` }, { status: 409 });
+      const internalEmail = `${baseLogin}@client.internal`;
+      const [existingLogin, existingEmail] = await Promise.all([
+        prisma.user.findUnique({ where: { login: baseLogin } }),
+        prisma.user.findUnique({ where: { email: internalEmail } }),
+      ]);
+      if (existingLogin || existingEmail) {
+        return NextResponse.json({ error: `Login "${baseLogin}" jest już zajęty` }, { status: 409 });
+      }
+
+      const hashedPassword = await bcrypt.hash(password.trim(), 10);
+      const clientUser = await prisma.user.create({
+        data: {
+          name: name.trim(),
+          email: internalEmail,
+          login: baseLogin,
+          password: hashedPassword,
+          role: "client",
+          phone: phone?.trim() || null,
+          contactEmail: null,
+        },
+      });
+      clientUserId = clientUser.id;
     }
-
-    const hashedPassword = await bcrypt.hash(password.trim(), 10);
-    const clientEmail = `${baseLogin}@client.internal`;
-
-    // Ensure internal email doesn't clash
-    const existingEmail = await prisma.user.findUnique({ where: { email: clientEmail } });
-    if (existingEmail) {
-      return NextResponse.json({ error: `Login "${baseLogin}" jest już zajęty` }, { status: 409 });
-    }
-
-    const clientUser = await prisma.user.create({
-      data: {
-        name: name.trim(),
-        email: clientEmail,
-        login: baseLogin,
-        password: hashedPassword,
-        role: "client",
-        phone: phone?.trim() || null,
-      },
-    });
-
-    clientUserId = clientUser.id;
   }
 
   const client = await prisma.projectClient.create({

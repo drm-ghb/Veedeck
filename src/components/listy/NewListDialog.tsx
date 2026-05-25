@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Plus, Search, ChevronRight } from "@/components/ui/icons";
+import { Plus, Search, ChevronRight, Eye, EyeOff } from "@/components/ui/icons";
 import { useT } from "@/lib/i18n";
 
 interface Project {
@@ -27,6 +27,10 @@ export default function NewListDialog() {
   const [name, setName] = useState("");
   const [clientTab, setClientTab] = useState<"new" | "existing">("new");
   const [newClientName, setNewClientName] = useState("");
+  const [newClientEmail, setNewClientEmail] = useState("");
+  const [newClientPhone, setNewClientPhone] = useState("");
+  const [newClientPassword, setNewClientPassword] = useState("");
+  const [showNewClientPassword, setShowNewClientPassword] = useState(false);
   const [projects, setProjects] = useState<Project[]>([]);
   const [loadingProjects, setLoadingProjects] = useState(false);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
@@ -37,31 +41,28 @@ export default function NewListDialog() {
   const t = useT();
 
   useEffect(() => {
-    if (open && clientTab === "existing" && projects.length === 0) {
-      fetchProjects();
+    if (open && projects.length === 0) {
+      setLoadingProjects(true);
+      fetch("/api/projects")
+        .then((r) => r.ok ? r.json() : [])
+        .then((data) => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          setProjects(data.filter((p: any) => !p.archived).map((p: any) => ({
+            id: p.id,
+            title: p.title,
+            clientName: p.clientName ?? null,
+          })));
+        })
+        .catch(() => {})
+        .finally(() => setLoadingProjects(false));
     }
-  }, [open, clientTab]);
-
-  async function fetchProjects() {
-    setLoadingProjects(true);
-    try {
-      const res = await fetch("/api/projects");
-      if (res.ok) {
-        const data = await res.json();
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        setProjects(data.filter((p: any) => !p.archived).map((p: any) => ({
-          id: p.id,
-          title: p.title,
-          clientName: p.clientName ?? null,
-        })));
-      }
-    } finally {
-      setLoadingProjects(false);
-    }
-  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   async function handleSubmit() {
     if (!name.trim()) return;
+    if (clientTab === "new" && (!newClientName.trim() || !newClientEmail.trim())) return;
+    if (clientTab === "existing" && !selectedProject) return;
     setLoading(true);
     try {
       let projectId: string | null = null;
@@ -73,6 +74,9 @@ export default function NewListDialog() {
           body: JSON.stringify({
             title: newClientName.trim(),
             clientName: newClientName.trim(),
+            clientEmail: newClientEmail.trim() || undefined,
+            clientPhone: newClientPhone.trim() || undefined,
+            clientPassword: newClientPassword.trim() || undefined,
           }),
         });
         if (!projRes.ok) throw new Error();
@@ -106,6 +110,10 @@ export default function NewListDialog() {
       setName("");
       setClientTab("new");
       setNewClientName("");
+      setNewClientEmail("");
+      setNewClientPhone("");
+      setNewClientPassword("");
+      setShowNewClientPassword(false);
       setSelectedProject(null);
       setSearch("");
     }
@@ -127,13 +135,13 @@ export default function NewListDialog() {
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{t.listy.newList}</DialogTitle>
+          <DialogTitle>+ {t.listy.newList}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-5">
           {/* List name */}
           <div className="space-y-1.5">
-            <Label htmlFor="name">{t.listy.listName}</Label>
+            <Label htmlFor="name">{t.listy.listName}<span className="text-destructive">*</span></Label>
             <Input
               id="name"
               value={name}
@@ -145,10 +153,7 @@ export default function NewListDialog() {
             />
           </div>
 
-          {/* Assign to client */}
           <div className="space-y-3">
-            <Label>Przypisz do klienta</Label>
-
             {/* Tabs */}
             <div className="flex gap-1 bg-muted rounded-lg p-1">
               <button
@@ -177,16 +182,63 @@ export default function NewListDialog() {
 
             {/* Tab: Nowy klient */}
             {clientTab === "new" && (
-              <div className="space-y-1.5">
-                <Input
-                  value={newClientName}
-                  onChange={(e) => setNewClientName(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && !loading && name.trim() && handleSubmit()}
-                  placeholder="Nazwa klienta (opcjonalnie)"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Pozostaw puste, aby utworzyć listę bez przypisanego klienta.
-                </p>
+              <div className="space-y-3">
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="space-y-1.5">
+                    <Label>Nazwa kontaktu<span className="text-destructive">*</span></Label>
+                    <Input
+                      value={newClientName}
+                      onChange={(e) => setNewClientName(e.target.value)}
+                      placeholder="Jan Kowalski"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>E-mail<span className="text-destructive">*</span></Label>
+                    <Input
+                      type="email"
+                      value={newClientEmail}
+                      onChange={(e) => setNewClientEmail(e.target.value)}
+                      placeholder="jan@firma.pl"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Telefon</Label>
+                    <Input
+                      type="tel"
+                      value={newClientPhone}
+                      onChange={(e) => setNewClientPhone(e.target.value)}
+                      placeholder="+48 123 456 789"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="newClientPassword">
+                    Hasło do konta{" "}
+                    <span className="text-muted-foreground font-normal">(opcjonalnie)</span>
+                  </Label>
+                  <div className="relative">
+                    <Input
+                      id="newClientPassword"
+                      type={showNewClientPassword ? "text" : "password"}
+                      value={newClientPassword}
+                      onChange={(e) => setNewClientPassword(e.target.value)}
+                      placeholder="Klient zaloguje się tym hasłem"
+                      className="pr-9"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowNewClientPassword((v) => !v)}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      {showNewClientPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                    </button>
+                  </div>
+                  {newClientPassword.trim() && (
+                    newClientEmail.trim()
+                      ? <p className="text-xs text-muted-foreground">Login: <span className="font-mono font-medium text-foreground">{newClientEmail.trim().toLowerCase()}</span></p>
+                      : <p className="text-xs text-destructive">Podaj e-mail klienta — będzie używany jako login do panelu</p>
+                  )}
+                </div>
               </div>
             )}
 
@@ -258,7 +310,18 @@ export default function NewListDialog() {
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
               {t.common.cancel}
             </Button>
-            <Button type="button" onClick={handleSubmit} disabled={loading || !name.trim()}>
+            <Button
+              type="button"
+              onClick={handleSubmit}
+              disabled={
+                loading ||
+                !name.trim() ||
+                (clientTab === "new" && !newClientName.trim()) ||
+                (clientTab === "new" && !newClientEmail.trim()) ||
+                (clientTab === "existing" && !selectedProject) ||
+                (!!newClientPassword.trim() && !newClientEmail.trim())
+              }
+            >
               {loading ? t.listy.creating : t.listy.createList}
             </Button>
           </div>

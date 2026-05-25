@@ -137,6 +137,7 @@ export default function SharePage() {
   const [selectedRender, setSelectedRender] = useState<Render | null>(null);
   const [pendingRequests, setPendingRequests] = useState<Set<string>>(new Set());
   const [pendingRestoreRequests, setPendingRestoreRequests] = useState<Set<string>>(new Set());
+  const [batchApproving, setBatchApproving] = useState(false);
 
   // Grid cols for room/folder render view
   const [gridCols, setClientGridCols] = useState<3 | 4 | 5>(() => {
@@ -375,6 +376,33 @@ export default function SharePage() {
       body: JSON.stringify({ status }),
     });
     updateRenderInState(renderId, status);
+  }
+
+  async function handleBatchApprove(renders: Render[]) {
+    const toApprove = renders.filter((r) => r.status !== "ACCEPTED");
+    if (toApprove.length === 0) return;
+    setBatchApproving(true);
+    try {
+      await Promise.all(
+        toApprove.map((r) =>
+          fetch(`/api/share/${token}/renders/${r.id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json", ...buildHeaders() },
+            body: JSON.stringify({ status: "ACCEPTED" }),
+          })
+        )
+      );
+      const updated = await fetchProject(unlockedPassword ?? undefined);
+      if (updated) {
+        setProject(updated);
+        setSelectedRoom((prev) => prev ? (updated.rooms.find((r) => r.id === prev.id) ?? prev) : prev);
+      }
+      toast.success(`Zatwierdzono ${toApprove.length} plik${toApprove.length === 1 ? "" : toApprove.length < 5 ? "i" : "ów"}`);
+    } catch {
+      toast.error("Błąd podczas zatwierdzania");
+    } finally {
+      setBatchApproving(false);
+    }
   }
 
   async function handleAddFolder() {
@@ -741,7 +769,18 @@ export default function SharePage() {
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">{selectedFolder ? selectedFolder.name : selectedRoom.name}</h2>
               <div className="flex items-center gap-2">
-                {/* Grid cols dropdown */}
+                {/* Batch approve — only in folder view when acceptance is allowed */}
+                {selectedFolder && (project.allowDirectStatusChange || project.allowClientAcceptance) && folderRenders.some((r) => r.status !== "ACCEPTED") && (
+                  <button
+                    onClick={() => handleBatchApprove(folderRenders)}
+                    disabled={batchApproving}
+                    className="flex items-center gap-1.5 px-3 h-8 rounded-md text-sm font-medium bg-green-600 hover:bg-green-700 text-white disabled:opacity-60 transition-colors"
+                  >
+                    <Check size={14} />
+                    {batchApproving ? "Zatwierdzanie…" : "Zatwierdź wszystkie"}
+                  </button>
+                )}
+              {/* Grid cols dropdown */}
                 <div className="relative" ref={gridRef}>
                   <button
                     onClick={() => setGridOpen((v) => !v)}

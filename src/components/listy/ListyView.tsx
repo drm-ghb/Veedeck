@@ -20,7 +20,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useT } from "@/lib/i18n";
-import { LocalMall, Search, LayoutGrid, List, ArrowDownUp, Link2, MoreHorizontal, Pencil, Archive, ArchiveRestore, Trash2, Pin, PinOff, AlertTriangle, Check, Comment, GripVertical } from "@/components/ui/icons";
+import { LocalMall, Search, LayoutGrid, List, ArrowDownUp, Link2, MoreHorizontal, Pencil, Archive, ArchiveRestore, Trash2, Pin, PinOff, AlertTriangle, Check, Comment, GripVertical, KeyRound } from "@/components/ui/icons";
 import { pusherClient } from "@/lib/pusher";
 import { getUnreadSet, syncListUnread } from "@/lib/list-unread-store";
 import NewListDialog from "./NewListDialog";
@@ -51,7 +51,7 @@ interface ShoppingList {
   pinned: boolean;
   order: number;
   createdAt: string;
-  project: { id: string; title: string; hiddenModules: string[] } | null;
+  project: { id: string; title: string; hiddenModules: string[]; clientHasNoAccount: boolean } | null;
 }
 
 interface ListyViewProps {
@@ -478,6 +478,16 @@ function SortableListGridCard({ list, unreadCount, onCopyLink, menu }: {
             {unreadCount}
           </div>
         )}
+        {list.project?.clientHasNoAccount && (
+          <Link
+            href={`/klienci/${list.project.id}?tab=contacts`}
+            onClick={(e) => e.stopPropagation()}
+            className="flex items-center gap-1 px-1.5 py-0.5 rounded text-amber-500 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/30 text-[11px] font-medium transition-colors"
+          >
+            <KeyRound size={12} />
+            Brak konta
+          </Link>
+        )}
         <button
           onClick={(e) => { e.preventDefault(); onCopyLink(list); }}
           className="w-7 h-7 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
@@ -537,6 +547,16 @@ function SortableListRowItem({ list, isLast, unreadCount, onNavigate, onCopyLink
             <Comment size={10} />
             {unreadCount}
           </div>
+        )}
+        {list.project?.clientHasNoAccount && (
+          <Link
+            href={`/klienci/${list.project.id}?tab=contacts`}
+            onClick={(e) => e.stopPropagation()}
+            className="flex items-center gap-1 px-1.5 py-0.5 rounded text-amber-500 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/30 text-[11px] font-medium transition-colors"
+          >
+            <KeyRound size={12} />
+            Brak konta
+          </Link>
         )}
         <button
           onClick={() => onCopyLink(list)}

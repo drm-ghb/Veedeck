@@ -7,15 +7,20 @@ export default async function DashboardPage() {
   const session = await auth();
   const userId = getWorkspaceUserId(session!);
 
+  const projectInclude = {
+    _count: { select: { renders: true } },
+    clients: { where: { isMainContact: true as const }, select: { userId: true }, take: 1 },
+  };
+
   const [projects, archivedProjects] = await Promise.all([
     prisma.project.findMany({
       where: { userId, archived: false, modules: { has: "renderflow" } },
-      include: { _count: { select: { renders: true } } },
+      include: projectInclude,
       orderBy: { createdAt: "desc" },
     }),
     prisma.project.findMany({
       where: { userId, archived: true, modules: { has: "renderflow" } },
-      include: { _count: { select: { renders: true } } },
+      include: projectInclude,
       orderBy: { createdAt: "desc" },
     }),
   ]);
@@ -33,6 +38,7 @@ export default async function DashboardPage() {
       pinned: p.pinned,
       hiddenModules: p.hiddenModules,
       clientCanUpload: p.clientCanUpload,
+      clientHasNoAccount: !!(p.clientName) && !(p.clients[0]?.userId),
     };
   }
 

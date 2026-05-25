@@ -24,7 +24,7 @@ export default async function VeedeckLayout({
 
   const dbUser = await prisma.user.findUnique({
     where: { id: session.user.id! },
-    select: { name: true, fullName: true, email: true, globalHiddenModules: true, clientLogoUrl: true, avatarUrl: true, ownerId: true, colorTheme: true, trialEndsAt: true, isFree: true, subscription: { select: { status: true, cancelAt: true } } },
+    select: { name: true, fullName: true, email: true, globalHiddenModules: true, clientLogoUrl: true, avatarUrl: true, ownerId: true, colorTheme: true, trialEndsAt: true, isFree: true, viewPreferences: true, subscription: { select: { status: true, cancelAt: true } } },
   });
 
   // Jeśli to członek zespołu — pobierz ustawienia projektanta
@@ -42,6 +42,7 @@ export default async function VeedeckLayout({
   const hiddenModules = (ownerSettings ?? dbUser)?.globalHiddenModules ?? [];
   const logoUrl = (ownerSettings ?? dbUser)?.clientLogoUrl ?? null;
   const colorTheme = (dbUser?.colorTheme ?? "champagne") as ColorTheme;
+  const sidebarOrder = ((dbUser?.viewPreferences as Record<string, unknown>)?.sidebarOrder as string[]) ?? [];
 
   return (
     <div className="h-dvh flex flex-col bg-muted/60">
@@ -69,7 +70,7 @@ export default async function VeedeckLayout({
             <QuickNoteButton />
             <NotificationBell userId={session.user.id!} iconOnly />
             {firstName && (
-              <div className="hidden md:flex items-center gap-2">
+              <a href="/settings/ogolne" className="hidden md:flex items-center gap-2 rounded-lg px-1 py-1 hover:bg-muted transition-colors">
                 <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-semibold leading-none shrink-0 overflow-hidden">
                   {avatarUrl
                     ? <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
@@ -77,7 +78,7 @@ export default async function VeedeckLayout({
                   }
                 </div>
                 <span className="text-sm font-medium text-foreground">{firstName}</span>
-              </div>
+              </a>
             )}
             <div className="hidden md:block"><SignOutButton /></div>
             <div className="md:hidden">
@@ -88,7 +89,7 @@ export default async function VeedeckLayout({
       </nav>
 
       <div className="flex flex-1 min-h-0">
-        <NavSidebar hiddenModules={hiddenModules} />
+        <NavSidebar hiddenModules={hiddenModules} sidebarOrder={sidebarOrder} />
         <main className="flex-1 flex flex-col min-h-0 px-6 py-6 overflow-y-auto overflow-x-hidden bg-background rounded-tl-2xl">
           {children}
         </main>

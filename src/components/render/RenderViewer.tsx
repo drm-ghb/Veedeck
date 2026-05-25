@@ -109,6 +109,8 @@ interface RenderViewerProps {
   onRenderStatusChange?: (status: RenderStatus) => Promise<void>;
   onStatusRequest?: () => Promise<void>;
   onBack?: () => void;
+  onBackToRooms?: () => void;
+  onBackToRoom?: () => void;
   onRenderSelect?: (render: RoomRender) => void;
   onViewCounted?: (renderId: string) => void;
   shareToken?: string;
@@ -226,6 +228,8 @@ export default function RenderViewer({
   onRenderStatusChange,
   onStatusRequest,
   onBack,
+  onBackToRooms,
+  onBackToRoom,
   onRenderSelect,
   onViewCounted,
   shareToken,
@@ -1535,9 +1539,17 @@ export default function RenderViewer({
           <nav className="flex items-center gap-1 min-w-0 flex-1 text-sm overflow-hidden">
             {onBack ? (
               <>
-                {projectTitle && <span className="min-w-0 shrink text-gray-500 dark:text-gray-400 font-medium truncate max-w-[120px]">{projectTitle}</span>}
+                {projectTitle && (onBackToRooms
+                  ? <button onClick={onBackToRooms} className="min-w-0 shrink text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors font-medium truncate max-w-[120px]">{projectTitle}</button>
+                  : <span className="min-w-0 shrink text-gray-500 dark:text-gray-400 font-medium truncate max-w-[120px]">{projectTitle}</span>
+                )}
                 {projectTitle && roomName && <ChevronLeft size={13} className="flex-shrink-0 text-gray-300 rotate-180" />}
-                {roomName && <span className="min-w-0 shrink text-gray-500 dark:text-gray-400 font-medium truncate max-w-[120px]">{roomName}</span>}
+                {roomName && (folderName
+                  ? (onBackToRoom
+                    ? <button onClick={onBackToRoom} className="min-w-0 shrink text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors font-medium truncate max-w-[120px]">{roomName}</button>
+                    : <span className="min-w-0 shrink text-gray-500 dark:text-gray-400 font-medium truncate max-w-[120px]">{roomName}</span>)
+                  : <span className="min-w-0 shrink text-gray-500 dark:text-gray-400 font-medium truncate max-w-[120px]">{roomName}</span>
+                )}
                 {roomName && folderName && <ChevronLeft size={13} className="flex-shrink-0 text-gray-300 rotate-180" />}
                 {folderName && <span className="min-w-0 shrink text-gray-500 dark:text-gray-400 font-medium truncate max-w-[120px]">{folderName}</span>}
                 {(projectTitle || roomName || folderName) && renderName && <ChevronLeft size={13} className="flex-shrink-0 text-gray-300 rotate-180" />}

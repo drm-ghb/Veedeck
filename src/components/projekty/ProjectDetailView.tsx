@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import DatePicker from "@/components/ui/DatePicker";
 import { PaymentsTab } from "@/components/projekty/PaymentsTab";
 import DocumentsTab from "@/components/projekty/DocumentsTab";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -119,7 +119,10 @@ export default function ProjectDetailView({ project }: { project: ProjectData })
   const [savingInfo, setSavingInfo] = useState(false);
 
   // Tab state
-  const [activeTab, setActiveTab] = useState<"info" | "contacts" | "payments" | "documents">("info");
+  const searchParams = useSearchParams();
+  const [activeTab, setActiveTab] = useState<"info" | "contacts" | "payments" | "documents">(
+    searchParams.get("tab") === "contacts" ? "contacts" : "info"
+  );
 
   // Clients state
   const [clients, setClients] = useState<ProjectClient[]>(project.clients);
@@ -189,6 +192,20 @@ export default function ProjectDetailView({ project }: { project: ProjectData })
     setCopiedPanel(true);
     setTimeout(() => setCopiedPanel(false), 2000);
   }
+
+  // No-account banner
+  const [bannerDismissed, setBannerDismissed] = useState(false);
+
+  // Create account inline state (for clients without userId)
+  const [createAccountOpen, setCreateAccountOpen] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(project.clients.filter((c) => !c.userId).map((c) => [c.id, true]))
+  );
+  const [createAccountEmail, setCreateAccountEmail] = useState<Record<string, string>>(() =>
+    Object.fromEntries(project.clients.filter((c) => !c.userId && c.email).map((c) => [c.id, c.email!]))
+  );
+  const [createAccountPassword, setCreateAccountPassword] = useState<Record<string, string>>({});
+  const [createAccountShowPass, setCreateAccountShowPass] = useState<Record<string, boolean>>({});
+  const [creatingAccount, setCreatingAccount] = useState<Record<string, boolean>>({});
 
   // Invite client dialog state
   const [showInviteDialog, setShowInviteDialog] = useState(false);
@@ -314,7 +331,7 @@ export default function ProjectDetailView({ project }: { project: ProjectData })
       if (created.user?.login) {
         setClientCreds((prev) => ({
           ...prev,
-          [created.id]: { login: created.user.login, password: newClientPassword.trim(), showPassword: true },
+          [created.id]: { login: created.user.login, password: "", showPassword: false },
         }));
         setCredentialsOpen((prev) => ({ ...prev, [created.id]: true }));
       }
@@ -402,6 +419,41 @@ export default function ProjectDetailView({ project }: { project: ProjectData })
       toast.success(t.projekty.mainContactSet);
     } catch {
       toast.error(t.settings.saveError);
+    }
+  }
+
+  async function createClientAccount(clientId: string) {
+    const password = createAccountPassword[clientId];
+    if (!password?.trim() || password.trim().length < 4) return;
+    setCreatingAccount((prev) => ({ ...prev, [clientId]: true }));
+    try {
+      const res = await fetch(`/api/projects/${project.id}/clients/${clientId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          password: password.trim(),
+          ...(createAccountEmail[clientId]?.trim() ? { email: createAccountEmail[clientId].trim().toLowerCase() } : {}),
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error((data as { error?: string }).error || "Błąd tworzenia konta");
+      setClients((prev) =>
+        prev.map((c) => c.id === clientId ? { ...c, userId: data.userId, user: data.user } : c)
+      );
+      if (data.user?.login) {
+        setClientCreds((prev) => ({
+          ...prev,
+          [clientId]: { login: data.user.login, password: "", showPassword: false },
+        }));
+        setCredentialsOpen((prev) => ({ ...prev, [clientId]: true }));
+      }
+      setCreateAccountOpen((prev) => ({ ...prev, [clientId]: false }));
+      setCreateAccountPassword((prev) => ({ ...prev, [clientId]: "" }));
+      toast.success("Konto klienta zostało utworzone");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Błąd tworzenia konta");
+    } finally {
+      setCreatingAccount((prev) => ({ ...prev, [clientId]: false }));
     }
   }
 
@@ -501,6 +553,36 @@ export default function ProjectDetailView({ project }: { project: ProjectData })
           </Button>
         </div>
       </div>
+
+      {/* No-account banner */}
+      {!bannerDismissed && clients.some((c) => !c.userId) && (
+        <div className="mb-5 flex items-start gap-2 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 px-3 py-2.5 text-sm text-amber-800 dark:text-amber-300">
+          <AlertTriangle size={15} className="flex-shrink-0 mt-0.5" />
+          <div className="flex-1">
+            {clients.filter((c) => !c.userId).length === 1 ? (
+              <>
+                Klient <strong>{clients.find((c) => !c.userId)?.name}</strong> nie ma jeszcze konta —{" "}
+                <button onClick={() => setActiveTab("contacts")} className="underline hover:no-underline">
+                  nadaj hasło w zakładce Kontakty
+                </button>
+              </>
+            ) : (
+              <>
+                <strong>{clients.filter((c) => !c.userId).length}</strong> klientów nie ma kont —{" "}
+                <button onClick={() => setActiveTab("contacts")} className="underline hover:no-underline">
+                  nadaj hasła w zakładce Kontakty
+                </button>
+              </>
+            )}
+          </div>
+          <button
+            onClick={() => setBannerDismissed(true)}
+            className="text-amber-500 hover:text-amber-700 flex-shrink-0 p-0.5"
+          >
+            <X size={14} />
+          </button>
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="flex gap-1 border-b border-border mb-6">
@@ -697,6 +779,11 @@ export default function ProjectDetailView({ project }: { project: ProjectData })
                           {t.projekty.mainContact}
                         </span>
                       )}
+                      {!client.userId && (
+                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 flex-shrink-0">
+                          Brak konta
+                        </span>
+                      )}
                     </div>
                     <div className="flex items-center gap-1 flex-shrink-0">
                       {(client.email || client.phone) && editingClientId !== client.id && (
@@ -711,6 +798,15 @@ export default function ProjectDetailView({ project }: { project: ProjectData })
                           title={t.projekty.setAsMain}
                         >
                           {t.projekty.setAsMain}
+                        </button>
+                      )}
+                      {!client.userId && (
+                        <button
+                          onClick={() => setCreateAccountOpen((prev) => ({ ...prev, [client.id]: !prev[client.id] }))}
+                          className={`transition-colors p-1 rounded ${createAccountOpen[client.id] ? "text-amber-600" : "text-muted-foreground hover:text-foreground"}`}
+                          title="Nadaj hasło — utwórz konto"
+                        >
+                          <KeyRound size={14} />
                         </button>
                       )}
                       {client.user && clientCreds[client.id] !== undefined && (
@@ -795,6 +891,56 @@ export default function ProjectDetailView({ project }: { project: ProjectData })
                         </Button>
                         <Button size="sm" className="h-7 text-xs" onClick={() => saveClientEdit(client.id)} disabled={savingEdit}>
                           {savingEdit ? t.common.saving : t.common.save}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                  {!client.userId && createAccountOpen[client.id] && (
+                    <div className="px-4 pb-3 space-y-2 border-t border-border/50 pt-3">
+                      <Input
+                        type="email"
+                        value={createAccountEmail[client.id] ?? ""}
+                        onChange={(e) => setCreateAccountEmail((prev) => ({ ...prev, [client.id]: e.target.value }))}
+                        placeholder="E-mail klienta (login do panelu)"
+                        className="h-7 text-xs px-2"
+                      />
+                      {createAccountEmail[client.id]?.trim()
+                        ? <p className="text-xs text-muted-foreground">Login: <span className="font-mono font-medium text-foreground">{createAccountEmail[client.id].trim().toLowerCase()}</span></p>
+                        : <p className="text-xs text-muted-foreground">Login: <span className="font-mono font-medium text-foreground">{generateClientLogin(client.name)}</span> <span className="text-muted-foreground/60">(podaj e-mail, aby użyć go jako loginu)</span></p>
+                      }
+                      <div className="flex items-center gap-2">
+                        <div className="relative w-48">
+                          <Input
+                            type={createAccountShowPass[client.id] ? "text" : "password"}
+                            value={createAccountPassword[client.id] ?? ""}
+                            onChange={(e) =>
+                              setCreateAccountPassword((prev) => ({ ...prev, [client.id]: e.target.value }))
+                            }
+                            placeholder="Ustaw hasło"
+                            className="h-7 text-xs pr-7 px-2"
+                            onKeyDown={(e) => e.key === "Enter" && createClientAccount(client.id)}
+                          />
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setCreateAccountShowPass((prev) => ({ ...prev, [client.id]: !prev[client.id] }))
+                            }
+                            className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                          >
+                            {createAccountShowPass[client.id] ? <EyeOff size={11} /> : <Eye size={11} />}
+                          </button>
+                        </div>
+                        <Button
+                          size="sm"
+                          className="h-7 text-xs"
+                          disabled={
+                            !(createAccountPassword[client.id]?.trim()) ||
+                            (createAccountPassword[client.id]?.trim().length ?? 0) < 4 ||
+                            !!creatingAccount[client.id]
+                          }
+                          onClick={() => createClientAccount(client.id)}
+                        >
+                          {creatingAccount[client.id] ? "Tworzenie..." : "Utwórz konto"}
                         </Button>
                       </div>
                     </div>

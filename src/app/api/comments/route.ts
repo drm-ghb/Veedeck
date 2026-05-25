@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { pusherServer } from "@/lib/pusher";
 import { auth } from "@/lib/auth";
 import { getWorkspaceUserId } from "@/lib/workspace";
+import { notifyDesignerNewPin, notifyDesignerNewComment } from "@/lib/email";
 
 export async function GET(req: NextRequest) {
   const renderId = req.nextUrl.searchParams.get("renderId");
@@ -30,7 +31,7 @@ export async function POST(req: NextRequest) {
 
   const render = await prisma.render.findUnique({
     where: { id: renderId },
-    include: { project: { include: { user: true } } },
+    include: { project: { include: { user: { select: { id: true, email: true, requirePinTitle: true, maxPinsPerRender: true, emailNotifEnabled: true, emailNotifModules: true } } } } },
   });
 
   if (!render) {
@@ -88,6 +89,33 @@ export async function POST(req: NextRequest) {
       },
     });
     await pusherServer.trigger(`user-${render.project.userId}`, "new-notification", notif);
+
+    // Email notification to designer
+    if (user.emailNotifEnabled && user.emailNotifModules.includes("renderflow")) {
+      if (isPin) {
+        notifyDesignerNewPin({
+          designerEmail: user.email,
+          projectTitle: render.project.title,
+          renderName: render.name,
+          author,
+          content: finalContent,
+          projectId: render.project.id,
+          renderId,
+          commentId: comment.id,
+        }).catch(() => {});
+      } else {
+        notifyDesignerNewComment({
+          designerEmail: user.email,
+          projectTitle: render.project.title,
+          renderName: render.name,
+          author,
+          content: finalContent,
+          projectId: render.project.id,
+          renderId,
+          commentId: comment.id,
+        }).catch(() => {});
+      }
+    }
   }
 
   return NextResponse.json(comment, { status: 201 });

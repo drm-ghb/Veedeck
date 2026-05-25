@@ -24,7 +24,7 @@ export default async function DashboardLayout({
 
   const dbUser = await prisma.user.findUnique({
     where: { id: session.user.id! },
-    select: { name: true, fullName: true, email: true, isAdmin: true, globalHiddenModules: true, clientLogoUrl: true, avatarUrl: true, ownerId: true, trialEndsAt: true, isFree: true },
+    select: { name: true, fullName: true, email: true, isAdmin: true, globalHiddenModules: true, clientLogoUrl: true, avatarUrl: true, ownerId: true, trialEndsAt: true, isFree: true, viewPreferences: true },
   });
 
   // Jeśli to członek zespołu — pobierz ustawienia projektanta
@@ -41,6 +41,7 @@ export default async function DashboardLayout({
   const avatarUrl = dbUser?.avatarUrl ?? null;
   const hiddenModules = (ownerSettings ?? dbUser)?.globalHiddenModules ?? [];
   const logoUrl = (ownerSettings ?? dbUser)?.clientLogoUrl ?? null;
+  const sidebarOrder = ((dbUser?.viewPreferences as Record<string, unknown>)?.sidebarOrder as string[]) ?? [];
 
   return (
     <div className="h-dvh flex flex-col bg-muted/60">
@@ -91,7 +92,7 @@ export default async function DashboardLayout({
         </div>
       </nav>
       <div className="flex flex-1 min-h-0">
-        <NavSidebar hiddenModules={hiddenModules} isAdmin={dbUser?.isAdmin ?? false} />
+        <NavSidebar hiddenModules={hiddenModules} isAdmin={dbUser?.isAdmin ?? false} sidebarOrder={sidebarOrder} />
         <main className="flex-1 px-6 py-6 overflow-y-auto overflow-x-hidden bg-background rounded-tl-2xl">
           {children}
         </main>

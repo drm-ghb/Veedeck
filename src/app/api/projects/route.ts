@@ -3,6 +3,8 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { uniqueSlug } from "@/lib/slug";
 import { getWorkspaceUserId } from "@/lib/workspace";
+import bcrypt from "bcryptjs";
+import { generateClientLogin } from "@/lib/client-login";
 
 export async function GET() {
   const session = await auth();
@@ -27,7 +29,7 @@ export async function POST(req: NextRequest) {
   }
   const userId = getWorkspaceUserId(session);
 
-  const { title, clientName, clientEmail, clientPhone, description, module: moduleName } = await req.json();
+  const { title, clientName, clientEmail, clientPhone, clientPassword, description, module: moduleName } = await req.json();
   if (!title) {
     return NextResponse.json({ error: "Tytuł jest wymagany" }, { status: 400 });
   }
@@ -46,16 +48,6 @@ export async function POST(req: NextRequest) {
         description: description || null,
         userId,
         modules: moduleName ? [moduleName] : [],
-        ...(clientName && {
-          clients: {
-            create: {
-              name: clientName,
-              email: clientEmail || null,
-              phone: clientPhone || null,
-              isMainContact: true,
-            },
-          },
-        }),
         discussion: {
           create: {
             title,
@@ -65,6 +57,74 @@ export async function POST(req: NextRequest) {
         },
       },
     });
+
+    if (clientName) {
+      let clientUserId: string | null = null;
+
+      if (clientPassword?.trim() && clientPassword.trim().length >= 4) {
+        if (clientEmail?.trim()) {
+          // New mechanism: email as login
+          const emailLogin = clientEmail.trim().toLowerCase();
+          const existingUser = await prisma.user.findFirst({
+            where: { OR: [{ email: emailLogin }, { login: emailLogin }] },
+          });
+          if (existingUser) {
+            clientUserId = existingUser.id;
+          } else {
+            const hashedPassword = await bcrypt.hash(clientPassword.trim(), 10);
+            const clientUser = await prisma.user.create({
+              data: {
+                name: clientName.trim(),
+                email: emailLogin,
+                login: emailLogin,
+                password: hashedPassword,
+                role: "client",
+                phone: clientPhone?.trim() || null,
+                contactEmail: emailLogin,
+              },
+            });
+            clientUserId = clientUser.id;
+          }
+        } else {
+          // Old mechanism (backward compat): generated login + @client.internal
+          const baseLogin = generateClientLogin(clientName.trim());
+          if (baseLogin) {
+            const internalEmail = `${baseLogin}@client.internal`;
+            const [existingLogin, existingEmail] = await Promise.all([
+              prisma.user.findUnique({ where: { login: baseLogin } }),
+              prisma.user.findUnique({ where: { email: internalEmail } }),
+            ]);
+            if (!existingLogin && !existingEmail) {
+              const hashedPassword = await bcrypt.hash(clientPassword.trim(), 10);
+              const clientUser = await prisma.user.create({
+                data: {
+                  name: clientName.trim(),
+                  email: internalEmail,
+                  login: baseLogin,
+                  password: hashedPassword,
+                  role: "client",
+                  phone: clientPhone?.trim() || null,
+                  contactEmail: null,
+                },
+              });
+              clientUserId = clientUser.id;
+            }
+          }
+        }
+      }
+
+      await prisma.projectClient.create({
+        data: {
+          name: clientName.trim(),
+          email: clientEmail?.trim() || null,
+          phone: clientPhone?.trim() || null,
+          isMainContact: true,
+          projectId: project.id,
+          userId: clientUserId,
+        },
+      });
+    }
+
     return NextResponse.json(project, { status: 201 });
   } catch (err) {
     console.error("[POST /api/projects] error:", err);

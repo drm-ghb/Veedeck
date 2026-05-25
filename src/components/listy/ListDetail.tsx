@@ -4,7 +4,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronDown, ChevronUp, Plus, ExternalLink, Minus, MoreHorizontal, Pencil, Trash2, GripVertical, FileDown, Sheet, ArrowDownUp, Eye, EyeOff, Check, X, RotateCcw, FolderInput, Wallet, AlertCircle, DollarSign, Copy, Comment } from "@/components/ui/icons";
+import { ChevronLeft, ChevronDown, ChevronUp, Plus, ExternalLink, Minus, MoreHorizontal, Pencil, Trash2, GripVertical, FileDown, Sheet, ArrowDownUp, Eye, EyeOff, Check, X, RotateCcw, FolderInput, Wallet, AlertCircle, AlertTriangle, DollarSign, Copy, Comment } from "@/components/ui/icons";
 import ProductCommentPanel from "./ProductCommentPanel";
 import { pusherClient } from "@/lib/pusher";
 import { Button } from "@/components/ui/button";
@@ -115,6 +115,7 @@ interface ListDetailProps {
       title: string;
       hiddenModules: string[];
       clientName: string | null;
+      clientHasAccount: boolean;
       addressStreet: string | null;
       addressCity: string | null;
       addressPostalCode: string | null;
@@ -1701,6 +1702,19 @@ export default function ListDetail({ list, designerName, designerEmail, designer
         />
       </div>
       </div>
+
+      {/* No-account banner */}
+      {list.project && !list.project.clientHasAccount && list.project.clientName && (
+        <div className="mb-4 flex items-start gap-2 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 px-3 py-2.5 text-sm text-amber-800 dark:text-amber-300">
+          <AlertTriangle size={15} className="flex-shrink-0 mt-0.5" />
+          <span className="flex-1">
+            Klient <strong>{list.project.clientName}</strong> nie ma konta —{" "}
+            <Link href={`/klienci/${list.project.id}`} className="underline hover:no-underline">
+              nadaj hasło w module Klientów
+            </Link>
+          </span>
+        </div>
+      )}
 
       {/* Toolbar */}
       <div className="mb-6 md:mb-0 md:sticky md:top-0 md:z-20 md:-mx-6 md:px-6 md:bg-background md:pb-3 md:pt-2">

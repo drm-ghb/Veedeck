@@ -27,7 +27,7 @@ export default async function ListPage({ params, searchParams }: { params: Promi
           select: {
             id: true, title: true, hiddenModules: true,
             addressStreet: true, addressCity: true, addressPostalCode: true, addressCountry: true,
-            clients: { where: { isMainContact: true }, select: { name: true }, take: 1 },
+            clients: { where: { isMainContact: true }, select: { name: true, userId: true }, take: 1 },
           },
         },
         sections: {
@@ -73,6 +73,7 @@ export default async function ListPage({ params, searchParams }: { params: Promi
           title: list.project.title,
           hiddenModules: list.project.hiddenModules,
           clientName: list.project.clients[0]?.name ?? null,
+          clientHasAccount: !!(list.project.clients[0]?.userId),
           addressStreet: list.project.addressStreet ?? null,
           addressCity: list.project.addressCity ?? null,
           addressPostalCode: list.project.addressPostalCode ?? null,

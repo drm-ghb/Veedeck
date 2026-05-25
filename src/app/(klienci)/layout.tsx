@@ -21,7 +21,7 @@ export default async function KlienciLayout({
 
   const dbUser = await prisma.user.findUnique({
     where: { id: session.user.id! },
-    select: { name: true, fullName: true, email: true, globalHiddenModules: true, clientLogoUrl: true, ownerId: true },
+    select: { name: true, fullName: true, email: true, globalHiddenModules: true, clientLogoUrl: true, avatarUrl: true, ownerId: true, viewPreferences: true },
   });
 
   const ownerId = dbUser?.ownerId;
@@ -36,6 +36,8 @@ export default async function KlienciLayout({
   const displayName = (fullName || dbUser?.name)?.split(" ")[0] ?? dbUser?.email ?? null;
   const hiddenModules = (ownerSettings ?? dbUser)?.globalHiddenModules ?? [];
   const logoUrl = (ownerSettings ?? dbUser)?.clientLogoUrl ?? null;
+  const avatarUrl = dbUser?.avatarUrl ?? null;
+  const sidebarOrder = ((dbUser?.viewPreferences as Record<string, unknown>)?.sidebarOrder as string[]) ?? [];
 
   return (
     <div className="h-dvh flex flex-col bg-muted/60">
@@ -56,8 +58,8 @@ export default async function KlienciLayout({
             {displayName && (
               <div className="hidden md:flex items-center gap-2">
                 <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-semibold shrink-0 overflow-hidden">
-                  {logoUrl
-                    ? <img src={logoUrl} alt="Logo" className="w-full h-full object-cover" />
+                  {avatarUrl
+                    ? <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
                     : displayName[0].toUpperCase()
                   }
                 </div>
@@ -72,7 +74,7 @@ export default async function KlienciLayout({
         </div>
       </nav>
       <div className="flex flex-1 min-h-0">
-        <NavSidebar hiddenModules={hiddenModules} />
+        <NavSidebar hiddenModules={hiddenModules} sidebarOrder={sidebarOrder} />
         <main className="flex-1 px-6 py-6 overflow-y-auto overflow-x-hidden bg-background rounded-tl-2xl">
           {children}
         </main>

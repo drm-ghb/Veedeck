@@ -2,6 +2,20 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { validateExtensionKey } from "@/lib/extension-auth";
 import { pusherServer } from "@/lib/pusher";
+import { UTApi } from "uploadthing/server";
+
+async function reuploadImage(url: string): Promise<string> {
+  const res = await fetch(url, {
+    headers: { "User-Agent": "Mozilla/5.0 (compatible; veedeck-bot/1.0)" },
+  });
+  if (!res.ok) return url;
+  const blob = await res.blob();
+  const ext = (blob.type.split("/")[1] || "jpg").replace("jpeg", "jpg");
+  const file = new File([blob], `product-${Date.now()}.${ext}`, { type: blob.type });
+  const utapi = new UTApi();
+  const result = await utapi.uploadFiles(file);
+  return result.data?.url ?? url;
+}
 
 /**
  * POST — add a product to a list section from the extension.
@@ -34,6 +48,16 @@ export async function POST(req: NextRequest) {
   if (!name?.trim()) return NextResponse.json({ error: "Nazwa jest wymagana" }, { status: 400 });
   if (!listId || !sectionId) return NextResponse.json({ error: "Brak listId lub sectionId" }, { status: 400 });
 
+  // Re-upload external image to UploadThing to avoid hotlink protection
+  let finalImageUrl = imageUrl || null;
+  if (imageUrl) {
+    try {
+      finalImageUrl = await reuploadImage(imageUrl);
+    } catch {
+      // fallback to original URL
+    }
+  }
+
   // Verify ownership — list must belong to the workspace
   const section = await prisma.listSection.findFirst({
     where: {
@@ -59,7 +83,7 @@ export async function POST(req: NextRequest) {
       data: {
         name: name.trim(),
         url: url || null,
-        imageUrl: imageUrl || null,
+        imageUrl: finalImageUrl,
         price: price || null,
         manufacturer: manufacturer || null,
         color: color || null,
@@ -78,7 +102,7 @@ export async function POST(req: NextRequest) {
     data: {
       name: name.trim(),
       url: url || null,
-      imageUrl: imageUrl || null,
+      imageUrl: finalImageUrl,
       price: price || null,
       manufacturer: manufacturer || null,
       color: color || null,

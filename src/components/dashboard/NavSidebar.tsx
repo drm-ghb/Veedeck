@@ -8,9 +8,12 @@ import { LayoutDashboard, Users, LocalMall, Package, PanelLeftClose, PanelLeftOp
 import { useTheme } from "@/lib/theme";
 import { useT } from "@/lib/i18n";
 
+const DEFAULT_SIDEBAR_ORDER = ["klienci", "renderflow", "listy", "zadania", "produkty", "kalendarz", "notatnik", "dyskusje", "generator3d"];
+
 interface NavSidebarProps {
   hiddenModules: string[];
   isAdmin?: boolean;
+  sidebarOrder?: string[];
 }
 
 function getSettingsHref(pathname: string): string {
@@ -24,7 +27,7 @@ const HIDDEN_ON: RegExp[] = [
   /^\/listy\/.+/,
 ];
 
-export default function NavSidebar({ hiddenModules, isAdmin }: NavSidebarProps) {
+export default function NavSidebar({ hiddenModules, isAdmin, sidebarOrder }: NavSidebarProps) {
   const pathname = usePathname();
   const { theme, setTheme } = useTheme();
   const t = useT();
@@ -121,7 +124,17 @@ export default function NavSidebar({ hiddenModules, isAdmin }: NavSidebarProps) 
   const forceCollapsed = HIDDEN_ON.some((pattern) => pattern.test(pathname));
   const isCollapsed = forceCollapsed || collapsed;
 
-  const visible = items.filter((item) => !item.slug || !hiddenModules.includes(item.slug));
+  const order = sidebarOrder && sidebarOrder.length > 0 ? sidebarOrder : DEFAULT_SIDEBAR_ORDER;
+  const [dashboard, ...rest] = items;
+  const sortedRest = [...rest].sort((a, b) => {
+    const keyA = a.href.replace("/", "");
+    const keyB = b.href.replace("/", "");
+    const ia = order.indexOf(keyA);
+    const ib = order.indexOf(keyB);
+    return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
+  });
+  const sortedItems = [dashboard, ...sortedRest];
+  const visible = sortedItems.filter((item) => !item.slug || !hiddenModules.includes(item.slug));
 
   return (
     <>

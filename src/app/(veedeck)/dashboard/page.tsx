@@ -86,7 +86,10 @@ export default async function DashboardPage() {
   todayEnd.setUTCHours(23, 59, 59, 999);
   todayEnd.setUTCDate(todayEnd.getUTCDate() + 1);
 
-  const [renderflowProjectCount, listCount, notificationCount, todayEvents, pins, statusRequests, versionRequests, renderDiscussions, listMessages, renderReplies, listReplies] =
+  const endOfToday = new Date();
+  endOfToday.setHours(23, 59, 59, 999);
+
+  const [renderflowProjectCount, listCount, notificationCount, todayEvents, pins, statusRequests, versionRequests, renderDiscussions, listMessages, renderReplies, listReplies, dueTasks] =
     await Promise.all([
       prisma.project.count({ where: { userId, archived: false, modules: { has: "renderflow" } } }),
       prisma.shoppingList.count({ where: { userId, archived: false } }),
@@ -266,6 +269,25 @@ export default async function DashboardPage() {
         orderBy: { createdAt: "desc" },
         take: 10,
       }),
+
+      // Tasks due today or overdue (not done)
+      prisma.task.findMany({
+        where: {
+          ownerId: userId,
+          status: { not: "DONE" },
+          dueDate: { lte: endOfToday },
+          parentId: null,
+        },
+        select: {
+          id: true,
+          title: true,
+          dueDate: true,
+          status: true,
+          project: { select: { title: true } },
+        },
+        orderBy: { dueDate: "asc" },
+        take: 10,
+      }),
     ]);
 
   // Compute per-project unread counts from already-fetched data
@@ -408,6 +430,13 @@ export default async function DashboardPage() {
         listId: c.product.section.list.id,
         listName: c.product.section.list.name,
         listSlug: c.product.section.list.slug,
+      }))}
+      dueTasks={dueTasks.map((t) => ({
+        id: t.id,
+        title: t.title,
+        dueDate: t.dueDate!.toISOString(),
+        status: t.status,
+        projectTitle: t.project?.title ?? null,
       }))}
     />
   );

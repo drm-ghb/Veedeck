@@ -21,8 +21,10 @@ import {
   Check,
   X,
   CalendarDays,
+  CheckSquare,
 } from "@/components/ui/icons";
 import NewProjectDialog from "./NewProjectDialog";
+import NewListDialog from "@/components/listy/NewListDialog";
 import { useT } from "@/lib/i18n";
 
 interface Stats {
@@ -144,6 +146,14 @@ interface TodayEvent {
   endAt: string | null;
 }
 
+interface DueTask {
+  id: string;
+  title: string;
+  dueDate: string;
+  status: string;
+  projectTitle: string | null;
+}
+
 interface DashboardViewProps {
   displayName: string | null;
   userId: string;
@@ -159,6 +169,7 @@ interface DashboardViewProps {
   renderReplies: RenderReply[];
   listReplies: ListReply[];
   todayEvents: TodayEvent[];
+  dueTasks: DueTask[];
 }
 
 function InfoTooltip({ items }: { items: string[] }) {
@@ -210,6 +221,7 @@ export default function DashboardView({
   renderReplies,
   listReplies,
   todayEvents,
+  dueTasks,
 }: DashboardViewProps) {
   const t = useT();
 
@@ -304,17 +316,25 @@ export default function DashboardView({
   type TodoItem =
     | { type: "pin"; data: Pin }
     | { type: "status"; data: StatusRequest }
-    | { type: "version"; data: VersionRequest };
+    | { type: "version"; data: VersionRequest }
+    | { type: "task"; data: DueTask };
+
+  const sortedTasks = [...dueTasks].sort(
+    (a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
+  );
 
   const allTodoItems: TodoItem[] = [
-    ...pins.filter((p) => !viewedPinIds.has(p.id)).map((p) => ({ type: "pin" as const, data: p })),
-    ...statusRequests
-      .filter((r) => !resolvedIds.has(r.id))
-      .map((r) => ({ type: "status" as const, data: r })),
-    ...versionRequests
-      .filter((r) => !resolvedIds.has(r.id))
-      .map((r) => ({ type: "version" as const, data: r })),
-  ].sort((a, b) => new Date(b.data.createdAt).getTime() - new Date(a.data.createdAt).getTime());
+    ...sortedTasks.map((t) => ({ type: "task" as const, data: t })),
+    ...[
+      ...pins.filter((p) => !viewedPinIds.has(p.id)).map((p) => ({ type: "pin" as const, data: p })),
+      ...statusRequests
+        .filter((r) => !resolvedIds.has(r.id))
+        .map((r) => ({ type: "status" as const, data: r })),
+      ...versionRequests
+        .filter((r) => !resolvedIds.has(r.id))
+        .map((r) => ({ type: "version" as const, data: r })),
+    ].sort((a, b) => new Date(b.data.createdAt).getTime() - new Date(a.data.createdAt).getTime()),
+  ];
 
   const todoCount = allTodoItems.length;
 
@@ -504,9 +524,10 @@ export default function DashboardView({
               </Link>
             </div>
             {recentLists.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-border bg-card p-6 text-center">
-                <LocalMall size={28} className="mx-auto mb-2 text-muted-foreground/40" />
-                <p className="text-sm text-muted-foreground">Brak list zakupowych</p>
+              <div className="rounded-xl border border-dashed border-border bg-card p-8 text-center">
+                <LocalMall size={32} className="mx-auto mb-3 text-muted-foreground/40" />
+                <p className="text-sm text-muted-foreground mb-3">Nie masz jeszcze żadnych list zakupowych</p>
+                <NewListDialog />
               </div>
             ) : (
               <div className="rounded-xl border border-border bg-card divide-y divide-border overflow-hidden">
@@ -565,6 +586,7 @@ export default function DashboardView({
               <div className="px-4 py-5 flex flex-col items-center gap-1.5 text-center">
                 <CalendarDays size={24} className="text-muted-foreground/30" />
                 <p className="text-sm text-muted-foreground">Brak wydarzeń na dziś</p>
+                <Link href="/kalendarz" className="text-xs text-primary hover:underline">Zaplanuj spotkanie →</Link>
               </div>
             ) : (
               <div className="divide-y divide-border">
@@ -697,6 +719,7 @@ export default function DashboardView({
             <div className="flex items-center gap-1.5">
               <h2 className="text-sm font-semibold text-foreground">Do zrobienia</h2>
               <InfoTooltip items={[
+                "Zadania z terminem do dzisiaj (i zaległe)",
                 "Niewyświetlone piny od klientów",
                 "Prośby o zmianę statusu renderu",
                 "Prośby o przywrócenie wersji pliku",
@@ -714,6 +737,40 @@ export default function DashboardView({
             <div className="divide-y divide-border max-h-[192px] overflow-y-auto">
 
               {allTodoItems.map((item) => {
+                if (item.type === "task") {
+                  const task = item.data;
+                  const due = new Date(task.dueDate);
+                  const todayDate = new Date();
+                  const isToday =
+                    due.getFullYear() === todayDate.getFullYear() &&
+                    due.getMonth() === todayDate.getMonth() &&
+                    due.getDate() === todayDate.getDate();
+                  const isOverdue = due < todayDate && !isToday;
+                  const dueDateLabel = due.toLocaleDateString("pl-PL", { day: "numeric", month: "short" });
+                  return (
+                    <Link
+                      key={task.id}
+                      href="/zadania"
+                      className="flex items-center gap-3 px-4 py-3 hover:bg-muted/50 transition-colors"
+                    >
+                      <div className="w-8 h-8 rounded-lg bg-violet-100 dark:bg-violet-900/40 flex items-center justify-center shrink-0">
+                        <CheckSquare size={15} className="text-violet-600 dark:text-violet-400" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium truncate">{task.title}</p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {task.projectTitle ? `${task.projectTitle} · ` : ""}Zadanie
+                        </p>
+                      </div>
+                      {(isToday || isOverdue) && (
+                        <span className="shrink-0 text-xs font-medium px-1.5 py-0.5 rounded-md bg-red-100 text-red-600 dark:bg-red-950/40 dark:text-red-400">
+                          {dueDateLabel}
+                        </span>
+                      )}
+                    </Link>
+                  );
+                }
+
                 if (item.type === "pin") {
                   const pin = item.data;
                   return (

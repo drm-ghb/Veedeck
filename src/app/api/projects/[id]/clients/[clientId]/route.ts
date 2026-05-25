@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getWorkspaceUserId } from "@/lib/workspace";
 import bcrypt from "bcryptjs";
+import { generateClientLogin } from "@/lib/client-login";
 
 export async function PATCH(
   req: NextRequest,
@@ -28,7 +29,91 @@ export async function PATCH(
   // Handle login/password change for client account
   if (newLogin !== undefined || newPassword !== undefined) {
     if (!client.userId || !client.user) {
-      return NextResponse.json({ error: "Ten klient nie ma konta użytkownika" }, { status: 400 });
+      // No account yet — create one if password is provided
+      if (!newPassword?.trim()) {
+        return NextResponse.json({ error: "Podaj hasło aby utworzyć konto" }, { status: 400 });
+      }
+      if (newPassword.trim().length < 4) {
+        return NextResponse.json({ error: "Hasło musi mieć co najmniej 4 znaki" }, { status: 400 });
+      }
+
+      let newUserId: string;
+
+      if (email?.trim()) {
+        // New mechanism: email as login
+        const emailLogin = email.trim().toLowerCase();
+        const existingUser = await prisma.user.findFirst({
+          where: { OR: [{ email: emailLogin }, { login: emailLogin }] },
+        });
+        if (existingUser) {
+          newUserId = existingUser.id;
+        } else {
+          try {
+            const hashedPassword = await bcrypt.hash(newPassword.trim(), 10);
+            const created = await prisma.user.create({
+              data: {
+                name: client.name,
+                email: emailLogin,
+                login: emailLogin,
+                password: hashedPassword,
+                role: "client",
+                phone: client.phone ?? null,
+                contactEmail: emailLogin,
+              },
+            });
+            newUserId = created.id;
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            return NextResponse.json({ error: `Błąd bazy danych: ${msg}` }, { status: 500 });
+          }
+        }
+      } else {
+        // Old mechanism (backward compat): generated login + @client.internal
+        const baseLogin = newLogin?.trim() || generateClientLogin(client.name);
+        if (!baseLogin) {
+          return NextResponse.json({ error: "Nie można wygenerować loginu z imienia klienta" }, { status: 400 });
+        }
+        const internalEmail = `${baseLogin}@client.internal`;
+        const [existingLogin, existingEmail] = await Promise.all([
+          prisma.user.findUnique({ where: { login: baseLogin } }),
+          prisma.user.findUnique({ where: { email: internalEmail } }),
+        ]);
+        if (existingLogin || existingEmail) {
+          return NextResponse.json({ error: `Login "${baseLogin}" jest już zajęty` }, { status: 409 });
+        }
+        try {
+          const hashedPassword = await bcrypt.hash(newPassword.trim(), 10);
+          const created = await prisma.user.create({
+            data: {
+              name: client.name,
+              email: internalEmail,
+              login: baseLogin,
+              password: hashedPassword,
+              role: "client",
+              phone: client.phone ?? null,
+              contactEmail: client.email ?? null,
+            },
+          });
+          newUserId = created.id;
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          return NextResponse.json({ error: `Błąd bazy danych: ${msg}` }, { status: 500 });
+        }
+      }
+
+      await prisma.projectClient.update({
+        where: { id: clientId },
+        data: {
+          userId: newUserId,
+          ...(email?.trim() ? { email: email.trim().toLowerCase() } : {}),
+        },
+      });
+
+      const updatedWithAccount = await prisma.projectClient.findFirst({
+        where: { id: clientId },
+        include: { user: { select: { id: true, login: true, email: true } } },
+      });
+      return NextResponse.json(updatedWithAccount);
     }
 
     const userUpdateData: Record<string, unknown> = {};

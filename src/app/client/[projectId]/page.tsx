@@ -11,7 +11,7 @@ import ClientDiscussionView from "@/components/dyskusje/ClientDiscussionView";
 import ShareListClient from "@/components/listy/ShareListClient";
 import ModuleGuideSlider from "@/components/share/ModuleGuideSlider";
 import { getRoomIcon } from "@/lib/roomIcons";
-import { ChevronLeft, ChevronRight, ChatBubble, FileText, Folder, User, Mail, Lock, Info, LocalMall, Pencil, X, Eye, EyeOff, UserCircle } from "@/components/ui/icons";
+import { ChevronLeft, ChevronRight, ChatBubble, FileText, Folder, User, Mail, Lock, Info, LocalMall, Pencil, X, Eye, EyeOff, UserCircle, Check } from "@/components/ui/icons";
 import Image from "next/image";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -57,6 +57,48 @@ export default function ClientProjectPage() {
   const { projectId } = useParams<{ projectId: string }>();
   const router = useRouter();
   const { data: session, status } = useSession();
+
+  function navigate(params: Record<string, string | null>) {
+    const sp = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => { if (v) sp.set(k, v); });
+    const qs = sp.toString();
+    window.history.replaceState(null, "", `/client/${projectId}${qs ? `?${qs}` : ""}`);
+  }
+
+  function restoreFromParams(data: Project, sp: URLSearchParams) {
+    const v = sp.get("view");
+    const roomId = sp.get("roomId");
+    const folderId = sp.get("folderId");
+    const renderId = sp.get("renderId");
+    const listId = sp.get("listId");
+    if (v === "rooms") {
+      setView("rooms"); setSelectedRoom(null); setSelectedFolder(null); setSelectedRender(null);
+    } else if ((v === "room" || v === "render") && roomId) {
+      const room = data.rooms.find((r) => r.id === roomId);
+      if (room) {
+        setSelectedRoom(room);
+        const folder = folderId ? room.folders.find((f) => f.id === folderId) ?? null : null;
+        setSelectedFolder(folder);
+        if (v === "render" && renderId) {
+          const render = room.renders.find((r) => r.id === renderId);
+          if (render) { setSelectedRender(render); setView("render"); }
+          else { setSelectedRender(null); setView("room"); }
+        } else {
+          setSelectedRender(null); setView("room");
+        }
+      }
+    } else if (v === "discussion") {
+      setView("discussion"); setSelectedRoom(null); setSelectedFolder(null);
+    } else if (v === "settings") {
+      setView("settings"); setSelectedRoom(null); setSelectedFolder(null);
+    } else if (v === "lists") {
+      setView("lists"); setSelectedRoom(null); setSelectedFolder(null);
+    } else if (v === "list" && listId) {
+      openList(listId);
+    } else {
+      setView("home"); setSelectedRoom(null); setSelectedFolder(null);
+    }
+  }
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<"home" | "rooms" | "room" | "render" | "discussion" | "settings" | "lists" | "list">("home");
@@ -72,6 +114,7 @@ export default function ClientProjectPage() {
     setListLoading(true);
     setSelectedListId(listId);
     setView("list");
+    navigate({ view: "list", listId });
     try {
       const res = await fetch(`/api/client/${projectId}/lists/${listId}`);
       if (!res.ok) throw new Error();
@@ -80,9 +123,11 @@ export default function ClientProjectPage() {
     } catch {
       toast.error("Nie udało się załadować listy");
       setView("lists");
+      navigate({ view: "lists" });
     } finally {
       setListLoading(false);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId]);
 
   const authorName = (session?.user as any)?.name || session?.user?.name || "Klient";
@@ -97,6 +142,9 @@ export default function ClientProjectPage() {
   const [nameLoading, setNameLoading] = useState(false);
   const [fullNameLoading, setFullNameLoading] = useState(false);
   const [emailLoading, setEmailLoading] = useState(false);
+  const [emailNotifEnabled, setEmailNotifEnabled] = useState(false);
+  const [emailNotifModules, setEmailNotifModules] = useState<string[]>([]);
+  const [emailNotifLoading, setEmailNotifLoading] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -113,8 +161,25 @@ export default function ClientProjectPage() {
   const [avatarCroppedAreaPixels, setAvatarCroppedAreaPixels] = useState<Area | null>(null);
   const [avatarCropUploading, setAvatarCropUploading] = useState(false);
   const avatarFileInputRef = useRef<HTMLInputElement>(null);
+  const hasRestoredParams = useRef(false);
   const { startUpload: startAvatarUpload } = useUploadThing("avatarUploader");
 
+  // Effect 1: load from sessionStorage cache instantly on mount (no loading screen on refresh/back)
+  useEffect(() => {
+    try {
+      const cached = sessionStorage.getItem(`client-project-${projectId}`);
+      if (cached) {
+        const data = JSON.parse(cached) as Project;
+        setProject(data);
+        setLoading(false);
+        restoreFromParams(data, new URLSearchParams(window.location.search));
+        hasRestoredParams.current = true;
+      }
+    } catch {}
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId]);
+
+  // Effect 2: auth check + fresh fetch (always runs, updates data in background if cache was used)
   useEffect(() => {
     if (status === "unauthenticated") { router.push("/login"); return; }
     if (status !== "authenticated") return;
@@ -122,12 +187,30 @@ export default function ClientProjectPage() {
 
     setSettingsName((session.user as any)?.name ?? "");
     setSettingsFullName((session.user as any)?.fullName ?? "");
-    setSettingsEmail(session.user?.email ?? "");
     setClientAvatarUrl((session.user as any)?.avatarUrl ?? null);
+
+    // Load contactEmail and email notification prefs
+    fetch("/api/user")
+      .then((r) => r.ok ? r.json() : null)
+      .then((u) => {
+        if (!u) return;
+        setSettingsEmail(u.contactEmail ?? "");
+        setEmailNotifEnabled(u.emailNotifEnabled ?? false);
+        setEmailNotifModules(u.emailNotifModules ?? []);
+      })
+      .catch(() => {});
 
     fetch(`/api/client/${projectId}`)
       .then((r) => { if (!r.ok) throw new Error(); return r.json(); })
-      .then((data) => { setProject(data); setLoading(false); })
+      .then((data) => {
+        setProject(data);
+        try { sessionStorage.setItem(`client-project-${projectId}`, JSON.stringify(data)); } catch {}
+        if (!hasRestoredParams.current) {
+          restoreFromParams(data, new URLSearchParams(window.location.search));
+          hasRestoredParams.current = true;
+        }
+        setLoading(false);
+      })
       .catch(() => { toast.error("Nie udało się załadować projektu"); setLoading(false); });
   }, [projectId, status, session, router]);
 
@@ -145,7 +228,7 @@ export default function ClientProjectPage() {
     if (!settingsEmail.trim()) return;
     setEmailLoading(true);
     try {
-      const res = await fetch("/api/user", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: settingsEmail.trim() }) });
+      const res = await fetch("/api/user", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ contactEmail: settingsEmail.trim() }) });
       if (!res.ok) { const d = await res.json(); toast.error(d.error || "Nie udało się zapisać emaila"); return; }
       toast.success("Email zaktualizowany");
     } finally { setEmailLoading(false); }
@@ -244,7 +327,34 @@ export default function ClientProjectPage() {
     updateRenderInState(renderId, status);
   }, [projectId]);
 
-  if (loading || status === "loading") {
+  const [batchApproving, setBatchApproving] = useState(false);
+
+  async function handleBatchApprove(renders: Render[]) {
+    const toApprove = renders.filter((r) => r.status !== "ACCEPTED");
+    if (toApprove.length === 0) return;
+    setBatchApproving(true);
+    try {
+      await Promise.all(
+        toApprove.map((r) =>
+          fetch(`/api/client/${projectId}/renders/${r.id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ status: "ACCEPTED" }),
+          })
+        )
+      );
+      const updated = await fetch(`/api/client/${projectId}`).then((r) => r.json()) as Project;
+      setProject(updated);
+      setSelectedRoom((prev) => prev ? (updated.rooms.find((r) => r.id === prev.id) ?? prev) : prev);
+      toast.success(`Zatwierdzono ${toApprove.length} plik${toApprove.length === 1 ? "" : toApprove.length < 5 ? "i" : "ów"}`);
+    } catch {
+      toast.error("Błąd podczas zatwierdzania");
+    } finally {
+      setBatchApproving(false);
+    }
+  }
+
+  if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
         <p className="text-gray-400 animate-pulse">Ładowanie...</p>
@@ -279,7 +389,7 @@ export default function ClientProjectPage() {
     return (
       <div className="h-dvh flex flex-col bg-muted/60">
         {themeApplier}
-        <ShareNavbar clientLogoUrl={project.clientLogoUrl} designerName={project.designerName ?? undefined} clientName={authorName} onLogoClick={() => { setView("home"); setSelectedRoom(null); setSelectedFolder(null); }} onMobileMenuOpen={() => setMobileSidebarOpen(true)} />
+        <ShareNavbar clientLogoUrl={project.clientLogoUrl} designerName={project.designerName ?? undefined} clientName={authorName} onLogoClick={() => { setView("home"); setSelectedRoom(null); setSelectedFolder(null); navigate({}); }} onMobileMenuOpen={() => setMobileSidebarOpen(true)} />
         <div className="flex flex-1 min-h-0">
           <ShareSidebar
             token=""
@@ -288,11 +398,11 @@ export default function ClientProjectPage() {
             showListy={!project.hiddenModules.includes("listy")}
             showDyskusje={!project.hiddenModules.includes("dyskusje")}
             shoppingLists={project.shoppingLists}
-            onHomeClick={() => { setView("home"); setSelectedRoom(null); setSelectedFolder(null); }}
-            onRenderFlowClick={() => { if (project.rooms.length === 1) { setSelectedRoom(project.rooms[0]); setSelectedFolder(null); setView("room"); } else { setView("rooms"); } }}
-            onDiscussionClick={() => setView("discussion")}
-            onSettingsClick={() => setView("settings")}
-            onListClick={() => { if (project.shoppingLists.length === 1) { openList(project.shoppingLists[0].id); } else { setView("lists"); } }}
+            onHomeClick={() => { setView("home"); setSelectedRoom(null); setSelectedFolder(null); navigate({}); }}
+            onRenderFlowClick={() => { if (project.rooms.length === 1) { setSelectedRoom(project.rooms[0]); setSelectedFolder(null); setView("room"); navigate({ view: "room", roomId: project.rooms[0].id }); } else { setView("rooms"); navigate({ view: "rooms" }); } }}
+            onDiscussionClick={() => { setView("discussion"); navigate({ view: "discussion" }); }}
+            onSettingsClick={() => { setView("settings"); navigate({ view: "settings" }); }}
+            onListClick={() => { if (project.shoppingLists.length === 1) { openList(project.shoppingLists[0].id); } else { setView("lists"); navigate({ view: "lists" }); } }}
             clientProjectId={projectId}
             activeView={view}
             currentUserId={currentUserId}
@@ -333,10 +443,12 @@ export default function ClientProjectPage() {
         versions={selectedRender.versions.map((v) => ({ ...v, archivedAt: typeof v.archivedAt === "string" ? v.archivedAt : new Date(v.archivedAt).toISOString() }))}
         allowClientVersionRestore={project.allowClientVersionRestore}
         onRenderStatusChange={(status) => handleRenderStatusChange(selectedRender.id, status)}
-        onBack={() => setView("room")}
+        onBack={() => { setView("room"); navigate({ view: "room", roomId: selectedRoom.id, folderId: selectedFolder?.id ?? null }); }}
+        onBackToRooms={() => { setView("rooms"); setSelectedRoom(null); setSelectedFolder(null); navigate({ view: "rooms" }); }}
+        onBackToRoom={selectedFolder ? () => { setSelectedFolder(null); setView("room"); navigate({ view: "room", roomId: selectedRoom.id }); } : undefined}
         onRenderSelect={(r) => {
           const full = selectedRoom.renders.find((render) => render.id === r.id);
-          if (full) setSelectedRender(full);
+          if (full) { setSelectedRender(full); navigate({ view: "render", roomId: selectedRoom.id, folderId: selectedFolder?.id ?? null, renderId: r.id }); }
           fetch(`/api/client/${projectId}/renders/${r.id}/view`, { method: "POST" });
         }}
         onViewCounted={(renderId) => fetch(`/api/client/${projectId}/renders/${renderId}/view`, { method: "POST" })}
@@ -347,7 +459,7 @@ export default function ClientProjectPage() {
     return (
       <div className="h-dvh flex flex-col bg-muted/60">
         {themeApplier}
-        <ShareNavbar clientLogoUrl={project.clientLogoUrl} designerName={project.designerName ?? undefined} clientName={authorName} onLogoClick={() => { setView("home"); setSelectedRoom(null); setSelectedFolder(null); }} onMobileMenuOpen={() => setMobileSidebarOpen(true)} />
+        <ShareNavbar clientLogoUrl={project.clientLogoUrl} designerName={project.designerName ?? undefined} clientName={authorName} onLogoClick={() => { setView("home"); setSelectedRoom(null); setSelectedFolder(null); navigate({}); }} onMobileMenuOpen={() => setMobileSidebarOpen(true)} />
         <div className="flex flex-1 min-h-0">
           <ShareSidebar
             token=""
@@ -356,14 +468,15 @@ export default function ClientProjectPage() {
             showListy={!project.hiddenModules.includes("listy")}
             showDyskusje={!project.hiddenModules.includes("dyskusje")}
             shoppingLists={project.shoppingLists}
-            onHomeClick={() => { setView("home"); setSelectedRoom(null); setSelectedFolder(null); }}
-            onRenderFlowClick={() => { if (project.rooms.length === 1) { setSelectedRoom(project.rooms[0]); setSelectedFolder(null); setView("room"); } else { setView("rooms"); } }}
-            onDiscussionClick={() => setView("discussion")}
-            onSettingsClick={() => setView("settings")}
-            onListClick={() => { if (project.shoppingLists.length === 1) { openList(project.shoppingLists[0].id); } else { setView("lists"); } }}
+            onHomeClick={() => { setView("home"); setSelectedRoom(null); setSelectedFolder(null); navigate({}); }}
+            onRenderFlowClick={() => { if (project.rooms.length === 1) { setSelectedRoom(project.rooms[0]); setSelectedFolder(null); setView("room"); navigate({ view: "room", roomId: project.rooms[0].id }); } else { setView("rooms"); navigate({ view: "rooms" }); } }}
+            onDiscussionClick={() => { setView("discussion"); navigate({ view: "discussion" }); }}
+            onSettingsClick={() => { setView("settings"); navigate({ view: "settings" }); }}
+            onListClick={() => { if (project.shoppingLists.length === 1) { openList(project.shoppingLists[0].id); } else { setView("lists"); navigate({ view: "lists" }); } }}
             clientProjectId={projectId}
             activeView={view}
             currentUserId={currentUserId}
+            forceCollapsed={true}
           />
           <div className="flex-1 min-h-0 bg-background">{renderViewer}</div>
         </div>
@@ -400,7 +513,7 @@ export default function ClientProjectPage() {
                 return (
                   <button
                     key={room.id}
-                    onClick={() => { setSelectedRoom(room); setSelectedFolder(null); setView("room"); }}
+                    onClick={() => { setSelectedRoom(room); setSelectedFolder(null); setView("room"); navigate({ view: "room", roomId: room.id }); }}
                     className="group text-left bg-card border border-border rounded-2xl p-5 shadow-sm hover:shadow-[0_4px_16px_rgba(25,33,61,0.2)] hover:border-primary/30 transition-all"
                   >
                     <div className="w-14 h-14 bg-gray-100 rounded-xl flex items-center justify-center mb-4 group-hover:bg-gray-200 transition-colors">
@@ -420,8 +533,8 @@ export default function ClientProjectPage() {
         const sortedFolders = [...selectedRoom.folders].sort((a, b) => (a.pinned === b.pinned ? 0 : a.pinned ? -1 : 1));
         const ungrouped = selectedRoom.renders.filter((r) => !r.folder);
         const folderRenders = selectedFolder ? selectedRoom.renders.filter((r) => r.folder?.id === selectedFolder.id) : [];
-        const goToRooms = () => { setView("rooms"); setSelectedRoom(null); setSelectedFolder(null); };
-        const goToRoom = () => setSelectedFolder(null);
+        const goToRooms = () => { setView("rooms"); setSelectedRoom(null); setSelectedFolder(null); navigate({ view: "rooms" }); };
+        const goToRoom = () => { setSelectedFolder(null); navigate({ view: "room", roomId: selectedRoom.id }); };
         return (
           <>
             <nav className="flex items-center gap-2 mb-6">
@@ -447,14 +560,26 @@ export default function ClientProjectPage() {
                 )}
               </ol>
             </nav>
-            <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-6">{selectedFolder ? selectedFolder.name : selectedRoom.name}</h2>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">{selectedFolder ? selectedFolder.name : selectedRoom.name}</h2>
+              {selectedFolder && (project.allowDirectStatusChange || project.allowClientAcceptance) && folderRenders.some((r) => r.status !== "ACCEPTED") && (
+                <button
+                  onClick={() => handleBatchApprove(folderRenders)}
+                  disabled={batchApproving}
+                  className="flex items-center gap-1.5 px-3 h-8 rounded-md text-sm font-medium bg-green-600 hover:bg-green-700 text-white disabled:opacity-60 transition-colors"
+                >
+                  <Check size={14} />
+                  {batchApproving ? "Zatwierdzanie…" : "Zatwierdź wszystkie"}
+                </button>
+              )}
+            </div>
             {selectedFolder ? (
               folderRenders.length === 0 ? (
                 <p className="text-gray-400 text-center py-16">Brak plików w tym folderze.</p>
               ) : (
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-2 sm:gap-3">
                   {folderRenders.map((render) => (
-                    <RenderCard key={render.id} render={render} hideCommentCount={project.hideCommentCount} onClick={() => { setSelectedRender(render); setView("render"); fetch(`/api/client/${projectId}/renders/${render.id}/view`, { method: "POST" }); }} />
+                    <RenderCard key={render.id} render={render} hideCommentCount={project.hideCommentCount} onClick={() => { setSelectedRender(render); setView("render"); navigate({ view: "render", roomId: selectedRoom.id, folderId: selectedFolder?.id ?? null, renderId: render.id }); fetch(`/api/client/${projectId}/renders/${render.id}/view`, { method: "POST" }); }} />
                   ))}
                 </div>
               )
@@ -465,7 +590,7 @@ export default function ClientProjectPage() {
                     {sortedFolders.map((folder) => {
                       const count = selectedRoom.renders.filter((r) => r.folder?.id === folder.id).length;
                       return (
-                        <button key={folder.id} onClick={() => setSelectedFolder(folder)} className="group text-left bg-card border border-border rounded-2xl p-5 shadow-sm hover:shadow-[0_4px_16px_rgba(25,33,61,0.2)] hover:border-primary/30 transition-all">
+                        <button key={folder.id} onClick={() => { setSelectedFolder(folder); navigate({ view: "room", roomId: selectedRoom.id, folderId: folder.id }); }} className="group text-left bg-card border border-border rounded-2xl p-5 shadow-sm hover:shadow-[0_4px_16px_rgba(25,33,61,0.2)] hover:border-primary/30 transition-all">
                           <div className="w-14 h-14 bg-primary/10 rounded-xl flex items-center justify-center mb-4 group-hover:bg-primary/20">
                             <Folder size={28} className="text-primary" />
                           </div>
@@ -481,7 +606,7 @@ export default function ClientProjectPage() {
                     {sortedFolders.length > 0 && <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Pozostałe pliki</p>}
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-2 sm:gap-3">
                       {ungrouped.map((render) => (
-                        <RenderCard key={render.id} render={render} hideCommentCount={project.hideCommentCount} onClick={() => { setSelectedRender(render); setView("render"); fetch(`/api/client/${projectId}/renders/${render.id}/view`, { method: "POST" }); }} />
+                        <RenderCard key={render.id} render={render} hideCommentCount={project.hideCommentCount} onClick={() => { setSelectedRender(render); setView("render"); navigate({ view: "render", roomId: selectedRoom.id, folderId: null, renderId: render.id }); fetch(`/api/client/${projectId}/renders/${render.id}/view`, { method: "POST" }); }} />
                       ))}
                     </div>
                   </div>
@@ -546,7 +671,7 @@ export default function ClientProjectPage() {
               <div>
                 <div className="flex items-center gap-3 mb-6">
                   {project.shoppingLists.length > 1 && (
-                    <button onClick={() => setView("lists")} className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
+                    <button onClick={() => { setView("lists"); navigate({ view: "lists" }); }} className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
                       <ChevronLeft size={20} />
                     </button>
                   )}
@@ -635,9 +760,9 @@ export default function ClientProjectPage() {
                 </div>
                 <div className="flex items-start gap-2 text-xs text-gray-400 bg-muted rounded-lg px-3 py-2">
                   <Info size={13} className="mt-0.5 flex-shrink-0" />
-                  <span>Zmiana emaila wpłynie na dane logowania.</span>
+                  <span>Ten adres email służy do powiadomień. Nie wpływa na dane logowania.</span>
                 </div>
-                <Button onClick={handleEmailSave} disabled={emailLoading || !settingsEmail.trim() || settingsEmail.trim() === userEmail} size="sm">
+                <Button onClick={handleEmailSave} disabled={emailLoading || !settingsEmail.trim()} size="sm">
                   {emailLoading ? "Zapisywanie…" : "Zapisz"}
                 </Button>
               </div>
@@ -681,6 +806,71 @@ export default function ClientProjectPage() {
               <Button onClick={handlePasswordSave} disabled={passwordLoading || !currentPassword || !newPassword || !confirmPassword} size="sm">
                 {passwordLoading ? "Zmienianie…" : "Zmień hasło"}
               </Button>
+            </div>
+          </section>
+
+          <section className="space-y-4">
+            <SectionHeader title="Powiadomienia email" />
+            <div className="bg-card border border-border rounded-2xl p-6 space-y-5">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">Powiadomienia email</p>
+                  <p className="text-xs text-gray-400 mt-0.5">Otrzymuj email gdy projektant odpowie na Twój komentarz lub zmieni status</p>
+                </div>
+                <button
+                  type="button"
+                  disabled={emailNotifLoading}
+                  onClick={async () => {
+                    const next = !emailNotifEnabled;
+                    setEmailNotifEnabled(next);
+                    setEmailNotifLoading(true);
+                    try {
+                      await fetch("/api/user", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ emailNotifEnabled: next }) });
+                    } finally { setEmailNotifLoading(false); }
+                  }}
+                  className={`relative flex-shrink-0 w-11 h-6 rounded-full transition-colors focus:outline-none disabled:opacity-50 ${emailNotifEnabled ? "bg-blue-500" : "bg-gray-200 dark:bg-gray-700"}`}
+                  role="switch"
+                  aria-checked={emailNotifEnabled}
+                >
+                  <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${emailNotifEnabled ? "translate-x-5" : "translate-x-0"}`} />
+                </button>
+              </div>
+
+              {emailNotifEnabled && (
+                <div className="space-y-3 pt-1 border-t border-border">
+                  <p className="text-xs text-gray-400 pt-1">Wybierz moduły:</p>
+                  {[
+                    { slug: "renderflow", label: "RenderFlow", desc: "Odpowiedzi projektanta na piny i komentarze" },
+                    { slug: "listy", label: "Listy zakupowe", desc: "Odpowiedzi projektanta na komentarze do produktów" },
+                  ].map(({ slug, label, desc }) => {
+                    const checked = emailNotifModules.includes(slug);
+                    return (
+                      <label key={slug} className="flex items-start gap-3 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          disabled={emailNotifLoading}
+                          onChange={async () => {
+                            const next = checked
+                              ? emailNotifModules.filter((m) => m !== slug)
+                              : [...emailNotifModules, slug];
+                            setEmailNotifModules(next);
+                            setEmailNotifLoading(true);
+                            try {
+                              await fetch("/api/user", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ emailNotifModules: next }) });
+                            } finally { setEmailNotifLoading(false); }
+                          }}
+                          className="mt-0.5 w-4 h-4 rounded accent-primary"
+                        />
+                        <div>
+                          <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{label}</p>
+                          <p className="text-xs text-gray-400">{desc}</p>
+                        </div>
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </section>
 
@@ -746,7 +936,7 @@ export default function ClientProjectPage() {
   return (
     <div className="h-dvh flex flex-col bg-muted/60">
       {themeApplier}
-      <ShareNavbar clientLogoUrl={project.clientLogoUrl} designerName={project.designerName ?? undefined} clientName={authorName} onLogoClick={() => { setView("home"); setSelectedRoom(null); setSelectedFolder(null); }} onMobileMenuOpen={() => setMobileSidebarOpen(true)} />
+      <ShareNavbar clientLogoUrl={project.clientLogoUrl} designerName={project.designerName ?? undefined} clientName={authorName} onLogoClick={() => { setView("home"); setSelectedRoom(null); setSelectedFolder(null); navigate({}); }} onMobileMenuOpen={() => setMobileSidebarOpen(true)} />
       <div className="flex flex-1 min-h-0">
         <ShareSidebar
           token=""
@@ -755,11 +945,11 @@ export default function ClientProjectPage() {
           showListy={!project.hiddenModules.includes("listy")}
           showDyskusje={!project.hiddenModules.includes("dyskusje")}
           shoppingLists={project.shoppingLists}
-          onHomeClick={() => { setView("home"); setSelectedRoom(null); setSelectedFolder(null); }}
-          onRenderFlowClick={() => { if (project.rooms.length === 1) { setSelectedRoom(project.rooms[0]); setSelectedFolder(null); setView("room"); } else { setView("rooms"); } }}
-          onDiscussionClick={() => setView("discussion")}
-          onSettingsClick={() => setView("settings")}
-          onListClick={() => { if (project.shoppingLists.length === 1) { openList(project.shoppingLists[0].id); } else { setView("lists"); } }}
+          onHomeClick={() => { setView("home"); setSelectedRoom(null); setSelectedFolder(null); navigate({}); }}
+          onRenderFlowClick={() => { if (project.rooms.length === 1) { setSelectedRoom(project.rooms[0]); setSelectedFolder(null); setView("room"); navigate({ view: "room", roomId: project.rooms[0].id }); } else { setView("rooms"); navigate({ view: "rooms" }); } }}
+          onDiscussionClick={() => { setView("discussion"); navigate({ view: "discussion" }); }}
+          onSettingsClick={() => { setView("settings"); navigate({ view: "settings" }); }}
+          onListClick={() => { if (project.shoppingLists.length === 1) { openList(project.shoppingLists[0].id); } else { setView("lists"); navigate({ view: "lists" }); } }}
           clientProjectId={projectId}
           activeView={view}
           currentUserId={currentUserId}

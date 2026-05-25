@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useViewPreference } from "@/hooks/useViewPreference";
-import { LayoutGrid, List, Search, ArchiveRestore, Trash2, ArrowDownUp, Pin, AlertTriangle, Check } from "@/components/ui/icons";
+import { LayoutGrid, List, Search, ArchiveRestore, Trash2, ArrowDownUp, Pin, AlertTriangle, Check, KeyRound } from "@/components/ui/icons";
 import ProjectCard from "./ProjectCard";
 import ProjectMenu from "./ProjectMenu";
 import NewProjectDialog from "./NewProjectDialog";
@@ -26,6 +26,7 @@ interface Project {
   pinned: boolean;
   hiddenModules: string[];
   clientCanUpload?: boolean;
+  clientHasNoAccount?: boolean;
 }
 
 interface ProjectsViewProps {
@@ -319,7 +320,10 @@ function ProjectListView({ projects }: { projects: Project[] }) {
           <div className="hidden sm:block min-w-0">
             {p.clientName ? (
               <>
-                <p className="text-sm text-foreground truncate">{p.clientName}</p>
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <p className="text-sm text-foreground truncate">{p.clientName}</p>
+                  {p.clientHasNoAccount && <NoAccountWarning projectId={p.id} />}
+                </div>
                 {p.clientEmail && <p className="text-xs text-muted-foreground truncate">{p.clientEmail}</p>}
               </>
             ) : (
@@ -389,5 +393,18 @@ function ProjectListView({ projects }: { projects: Project[] }) {
         </DialogContent>
       </Dialog>
     </>
+  );
+}
+
+function NoAccountWarning({ projectId }: { projectId: string }) {
+  return (
+    <Link
+      href={`/klienci/${projectId}?tab=contacts`}
+      className="flex items-center gap-1 text-amber-500 hover:text-amber-600 text-xs font-medium flex-shrink-0"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <KeyRound size={13} />
+      Brak konta
+    </Link>
   );
 }

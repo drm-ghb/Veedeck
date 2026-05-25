@@ -10,12 +10,12 @@ export default async function KlienciPage() {
   const [projects, archivedProjects] = await Promise.all([
     prisma.project.findMany({
       where: { userId, archived: false },
-      include: { _count: { select: { renders: true, rooms: true, shoppingLists: true } } },
+      include: { _count: { select: { renders: true, rooms: true, shoppingLists: true } }, clients: { where: { isMainContact: true }, select: { userId: true }, take: 1 } },
       orderBy: { createdAt: "desc" },
     }),
     prisma.project.findMany({
       where: { userId, archived: true },
-      include: { _count: { select: { renders: true, rooms: true, shoppingLists: true } } },
+      include: { _count: { select: { renders: true, rooms: true, shoppingLists: true } }, clients: { where: { isMainContact: true }, select: { userId: true }, take: 1 } },
       orderBy: { createdAt: "desc" },
     }),
   ]);
@@ -32,6 +32,7 @@ export default async function KlienciPage() {
     listCount: p._count.shoppingLists,
     pinned: p.pinned,
     createdAt: p.createdAt.toISOString(),
+    clientHasNoAccount: !!(p.clientName) && !(p.clients[0]?.userId),
   });
 
   return (

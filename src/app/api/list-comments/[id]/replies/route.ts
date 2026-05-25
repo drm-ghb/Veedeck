@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { pusherServer } from "@/lib/pusher";
+import { auth } from "@/lib/auth";
+import { getWorkspaceUserId } from "@/lib/workspace";
+import { notifyClientDesignerListReply } from "@/lib/email";
 
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const session = await auth();
   const { id } = await params;
   const { content, author } = await req.json();
 
@@ -26,6 +30,62 @@ export async function POST(
     commentId: id,
     reply: { ...reply, createdAt: reply.createdAt.toISOString() },
   });
+
+  // Email notification to clients with accounts who have enabled listy notifications
+  const product = await prisma.listProduct.findUnique({
+    where: { id: comment.productId },
+    include: {
+      section: {
+        include: {
+          list: {
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+              userId: true,
+              projectId: true,
+              project: {
+                select: {
+                  clients: {
+                    select: {
+                      user: { select: { id: true, name: true, fullName: true, contactEmail: true, emailNotifEnabled: true, emailNotifModules: true } },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (product) {
+    const list = product.section.list;
+    const isDesigner = !!(session?.user?.id && getWorkspaceUserId(session) === list.userId);
+    if (isDesigner && list.project) {
+      const designer = await prisma.user.findUnique({
+        where: { id: list.userId },
+        select: { name: true, fullName: true },
+      });
+      const designerName = designer?.fullName || designer?.name || "Projektant";
+      const listPath = list.slug ?? list.id;
+      for (const pc of list.project.clients) {
+        const cu = pc.user;
+        if (cu?.contactEmail && cu.emailNotifEnabled && cu.emailNotifModules.includes("listy")) {
+          notifyClientDesignerListReply({
+            clientEmail: cu.contactEmail,
+            listName: list.name,
+            listPath,
+            productName: product.name,
+            productId: comment.productId,
+            designerName,
+            content,
+          }).catch(() => {});
+        }
+      }
+    }
+  }
 
   return NextResponse.json(reply, { status: 201 });
 }

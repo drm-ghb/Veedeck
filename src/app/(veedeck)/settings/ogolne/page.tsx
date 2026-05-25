@@ -25,6 +25,9 @@ export default async function SettingsOgolnePage() {
       clientLogoUrl: true,
       clientWelcomeMessage: true,
       colorTheme: true,
+      emailNotifEnabled: true,
+      emailNotifModules: true,
+      viewPreferences: true,
     },
   });
 
@@ -45,6 +48,9 @@ export default async function SettingsOgolnePage() {
       initialClientLogoUrl={user.clientLogoUrl}
       initialClientWelcomeMessage={user.clientWelcomeMessage}
       initialColorTheme={(user.colorTheme ?? "champagne") as ColorTheme}
+      initialEmailNotifEnabled={user.emailNotifEnabled}
+      initialEmailNotifModules={user.emailNotifModules}
+      initialSidebarOrder={((user.viewPreferences as Record<string, unknown>)?.sidebarOrder as string[]) ?? []}
     />
   );
 }

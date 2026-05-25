@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { pusherServer } from "@/lib/pusher";
 import { auth } from "@/lib/auth";
 import { getWorkspaceUserId } from "@/lib/workspace";
+import { notifyDesignerNewListComment } from "@/lib/email";
 
 export async function GET(req: NextRequest) {
   const productId = req.nextUrl.searchParams.get("productId");
@@ -64,6 +65,23 @@ export async function POST(req: NextRequest) {
         },
       });
       await pusherServer.trigger(`user-${list.userId}`, "new-notification", notification);
+
+      // Email notification to designer
+      const designer = await prisma.user.findUnique({
+        where: { id: list.userId },
+        select: { email: true, emailNotifEnabled: true, emailNotifModules: true },
+      });
+      if (designer?.emailNotifEnabled && designer.emailNotifModules.includes("listy")) {
+        notifyDesignerNewListComment({
+          designerEmail: designer.email,
+          listName: list.name,
+          listPath,
+          productName: product.name,
+          productId,
+          author,
+          content: finalContent,
+        }).catch(() => {});
+      }
     }
   }
 

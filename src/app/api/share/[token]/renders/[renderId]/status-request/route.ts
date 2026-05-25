@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { pusherServer } from "@/lib/pusher";
+import { notifyDesignerStatusRequest } from "@/lib/email";
 
 export async function POST(
   req: NextRequest,
@@ -10,7 +11,7 @@ export async function POST(
 
   const project = await prisma.project.findUnique({
     where: { shareToken: token },
-    select: { id: true, userId: true, title: true },
+    select: { id: true, userId: true, title: true, user: { select: { email: true, emailNotifEnabled: true, emailNotifModules: true } } },
   });
 
   if (!project) {
@@ -58,6 +59,17 @@ export async function POST(
     ...notification,
     createdAt: notification.createdAt.toISOString(),
   });
+
+  if (project.user.emailNotifEnabled && project.user.emailNotifModules.includes("renderflow")) {
+    notifyDesignerStatusRequest({
+      designerEmail: project.user.email,
+      projectTitle: project.title,
+      projectId: project.id,
+      renderId,
+      renderName: render.name,
+      clientName: request.clientName,
+    }).catch(() => {});
+  }
 
   return NextResponse.json({ requestId: request.id });
 }

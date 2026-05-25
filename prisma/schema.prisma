@@ -53,6 +53,9 @@ model User {
   viewPreferences            Json?
   trialEndsAt                DateTime?                           // null = brak trialu (isFree lub stary user)
   isFree                     Boolean        @default(false)      // admin może oznaczyć usera jako darmowego
+  contactEmail               String?                             // real email for notifications (clients use this instead of @client.internal)
+  emailNotifEnabled          Boolean        @default(false)      // master toggle — email notifications off by default
+  emailNotifModules          String[]       @default([])         // e.g. ["renderflow", "listy"]
   ownerId                    String?
   owner                      User?          @relation("TeamMembers", fields: [ownerId], references: [id])
   teamMembers                User[]         @relation("TeamMembers")

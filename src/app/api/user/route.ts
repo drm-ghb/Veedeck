@@ -8,7 +8,7 @@ export async function GET() {
 
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
-    select: { id: true, name: true, email: true, fullName: true, avatarUrl: true },
+    select: { id: true, name: true, email: true, fullName: true, avatarUrl: true, contactEmail: true, emailNotifEnabled: true, emailNotifModules: true },
   });
 
   return NextResponse.json(user);
@@ -55,8 +55,9 @@ export async function PATCH(req: NextRequest) {
     "requireClientEmail", "requirePinTitle", "autoClosePinsOnAccept",
     "autoArchiveOnAccept", "hideCommentCount", "notifyClientOnStatusChange",
     "notifyClientOnReply", "allowClientVersionRestore", "showProfileName", "showClientLogo",
+    "emailNotifEnabled",
   ] as const;
-  const stringFields = ["clientWelcomeMessage", "clientLogoUrl", "accentColor", "defaultRenderOrder", "defaultRenderStatus", "navMode", "avatarUrl", "fullName", "phone", "phonePrefix"] as const;
+  const stringFields = ["clientWelcomeMessage", "clientLogoUrl", "accentColor", "defaultRenderOrder", "defaultRenderStatus", "navMode", "avatarUrl", "fullName", "phone", "phonePrefix", "contactEmail"] as const;
 
   const VALID_COLOR_THEMES = ["violet", "champagne", "obsidian", "navy", "plum", "mono"] as const;
   if (body.colorTheme !== undefined && !VALID_COLOR_THEMES.includes(body.colorTheme)) {
@@ -75,6 +76,7 @@ export async function PATCH(req: NextRequest) {
   for (const f of boolFields) if (body[f] !== undefined) data[f] = body[f];
   for (const f of stringFields) if (body[f] !== undefined) data[f] = body[f] || null;
   if (body.globalHiddenModules !== undefined) data.globalHiddenModules = body.globalHiddenModules;
+  if (body.emailNotifModules !== undefined) data.emailNotifModules = body.emailNotifModules;
   if (body.colorTheme !== undefined) data.colorTheme = body.colorTheme;
   if (body.pdfListTemplate !== undefined) data.pdfListTemplate = body.pdfListTemplate;
 
