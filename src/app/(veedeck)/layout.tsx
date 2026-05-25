@@ -46,7 +46,7 @@ export default async function VeedeckLayout({
   const colorTheme = (dbUser?.colorTheme ?? "champagne") as ColorTheme;
   const viewPrefs = (dbUser?.viewPreferences ?? {}) as Record<string, unknown>;
   const sidebarOrder = (viewPrefs.sidebarOrder as string[]) ?? [];
-  const isTrial = !!(dbUser?.trialEndsAt && !dbUser.isFree && dbUser.subscription?.status !== "active");
+  const isTrial = !!(dbUser?.trialEndsAt && dbUser.trialEndsAt > new Date() && !dbUser.isFree && dbUser.subscription?.status !== "active");
   const showOnboarding = isTrial && !viewPrefs.onboardingSeen;
 
   return (
