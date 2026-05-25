@@ -6,7 +6,7 @@ import Link from "next/link";
 
 import {
   Users, PushPin, LocalMall, ChatBubble, Package,
-  CalendarDays, NotebookText, ListChecks,
+  CalendarDays, NotebookText, CheckSquare,
   X, ChevronLeft, ChevronRight, BookOpen, Check,
 } from "@/components/ui/icons";
 
@@ -92,7 +92,7 @@ const STEPS: Step[] = [
     ],
   },
   {
-    icon: ListChecks,
+    icon: CheckSquare,
     title: "Zadania",
     desc: "Zarządzaj swoją pracą — twórz zadania powiązane z projektami, ustawiaj priorytety i śledź postęp w widoku listy lub kanban.",
     steps: [
