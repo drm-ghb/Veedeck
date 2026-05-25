@@ -1,8 +1,69 @@
+"use client";
+
+import { useState } from "react";
 import {
   PushPin, LocalMall, Comment, ChatBubble,
   Pin, Check, ExternalLink, History,
-  Paperclip, Mic, CornerDownLeft, X,
+  Paperclip, Mic, CornerDownLeft, X, Users,
 } from "@/components/ui/icons";
+
+/* ─── DESIGNER PANEL ────────────────────────────────────────────────────── */
+
+interface DesignerStep {
+  title: string;
+  desc: string;
+  tip?: string;
+  steps: string[];
+}
+
+const DESIGNER_MODULES: DesignerStep[] = [
+  {
+    title: "1. Klienci",
+    desc: "Punkt startowy — tu dodajesz klientów, z którymi pracujesz. Każdy klient jest bazą do podpięcia projektów w RenderFlow i list zakupowych. Dzięki temu masz wszystko w jednym miejscu, przypisane do konkretnej osoby.",
+    steps: [
+      "Przejdź do modułu Klienci i kliknij „Dodaj klienta"",
+      "Podaj imię, nazwisko i e-mail klienta",
+      "Opcjonalnie: utwórz konto klienta — dostanie login do panelu i będzie mógł samodzielnie przeglądać projekty i listy",
+      "Klient jest teraz gotowy do przypisania do projektu lub listy",
+    ],
+  },
+  {
+    title: "2. RenderFlow",
+    desc: "Moduł do udostępniania wizualizacji i plików projektu. Po dodaniu klienta tworzysz projekt, przypisujesz go do istniejącego klienta, a następnie dodajesz pomieszczenia (np. Salon, Sypialnia) i wrzucasz do nich wizualizacje, pliki PDF lub kolejne foldery dla większego porządku.",
+    tip: "Możesz też dodać projekt z nowym klientem od razu — wystarczy wpisać jego dane przy tworzeniu projektu, a klient automatycznie trafi do modułu Klienci.",
+    steps: [
+      "Kliknij „Nowy projekt" i nadaj mu nazwę",
+      "Przypisz istniejącego klienta lub dodaj nowego na miejscu",
+      "Dodaj pomieszczenia (np. Salon, Kuchnia, Sypialnia)",
+      "W każdym pomieszczeniu prześlij wizualizacje lub utwórz foldery",
+      "Udostępnij projekt klientowi — dostanie link do podglądu",
+    ],
+  },
+  {
+    title: "3. Listy zakupowe",
+    desc: "Moduł do tworzenia zestawień produktów, mebli i materiałów. Tak samo jak przy projektach — tworzysz listę i przypisujesz ją do istniejącego klienta. Produkty możesz organizować w sekcje odpowiadające pomieszczeniom.",
+    tip: "Możesz też dodać listę z nowym klientem od razu — wystarczy wpisać jego dane przy tworzeniu listy, a klient automatycznie trafi do modułu Klienci.",
+    steps: [
+      "Kliknij „Nowa lista" i nadaj jej nazwę",
+      "Przypisz istniejącego klienta lub dodaj nowego na miejscu",
+      "Dodaj sekcje (np. Salon, Sypialnia, Łazienka)",
+      "W każdej sekcji dodawaj produkty z linkiem, ceną i szczegółami",
+      "Udostępnij listę klientowi — zobaczy ją w swoim panelu",
+    ],
+  },
+  {
+    title: "4. Dyskusje",
+    desc: "Wbudowany komunikator między Tobą a klientem. Po dodaniu klienta wątek dyskusji tworzy się automatycznie — nie musisz nic konfigurować. To idealne miejsce na szybkie ustalenia, pytania i przesyłanie materiałów inspiracyjnych bez używania maila.",
+    steps: [
+      "Wątek powstaje automatycznie po dodaniu klienta",
+      "Piszesz wiadomości, wysyłasz zdjęcia i dokumenty",
+      "Klient odpowiada bezpośrednio ze swojego panelu",
+      "Cała historia komunikacji zostaje w jednym miejscu",
+    ],
+  },
+];
+
+/* ─── CLIENT PANEL ───────────────────────────────────────────────────────── */
 
 interface Feature {
   icon: React.ReactNode;
@@ -10,38 +71,27 @@ interface Feature {
   desc: string;
 }
 
-interface ModuleSection {
+interface ClientModule {
   id: string;
   name: string;
   icon: React.ReactNode;
-  general: string;
-  designerTitle: string;
-  designerSteps: string[];
-  clientTitle: string;
-  clientSteps: string[];
+  desc: string;
+  steps: string[];
   features: Feature[];
 }
 
-const MODULES: ModuleSection[] = [
+const CLIENT_MODULES: ClientModule[] = [
   {
     id: "renderflow",
-    name: "RenderFlow",
+    name: "RenderFlow — wizualizacje",
     icon: <PushPin size={22} />,
-    general:
-      "Moduł Rendery to miejsce, gdzie projektant umieszcza wizualizacje, zdjęcia i pliki PDF projektu. Klient może je przeglądać w dowolnym momencie, dodawać komentarze i zatwierdzać gotowe elementy.",
-    designerTitle: "Co robi projektant",
-    designerSteps: [
-      "Przesyła pliki graficzne, rendery i dokumenty",
-      "Organizuje pliki w pomieszczenia i foldery",
-      "Udostępnia kolejne wersje projektu",
-      "Zarządza statusem każdego pliku",
-    ],
-    clientTitle: "Co robi klient",
-    clientSteps: [
-      "Przegląda przesłane wizualizacje i pliki",
-      "Dodaje komentarze ogólne lub bezpośrednio na renderze (pinezka)",
-      "Akceptuje gotowe elementy projektu",
-      "Śledzi historię zmian i wersji",
+    desc: "Klient widzi wszystkie wizualizacje i pliki przesłane przez projektanta. Może je komentować — ogólnie lub bezpośrednio na renderze (pinezka), akceptować gotowe elementy i śledzić historię zmian.",
+    steps: [
+      "Otwiera projekt i przegląda pomieszczenia z wizualizacjami",
+      "Klika na render, żeby zobaczyć go w pełnym rozmiarze",
+      "Dodaje pinezkę w konkretnym miejscu lub zostawia ogólny komentarz",
+      "Zatwierdza render lub prosi o zmiany",
+      "Sprawdza historię wersji, jeśli projektant wgrał aktualizację",
     ],
     features: [
       { icon: <Pin size={16} />, label: "Pinezka", desc: "Kliknięcie na renderze dodaje komentarz w konkretnym miejscu" },
@@ -54,21 +104,13 @@ const MODULES: ModuleSection[] = [
     id: "listy",
     name: "Listy zakupowe",
     icon: <LocalMall size={22} />,
-    general:
-      "Listy zakupowe to zestawienie produktów, mebli i materiałów wybranych przez projektanta. Klient może przeglądać szczegóły każdego produktu, sprawdzać ceny i linki do sklepów, a także zatwierdzać swoje wybory.",
-    designerTitle: "Co robi projektant",
-    designerSteps: [
-      "Tworzy listy i dodaje produkty z linkami do sklepów",
-      "Uzupełnia dane: cena, wymiary, kolor, czas dostawy",
-      "Organizuje produkty w sekcje (np. Salon, Sypialnia)",
-      "Aktualizuje listę w miarę postępów projektu",
-    ],
-    clientTitle: "Co robi klient",
-    clientSteps: [
-      "Przegląda produkty z pełnymi szczegółami",
-      "Klika w link, żeby zobaczyć produkt w sklepie online",
+    desc: "Klient przegląda zestawienie produktów, mebli i materiałów wybranych przez projektanta. Może sprawdzić szczegóły każdego produktu, kliknąć w link do sklepu, zatwierdzić lub odrzucić produkt i zostawić komentarz.",
+    steps: [
+      "Otwiera listę i przegląda sekcje z produktami",
+      "Klika w produkt, żeby zobaczyć pełne szczegóły (cena, wymiary, czas dostawy)",
+      "Używa linku, żeby otworzyć produkt w sklepie internetowym",
       "Zatwierdza lub odrzuca poszczególne produkty",
-      "Dodaje komentarze i pytania do konkretnych produktów",
+      "Dodaje komentarz lub pytanie do konkretnego produktu",
     ],
     features: [
       { icon: <Check size={16} />, label: "Zatwierdź", desc: "Klient akceptuje produkt" },
@@ -81,20 +123,13 @@ const MODULES: ModuleSection[] = [
     id: "dyskusje",
     name: "Dyskusje",
     icon: <ChatBubble size={22} />,
-    general:
-      "Dyskusja to wbudowany komunikator między projektantem a klientem. Idealne miejsce na pytania, szybkie ustalenia i przesyłanie materiałów inspiracyjnych.",
-    designerTitle: "Co robi projektant",
-    designerSteps: [
-      "Odpowiada na pytania i komentarze klienta",
-      "Przesyła zdjęcia, dokumenty i linki",
-      "Prowadzi historię komunikacji w jednym miejscu",
-    ],
-    clientTitle: "Co robi klient",
-    clientSteps: [
-      "Pisze wiadomości bezpośrednio do projektanta",
-      "Przesyła zdjęcia inspiracji lub zdjęcia pomieszczenia",
-      "Nagrywa wiadomości głosowe",
-      "Czyta i odpowiada na wiadomości projektanta",
+    desc: "Klient ma dostęp do bezpośredniego czatu z projektantem. Może pisać wiadomości, przesyłać zdjęcia inspiracji lub pomieszczenia, nagrywać głosówki i odpowiadać na konkretne wiadomości.",
+    steps: [
+      "Otwiera zakładkę Dyskusje",
+      "Pisze wiadomość do projektanta",
+      "Wysyła zdjęcia, dokumenty lub linki jako załącznik",
+      "Nagrywa wiadomość głosową (przytrzymaj mikrofon)",
+      "Odpowiada na konkretną wiadomość projektanta",
     ],
     features: [
       { icon: <Paperclip size={16} />, label: "Załącznik", desc: "Wysyłanie zdjęcia lub dokumentu" },
@@ -104,83 +139,139 @@ const MODULES: ModuleSection[] = [
   },
 ];
 
+/* ─── PAGE ───────────────────────────────────────────────────────────────── */
+
 export default function InstrukcjaPage() {
+  const [tab, setTab] = useState<"designer" | "client">("designer");
+
   return (
-    <div className="max-w-3xl space-y-10">
+    <div className="max-w-3xl space-y-8">
+      {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Instrukcja dla klienta</h1>
-        <p className="text-sm text-gray-500 mt-1">
-          Ta instrukcja jest wyświetlana klientom na dashboardzie projektu. Pokazuje im jak korzystać z każdego modułu platformy.
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Instrukcja</h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          Przełącz widok, żeby zobaczyć jak działa platforma z perspektywy projektanta i klienta.
         </p>
       </div>
 
-      {MODULES.map((mod) => (
-        <div key={mod.id} className="bg-card border border-border rounded-2xl overflow-hidden">
-          {/* Module header */}
-          <div className="flex items-center gap-3 px-6 py-4 border-b border-border bg-muted/30">
-            <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
-              {mod.icon}
-            </div>
-            <h2 className="font-semibold text-gray-900 dark:text-gray-100">{mod.name}</h2>
-          </div>
+      {/* Tab switch */}
+      <div className="inline-flex items-center gap-1 bg-muted rounded-xl p-1">
+        <button
+          onClick={() => setTab("designer")}
+          className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${
+            tab === "designer"
+              ? "bg-background text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          Panel projektanta
+        </button>
+        <button
+          onClick={() => setTab("client")}
+          className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${
+            tab === "client"
+              ? "bg-background text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          Panel klienta
+        </button>
+      </div>
 
-          <div className="px-6 py-5 space-y-6">
-            {/* General */}
-            <div>
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Informacje ogólne</p>
-              <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{mod.general}</p>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-              {/* Designer steps */}
-              <div>
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">{mod.designerTitle}</p>
-                <ul className="space-y-1.5">
-                  {mod.designerSteps.map((step, i) => (
-                    <li key={i} className="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-300">
-                      <span className="w-4 h-4 rounded-full bg-muted flex items-center justify-center text-[9px] font-bold text-muted-foreground flex-shrink-0 mt-0.5">{i + 1}</span>
-                      {step}
-                    </li>
-                  ))}
-                </ul>
+      {/* ── Designer panel ── */}
+      {tab === "designer" && (
+        <div className="space-y-6">
+          <p className="text-sm text-muted-foreground">
+            Poniżej opisany jest przepływ pracy w platformie — od dodania klienta, przez projekt i listy, aż po komunikację.
+          </p>
+          {DESIGNER_MODULES.map((mod, idx) => (
+            <div key={idx} className="bg-card border border-border rounded-2xl overflow-hidden">
+              <div className="flex items-center gap-3 px-6 py-4 border-b border-border bg-muted/30">
+                <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center text-primary flex-shrink-0">
+                  {idx === 0 && <Users size={22} />}
+                  {idx === 1 && <PushPin size={22} />}
+                  {idx === 2 && <LocalMall size={22} />}
+                  {idx === 3 && <ChatBubble size={22} />}
+                </div>
+                <h2 className="font-semibold text-gray-900 dark:text-gray-100">{mod.title}</h2>
               </div>
-
-              {/* Client steps */}
-              <div>
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">{mod.clientTitle}</p>
-                <ul className="space-y-1.5">
-                  {mod.clientSteps.map((step, i) => (
-                    <li key={i} className="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-300">
-                      <span className="w-4 h-4 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-                        <Check size={9} className="text-primary" />
-                      </span>
-                      {step}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-
-            {/* Features */}
-            <div>
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Przyciski i funkcje widoczne dla klienta</p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {mod.features.map((f, i) => (
-                  <div key={i} className="flex items-start gap-3 bg-muted/40 rounded-xl px-3 py-2.5">
-                    <div className="w-7 h-7 rounded-lg bg-background border border-border flex items-center justify-center text-primary flex-shrink-0">
-                      {f.icon}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-xs font-semibold text-gray-900 dark:text-gray-100">{f.label}</p>
-                      <p className="text-[11px] text-muted-foreground leading-snug mt-0.5">{f.desc}</p>
-                    </div>
+              <div className="px-6 py-5 space-y-4">
+                <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{mod.desc}</p>
+                {mod.tip && (
+                  <div className="flex items-start gap-2.5 bg-primary/5 border border-primary/15 rounded-xl px-4 py-3">
+                    <span className="text-primary text-base leading-none mt-0.5">💡</span>
+                    <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{mod.tip}</p>
                   </div>
-                ))}
+                )}
+                <div>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Jak to zrobić</p>
+                  <ul className="space-y-1.5">
+                    {mod.steps.map((step, i) => (
+                      <li key={i} className="flex items-start gap-2.5 text-sm text-gray-700 dark:text-gray-300">
+                        <span className="w-5 h-5 rounded-full bg-muted flex items-center justify-center text-[10px] font-bold text-muted-foreground flex-shrink-0 mt-0.5">
+                          {i + 1}
+                        </span>
+                        {step}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               </div>
             </div>
-          </div>
+          ))}
         </div>
-      ))}
+      )}
+
+      {/* ── Client panel ── */}
+      {tab === "client" && (
+        <div className="space-y-6">
+          <p className="text-sm text-muted-foreground">
+            Tak wygląda platforma z perspektywy klienta — co widzi i co może zrobić w każdym module.
+          </p>
+          {CLIENT_MODULES.map((mod) => (
+            <div key={mod.id} className="bg-card border border-border rounded-2xl overflow-hidden">
+              <div className="flex items-center gap-3 px-6 py-4 border-b border-border bg-muted/30">
+                <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center text-primary flex-shrink-0">
+                  {mod.icon}
+                </div>
+                <h2 className="font-semibold text-gray-900 dark:text-gray-100">{mod.name}</h2>
+              </div>
+              <div className="px-6 py-5 space-y-4">
+                <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{mod.desc}</p>
+                <div>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Co widzi i robi klient</p>
+                  <ul className="space-y-1.5">
+                    {mod.steps.map((step, i) => (
+                      <li key={i} className="flex items-start gap-2.5 text-sm text-gray-700 dark:text-gray-300">
+                        <span className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                          <Check size={10} className="text-primary" />
+                        </span>
+                        {step}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Dostępne funkcje</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {mod.features.map((f, i) => (
+                      <div key={i} className="flex items-start gap-3 bg-muted/40 rounded-xl px-3 py-2.5">
+                        <div className="w-7 h-7 rounded-lg bg-background border border-border flex items-center justify-center text-primary flex-shrink-0">
+                          {f.icon}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-xs font-semibold text-gray-900 dark:text-gray-100">{f.label}</p>
+                          <p className="text-[11px] text-muted-foreground leading-snug mt-0.5">{f.desc}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
