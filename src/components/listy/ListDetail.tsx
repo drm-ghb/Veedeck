@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChevronLeft, ChevronDown, ChevronUp, Plus, ExternalLink, Minus, MoreHorizontal, Pencil, Trash2, GripVertical, FileDown, Sheet, ArrowDownUp, Eye, EyeOff, Check, X, RotateCcw, FolderInput, Wallet, AlertCircle, AlertTriangle, DollarSign, Copy, Comment } from "@/components/ui/icons";
 import ProductCommentPanel from "./ProductCommentPanel";
+import ListSectionNav from "./ListSectionNav";
 import { pusherClient } from "@/lib/pusher";
 import { Button } from "@/components/ui/button";
 import {
@@ -1827,6 +1828,16 @@ export default function ListDetail({ list, designerName, designerEmail, designer
       </div>
 
       <div className="md:max-w-[75%] md:mx-auto">
+      {sections.filter((s) => !s.unsorted).length > 1 && (
+        <div className="hidden md:block h-0 overflow-visible sticky top-[76px] z-10">
+          <div className="absolute right-full top-0 pr-4 w-36">
+            <ListSectionNav
+              sections={sections.filter((s) => !s.unsorted).map((s) => ({ id: s.id, name: s.name }))}
+              scrollOffset={80}
+            />
+          </div>
+        </div>
+      )}
       {/* Add section inline form */}
       {addingSection && (
         <form onSubmit={handleAddSection} className="flex gap-2 mb-6">
@@ -1915,7 +1926,7 @@ export default function ListDetail({ list, designerName, designerEmail, designer
             {sections.filter((s) => !s.unsorted).map((section) => (
               <SortableSection key={section.id} id={section.id}>
                 {(dragHandle) => (
-                  <div>
+                  <div id={`section-nav-${section.id}`}>
                     {/* Section header */}
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-2 min-w-0">

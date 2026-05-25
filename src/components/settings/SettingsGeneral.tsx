@@ -328,6 +328,7 @@ export function SettingsGeneral({
 
   async function handleEmailSave() {
     if (!email.trim()) return;
+    if (!email.includes("@")) { toast.error("Podaj poprawny adres e-mail (brak znaku @)"); return; }
     setEmailLoading(true);
     try {
       const res = await patchUser({ email: email.trim() });

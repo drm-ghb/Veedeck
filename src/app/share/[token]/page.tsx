@@ -130,6 +130,7 @@ export default function SharePage() {
   const [nameSet, setNameSet] = useState(false);
   const [nameInput, setNameInput] = useState("");
   const [emailInput, setEmailInput] = useState("");
+  const [emailError, setEmailError] = useState("");
 
   const [view, setView] = useState<"rooms" | "room" | "render" | "settings">("rooms");
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
@@ -317,6 +318,11 @@ export default function SharePage() {
   function handleSetName() {
     if (!nameInput.trim()) return;
     if (project?.requireClientEmail && !emailInput.trim()) return;
+    if (emailInput.trim() && !emailInput.includes("@")) {
+      setEmailError("Podaj poprawny adres e-mail (brak znaku @)");
+      return;
+    }
+    setEmailError("");
     localStorage.setItem(`veedeck-author-${token}`, nameInput.trim());
     if (emailInput.trim()) localStorage.setItem(`veedeck-author-email-${token}`, emailInput.trim());
     setAuthorName(nameInput.trim());
@@ -570,10 +576,11 @@ export default function SharePage() {
               <Input
                 type="email"
                 value={emailInput}
-                onChange={(e) => setEmailInput(e.target.value)}
+                onChange={(e) => { setEmailInput(e.target.value); if (emailError) setEmailError(""); }}
                 placeholder="Twój email"
                 onKeyDown={(e) => e.key === "Enter" && handleSetName()}
               />
+              {emailError && <p className="text-xs text-destructive mt-1">{emailError}</p>}
             )}
             <Button
               onClick={handleSetName}

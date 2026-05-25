@@ -39,6 +39,7 @@ export default function TeamSettings() {
 
   async function handleInvite() {
     if (!email.trim()) return;
+    if (!email.includes("@")) { toast.error("Podaj poprawny adres e-mail (brak znaku @)"); return; }
     setSending(true);
     const res = await fetch("/api/team/invite", {
       method: "POST",

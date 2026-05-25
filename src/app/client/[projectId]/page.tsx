@@ -226,6 +226,7 @@ export default function ClientProjectPage() {
 
   async function handleEmailSave() {
     if (!settingsEmail.trim()) return;
+    if (!settingsEmail.includes("@")) { toast.error("Podaj poprawny adres e-mail (brak znaku @)"); return; }
     setEmailLoading(true);
     try {
       const res = await fetch("/api/user", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ contactEmail: settingsEmail.trim() }) });

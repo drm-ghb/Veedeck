@@ -18,6 +18,7 @@ export default function ClientNameGate({ token, requireClientEmail, clientLogoUr
   const [nameSet, setNameSet] = useState<boolean | null>(null);
   const [nameInput, setNameInput] = useState("");
   const [emailInput, setEmailInput] = useState("");
+  const [emailError, setEmailError] = useState("");
 
   // Logged-in client accounts skip the name gate entirely
   const isClientAccount = status === "authenticated" && (session?.user as any)?.role === "client";
@@ -31,6 +32,11 @@ export default function ClientNameGate({ token, requireClientEmail, clientLogoUr
   function handleSetName() {
     if (!nameInput.trim()) return;
     if (requireClientEmail && !emailInput.trim()) return;
+    if (emailInput.trim() && !emailInput.includes("@")) {
+      setEmailError("Podaj poprawny adres e-mail (brak znaku @)");
+      return;
+    }
+    setEmailError("");
     localStorage.setItem(`veedeck-author-${token}`, nameInput.trim());
     if (emailInput.trim()) localStorage.setItem(`veedeck-author-email-${token}`, emailInput.trim());
     // Emit storage event so other components (navbar, greeting) pick up the change
@@ -76,10 +82,11 @@ export default function ClientNameGate({ token, requireClientEmail, clientLogoUr
               <Input
                 type="email"
                 value={emailInput}
-                onChange={(e) => setEmailInput(e.target.value)}
+                onChange={(e) => { setEmailInput(e.target.value); if (emailError) setEmailError(""); }}
                 placeholder="Twój email"
                 onKeyDown={(e) => e.key === "Enter" && handleSetName()}
               />
+              {emailError && <p className="text-xs text-destructive mt-1">{emailError}</p>}
             )}
             <Button
               onClick={handleSetName}

@@ -39,6 +39,7 @@ export default function NewProjectDialog({ module, label }: NewProjectDialogProp
   const [title, setTitle] = useState("");
   const [clientName, setClientName] = useState("");
   const [clientEmail, setClientEmail] = useState("");
+  const [clientEmailError, setClientEmailError] = useState("");
   const [clientPhone, setClientPhone] = useState("");
   const [clientPassword, setClientPassword] = useState("");
   const [showClientPassword, setShowClientPassword] = useState(false);
@@ -84,7 +85,12 @@ export default function NewProjectDialog({ module, label }: NewProjectDialogProp
   async function handleSubmit() {
     if (!title.trim()) return;
     if (tab === "new" && !clientEmail.trim()) return;
+    if (tab === "new" && !clientEmail.includes("@")) {
+      setClientEmailError("Podaj poprawny adres e-mail (brak znaku @)");
+      return;
+    }
     if (tab === "existing" && !selectedExistingProject) return;
+    setClientEmailError("");
     setLoading(true);
 
     const body = tab === "existing" && selectedExistingProject
@@ -231,9 +237,10 @@ export default function NewProjectDialog({ module, label }: NewProjectDialogProp
                   id="clientEmail"
                   type="email"
                   value={clientEmail}
-                  onChange={(e) => setClientEmail(e.target.value)}
+                  onChange={(e) => { setClientEmail(e.target.value); if (clientEmailError) setClientEmailError(""); }}
                   placeholder={t.projekty.clientEmailPlaceholder}
                 />
+                {clientEmailError && <p className="text-xs text-destructive mt-1">{clientEmailError}</p>}
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="clientPhone">Telefon</Label>

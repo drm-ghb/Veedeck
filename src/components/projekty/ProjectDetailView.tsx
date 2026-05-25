@@ -237,6 +237,10 @@ export default function ProjectDetailView({ project }: { project: ProjectData })
 
   async function sendClientInvite() {
     if (!inviteEmail.trim()) return;
+    if (!inviteEmail.includes("@")) {
+      toast.error("Podaj poprawny adres e-mail (brak znaku @)");
+      return;
+    }
     setSendingInvite(true);
     const res = await fetch("/api/client-invite", {
       method: "POST",
@@ -312,6 +316,10 @@ export default function ProjectDetailView({ project }: { project: ProjectData })
 
   async function addClient() {
     if (!newClientName.trim() || !newClientPassword.trim()) return;
+    if (newClientEmail.trim() && !newClientEmail.includes("@")) {
+      toast.error("Podaj poprawny adres e-mail (brak znaku @)");
+      return;
+    }
     setAddingClient(true);
     try {
       const res = await fetch(`/api/projects/${project.id}/clients`, {
@@ -363,6 +371,10 @@ export default function ProjectDetailView({ project }: { project: ProjectData })
   }
 
   async function saveClientEdit(clientId: string) {
+    if (editEmail.trim() && !editEmail.includes("@")) {
+      toast.error("Podaj poprawny adres e-mail (brak znaku @)");
+      return;
+    }
     setSavingEdit(true);
     try {
       const res = await fetch(`/api/projects/${project.id}/clients/${clientId}`, {
@@ -425,6 +437,11 @@ export default function ProjectDetailView({ project }: { project: ProjectData })
   async function createClientAccount(clientId: string) {
     const password = createAccountPassword[clientId];
     if (!password?.trim() || password.trim().length < 4) return;
+    const accEmail = createAccountEmail[clientId]?.trim();
+    if (accEmail && !accEmail.includes("@")) {
+      toast.error("Podaj poprawny adres e-mail (brak znaku @)");
+      return;
+    }
     setCreatingAccount((prev) => ({ ...prev, [clientId]: true }));
     try {
       const res = await fetch(`/api/projects/${project.id}/clients/${clientId}`, {

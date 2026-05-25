@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { ExternalLink, Comment, Check, X, RotateCcw } from "@/components/ui/icons";
 import ProductCommentPanel from "./ProductCommentPanel";
+import ListSectionNav from "./ListSectionNav";
 import { pusherClient } from "@/lib/pusher";
 
 import { getUnreadSet, syncListUnread } from "@/lib/list-unread-store";
@@ -227,13 +228,22 @@ export default function ShareListClient({
   const homeHref = projectShareToken ? `/share/${projectShareToken}/dashboard` : undefined;
 
   return (
-    <div className="space-y-10 md:max-w-[75%] md:mx-auto">
+    <div className="md:max-w-[75%] md:mx-auto">
+      {sections.length > 1 && (
+        <div className="hidden md:block h-0 overflow-visible sticky top-4 z-10">
+          <div className="absolute right-full top-0 pr-4 w-36">
+            <ListSectionNav sections={sections.map((s) => ({ id: s.id, name: s.name }))} />
+          </div>
+        </div>
+      )}
+
+      <div className="space-y-10">
       {sections.length === 0 && (
         <p className="text-center text-muted-foreground py-16">Lista jest pusta.</p>
       )}
 
       {sections.map((section) => (
-        <div key={section.id}>
+        <div key={section.id} id={`section-nav-${section.id}`}>
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <h2 className="text-base font-semibold">{section.name}</h2>
@@ -374,6 +384,7 @@ export default function ShareListClient({
           )}
         </div>
       ))}
+      </div>
 
       {commentsPanelProductId && (() => {
         const product = sections.flatMap((s) => s.products).find((p) => p.id === commentsPanelProductId);

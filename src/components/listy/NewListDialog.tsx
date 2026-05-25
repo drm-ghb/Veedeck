@@ -28,6 +28,7 @@ export default function NewListDialog() {
   const [clientTab, setClientTab] = useState<"new" | "existing">("new");
   const [newClientName, setNewClientName] = useState("");
   const [newClientEmail, setNewClientEmail] = useState("");
+  const [newClientEmailError, setNewClientEmailError] = useState("");
   const [newClientPhone, setNewClientPhone] = useState("");
   const [newClientPassword, setNewClientPassword] = useState("");
   const [showNewClientPassword, setShowNewClientPassword] = useState(false);
@@ -62,7 +63,12 @@ export default function NewListDialog() {
   async function handleSubmit() {
     if (!name.trim()) return;
     if (clientTab === "new" && (!newClientName.trim() || !newClientEmail.trim())) return;
+    if (clientTab === "new" && !newClientEmail.includes("@")) {
+      setNewClientEmailError("Podaj poprawny adres e-mail (brak znaku @)");
+      return;
+    }
     if (clientTab === "existing" && !selectedProject) return;
+    setNewClientEmailError("");
     setLoading(true);
     try {
       let projectId: string | null = null;
@@ -197,9 +203,10 @@ export default function NewListDialog() {
                     <Input
                       type="email"
                       value={newClientEmail}
-                      onChange={(e) => setNewClientEmail(e.target.value)}
+                      onChange={(e) => { setNewClientEmail(e.target.value); if (newClientEmailError) setNewClientEmailError(""); }}
                       placeholder="jan@firma.pl"
                     />
+                    {newClientEmailError && <p className="text-xs text-destructive mt-1">{newClientEmailError}</p>}
                   </div>
                   <div className="space-y-1.5">
                     <Label>Telefon</Label>
