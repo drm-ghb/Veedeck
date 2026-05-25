@@ -21,7 +21,7 @@ const DESIGNER_MODULES: DesignerStep[] = [
     title: "1. Klienci",
     desc: "Punkt startowy — tu dodajesz klientów, z którymi pracujesz. Każdy klient jest bazą do podpięcia projektów w RenderFlow i list zakupowych. Dzięki temu masz wszystko w jednym miejscu, przypisane do konkretnej osoby.",
     steps: [
-      "Przejdź do modułu Klienci i kliknij „Dodaj klienta"",
+      'Przejdź do modułu Klienci i kliknij "Dodaj klienta"',
       "Podaj imię, nazwisko i e-mail klienta",
       "Opcjonalnie: utwórz konto klienta — dostanie login do panelu i będzie mógł samodzielnie przeglądać projekty i listy",
       "Klient jest teraz gotowy do przypisania do projektu lub listy",
@@ -32,7 +32,7 @@ const DESIGNER_MODULES: DesignerStep[] = [
     desc: "Moduł do udostępniania wizualizacji i plików projektu. Po dodaniu klienta tworzysz projekt, przypisujesz go do istniejącego klienta, a następnie dodajesz pomieszczenia (np. Salon, Sypialnia) i wrzucasz do nich wizualizacje, pliki PDF lub kolejne foldery dla większego porządku.",
     tip: "Możesz też dodać projekt z nowym klientem od razu — wystarczy wpisać jego dane przy tworzeniu projektu, a klient automatycznie trafi do modułu Klienci.",
     steps: [
-      "Kliknij „Nowy projekt" i nadaj mu nazwę",
+      'Kliknij "Nowy projekt" i nadaj mu nazwę',
       "Przypisz istniejącego klienta lub dodaj nowego na miejscu",
       "Dodaj pomieszczenia (np. Salon, Kuchnia, Sypialnia)",
       "W każdym pomieszczeniu prześlij wizualizacje lub utwórz foldery",
@@ -44,7 +44,7 @@ const DESIGNER_MODULES: DesignerStep[] = [
     desc: "Moduł do tworzenia zestawień produktów, mebli i materiałów. Tak samo jak przy projektach — tworzysz listę i przypisujesz ją do istniejącego klienta. Produkty możesz organizować w sekcje odpowiadające pomieszczeniom.",
     tip: "Możesz też dodać listę z nowym klientem od razu — wystarczy wpisać jego dane przy tworzeniu listy, a klient automatycznie trafi do modułu Klienci.",
     steps: [
-      "Kliknij „Nowa lista" i nadaj jej nazwę",
+      'Kliknij "Nowa lista" i nadaj jej nazwę',
       "Przypisz istniejącego klienta lub dodaj nowego na miejscu",
       "Dodaj sekcje (np. Salon, Sypialnia, Łazienka)",
       "W każdej sekcji dodawaj produkty z linkiem, ceną i szczegółami",

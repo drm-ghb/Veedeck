@@ -79,14 +79,16 @@ export default function ClientNameGate({ token, requireClientEmail, clientLogoUr
               autoFocus
             />
             {requireClientEmail && (
-              <Input
-                type="email"
-                value={emailInput}
-                onChange={(e) => { setEmailInput(e.target.value); if (emailError) setEmailError(""); }}
-                placeholder="Twój email"
-                onKeyDown={(e) => e.key === "Enter" && handleSetName()}
-              />
-              {emailError && <p className="text-xs text-destructive mt-1">{emailError}</p>}
+              <>
+                <Input
+                  type="email"
+                  value={emailInput}
+                  onChange={(e) => { setEmailInput(e.target.value); if (emailError) setEmailError(""); }}
+                  placeholder="Twój email"
+                  onKeyDown={(e) => e.key === "Enter" && handleSetName()}
+                />
+                {emailError && <p className="text-xs text-destructive mt-1">{emailError}</p>}
+              </>
             )}
             <Button
               onClick={handleSetName}
