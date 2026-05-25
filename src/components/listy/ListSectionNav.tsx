@@ -60,21 +60,34 @@ export default function ListSectionNav({ sections, scrollOffset = 0 }: Props) {
   }
 
   return (
-    <nav className="space-y-0.5">
-      {sections.map((s) => (
-        <button
-          key={s.id}
-          onClick={() => goTo(s.id)}
-          title={s.name}
-          className={`w-full text-left px-2 py-1 text-xs rounded-md transition-colors truncate block ${
-            activeId === s.id
-              ? "bg-muted text-foreground font-medium"
-              : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-          }`}
-        >
-          {s.name}
-        </button>
-      ))}
+    <nav className="py-2">
+      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 mb-2 pl-3">Sekcje</p>
+      <div className="relative pl-3 pr-2">
+
+      {sections.map((s) => {
+        const active = activeId === s.id;
+        return (
+          <button
+            key={s.id}
+            onClick={() => goTo(s.id)}
+            title={s.name}
+            className={`relative w-full text-left py-1 pl-2 pr-1 text-xs transition-all duration-150 truncate block ${
+              active
+                ? "text-foreground font-semibold"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {/* Active indicator — colored left bar */}
+            <span
+              className={`absolute left-0 top-[2px] bottom-[2px] w-[3px] rounded-full transition-all duration-200 ${
+                active ? "bg-primary opacity-100" : "opacity-0"
+              }`}
+            />
+            {s.name}
+          </button>
+        );
+      })}
+      </div>
     </nav>
   );
 }

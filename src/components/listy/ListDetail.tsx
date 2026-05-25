@@ -1829,7 +1829,7 @@ export default function ListDetail({ list, designerName, designerEmail, designer
 
       <div className="md:max-w-[75%] md:mx-auto">
       {sections.filter((s) => !s.unsorted).length > 1 && (
-        <div className="hidden md:block h-0 overflow-visible sticky top-[76px] z-10">
+        <div className="hidden md:block h-0 overflow-visible sticky top-[76px] z-30">
           <div className="absolute right-full top-0 pr-4 w-36">
             <ListSectionNav
               sections={sections.filter((s) => !s.unsorted).map((s) => ({ id: s.id, name: s.name }))}
