@@ -5,7 +5,7 @@ import {
   PushPin, LocalMall, Comment, ChatBubble,
   Pin, Check, ExternalLink, History,
   Paperclip, Mic, CornerDownLeft, X, Users,
-  Package, CalendarDays, NotebookText, ViewInAr,
+  Package, CalendarDays, NotebookText, ViewInAr, ListChecks,
 } from "@/components/ui/icons";
 
 /* ─── DESIGNER PANEL ────────────────────────────────────────────────────── */
@@ -90,22 +90,29 @@ const DESIGNER_MODULES: DesignerStep[] = [
   },
   {
     title: "7. Notatnik",
-    desc: "Prosty notatnik do zapisywania pomysłów, uwag i informacji przy projektach. Notatki widoczne są tylko dla Ciebie. Można je archiwizować, żeby nie zaśmiecały głównego widoku.",
+    desc: "Prosty notatnik do zapisywania pomysłów, uwag i informacji przy projektach. Notatki widoczne są tylko dla Ciebie. Każda notatka może zawierać tekst lub szkic — wbudowany szkicownik działa na komputerze, telefonie i tablecie. Gotowe notatki można archiwizować.",
     steps: [
       "Utwórz nową notatkę i nadaj jej tytuł",
-      "Wpisz treść — dowolny tekst, pomysły, notatki ze spotkania",
+      "Wpisz tekst lub przejdź do trybu szkicu i rysuj palcem lub rysorem",
+      "Szkicownik działa na każdym urządzeniu — komputer, telefon, tablet",
       "Archiwizuj ukończone lub nieaktualne notatki",
     ],
   },
   {
-    title: "8. Generator 3D",
-    desc: "Narzędzie do zarządzania modelami 3D mebli i wyposażenia. Możesz wgrywać własne modele w formatach GLB, OBJ, STL, FBX lub generować je przy pomocy AI z kategorii takich jak lampy, sofy, krzesła i inne.",
+    title: "8. Zadania",
+    desc: "Moduł do zarządzania zadaniami projektanta. Możesz tworzyć zadania powiązane z projektami, przypisywać je do siebie lub innych osób, ustawiać priorytety i terminy oraz śledzić postęp w widoku listy lub tablicy kanban.",
     steps: [
-      "Wgraj model 3D z dysku (GLB, OBJ, STL lub FBX) lub użyj generatora AI",
-      "Przypisz kategorię (np. Lampa, Sofa, Krzesło)",
-      "Model pojawi się w bibliotece z miniaturką",
-      "Pobieraj modele do dalszej pracy w oprogramowaniu 3D",
+      "Dodaj nowe zadanie z tytułem, opisem i terminem",
+      "Przypisz zadanie do projektu i wybierz priorytet",
+      "Śledź postęp — statusy: Do zrobienia, W trakcie, Gotowe",
+      "Przeglądaj zadania w widoku listy lub tablicy kanban",
+      "Dodawaj podzadania dla bardziej złożonych działań",
     ],
+  },
+  {
+    title: "9. Generator 3D",
+    desc: "Wkrótce dostępny w veedeck.",
+    steps: [],
   },
 ];
 
@@ -241,7 +248,8 @@ export default function InstrukcjaPage() {
                   {idx === 4 && <Package size={22} />}
                   {idx === 5 && <CalendarDays size={22} />}
                   {idx === 6 && <NotebookText size={22} />}
-                  {idx === 7 && <ViewInAr size={22} />}
+                  {idx === 7 && <ListChecks size={22} />}
+                  {idx === 8 && <ViewInAr size={22} />}
                 </div>
                 <h2 className="font-semibold text-gray-900 dark:text-gray-100">{mod.title}</h2>
               </div>
@@ -253,7 +261,7 @@ export default function InstrukcjaPage() {
                     <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{tip}</p>
                   </div>
                 ))}
-                <div>
+                {mod.steps.length > 0 && <div>
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Jak to zrobić</p>
                   <ul className="space-y-1.5">
                     {mod.steps.map((step, i) => (
@@ -265,7 +273,7 @@ export default function InstrukcjaPage() {
                       </li>
                     ))}
                   </ul>
-                </div>
+                </div>}
               </div>
             </div>
           ))}
