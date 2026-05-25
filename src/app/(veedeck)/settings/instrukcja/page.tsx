@@ -5,6 +5,7 @@ import {
   PushPin, LocalMall, Comment, ChatBubble,
   Pin, Check, ExternalLink, History,
   Paperclip, Mic, CornerDownLeft, X, Users,
+  Package, CalendarDays, NotebookText, ViewInAr,
 } from "@/components/ui/icons";
 
 /* ─── DESIGNER PANEL ────────────────────────────────────────────────────── */
@@ -62,6 +63,48 @@ const DESIGNER_MODULES: DesignerStep[] = [
       "Piszesz wiadomości, wysyłasz zdjęcia i dokumenty",
       "Klient odpowiada bezpośrednio ze swojego panelu",
       "Cała historia komunikacji zostaje w jednym miejscu",
+    ],
+  },
+  {
+    title: "5. Produkty",
+    desc: "Biblioteka produktów — Twoja baza mebli, oświetlenia, akcesoriów i materiałów, które często używasz w projektach. Produkty możesz dodawać ręcznie lub za pomocą rozszerzenia veepick, a następnie szybko wstawiać je do dowolnej listy zakupowej bez ponownego wpisywania danych.",
+    tips: [
+      "Rozszerzenie veepick pozwala dodać produkt ze sklepu internetowego do biblioteki lub bezpośrednio do listy jednym kliknięciem — bez kopiowania linku, ceny ani zdjęcia.",
+    ],
+    steps: [
+      "Dodaj produkt ręcznie lub przez veepick ze sklepu internetowego",
+      "Uzupełnij kategorię, cenę, wymiary i inne dane",
+      "Otwórz dowolną listę zakupową i wstaw produkt z biblioteki",
+      "Produkt trafia do sekcji z zachowaniem wszystkich danych",
+    ],
+  },
+  {
+    title: "6. Kalendarz",
+    desc: "Osobisty kalendarz projektanta. Możesz planować spotkania z klientami, dodawać zadania do wykonania i ustawiać przypomnienia. Widok miesięczny, tygodniowy i dzienny. Do wydarzeń można zapraszać uczestników.",
+    steps: [
+      "Dodaj wydarzenie, zadanie lub przypomnienie",
+      "Wybierz datę, godzinę i czas trwania",
+      "Opcjonalnie dodaj lokalizację, opis i uczestników",
+      "Śledź zaplanowane działania w widoku tygodniowym lub miesięcznym",
+    ],
+  },
+  {
+    title: "7. Notatnik",
+    desc: "Prosty notatnik do zapisywania pomysłów, uwag i informacji przy projektach. Notatki widoczne są tylko dla Ciebie. Można je archiwizować, żeby nie zaśmiecały głównego widoku.",
+    steps: [
+      "Utwórz nową notatkę i nadaj jej tytuł",
+      "Wpisz treść — dowolny tekst, pomysły, notatki ze spotkania",
+      "Archiwizuj ukończone lub nieaktualne notatki",
+    ],
+  },
+  {
+    title: "8. Generator 3D",
+    desc: "Narzędzie do zarządzania modelami 3D mebli i wyposażenia. Możesz wgrywać własne modele w formatach GLB, OBJ, STL, FBX lub generować je przy pomocy AI z kategorii takich jak lampy, sofy, krzesła i inne.",
+    steps: [
+      "Wgraj model 3D z dysku (GLB, OBJ, STL lub FBX) lub użyj generatora AI",
+      "Przypisz kategorię (np. Lampa, Sofa, Krzesło)",
+      "Model pojawi się w bibliotece z miniaturką",
+      "Pobieraj modele do dalszej pracy w oprogramowaniu 3D",
     ],
   },
 ];
@@ -195,6 +238,10 @@ export default function InstrukcjaPage() {
                   {idx === 1 && <PushPin size={22} />}
                   {idx === 2 && <LocalMall size={22} />}
                   {idx === 3 && <ChatBubble size={22} />}
+                  {idx === 4 && <Package size={22} />}
+                  {idx === 5 && <CalendarDays size={22} />}
+                  {idx === 6 && <NotebookText size={22} />}
+                  {idx === 7 && <ViewInAr size={22} />}
                 </div>
                 <h2 className="font-semibold text-gray-900 dark:text-gray-100">{mod.title}</h2>
               </div>
