@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import PdfThumbnail from "./PdfThumbnail";
+import { FileText } from "@/components/ui/icons";
 
 interface RenderThumbnailProps {
   id: string;
@@ -25,7 +25,7 @@ export default function RenderThumbnail({
       <Card className="overflow-hidden hover:shadow-[0_4px_16px_rgba(25,33,61,0.2)] hover:border-primary/30 transition-all cursor-pointer group">
         <div className="aspect-video bg-gray-100 overflow-hidden flex items-center justify-center">
           {fileType === "pdf" ? (
-            <PdfThumbnail fileUrl={fileUrl} className="w-full h-full" />
+            <FileText size={40} className="text-red-400" />
           ) : (
             /* eslint-disable-next-line @next/next/no-img-element */
             <img
