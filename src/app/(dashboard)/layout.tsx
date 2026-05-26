@@ -72,7 +72,7 @@ export default async function DashboardLayout({
             )}
             <div className="md:hidden"><MobileSearch /></div>
             <QuickNoteButton />
-            <NotificationBell userId={session.user.id!} iconOnly />
+            <NotificationBell userId={dbUser?.ownerId ?? session.user.id!} iconOnly />
             {firstName && (
               <div className="hidden md:flex items-center gap-2">
                 <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-semibold leading-none shrink-0 overflow-hidden">

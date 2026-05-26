@@ -3,8 +3,8 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getWorkspaceUserId } from "@/lib/workspace";
 
-export async function PATCH(
-  req: NextRequest,
+export async function POST(
+  _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await auth();
@@ -12,22 +12,17 @@ export async function PATCH(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const userId = getWorkspaceUserId(session);
-
   const { id } = await params;
-  const { read } = await req.json();
 
-  const notification = await prisma.notification.findFirst({
-    where: { id, userId },
-  });
-
-  if (!notification) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  const survey = await prisma.survey.findFirst({ where: { id, userId } });
+  if (!survey) {
+    return NextResponse.json({ error: "Nie znaleziono ankiety" }, { status: 404 });
   }
 
-  await prisma.notification.update({
+  const updated = await prisma.survey.update({
     where: { id },
-    data: { read },
+    data: { archived: !survey.archived },
   });
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json(updated);
 }

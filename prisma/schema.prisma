@@ -79,6 +79,7 @@ model User {
   taskComments               TaskComment[]  @relation("TaskCommentAuthor")
   taskStatuses               TaskStatusConfig[]
   models3d                   Model3D[]
+  surveys                    Survey[]
 }
 
 model Invitation {
@@ -232,6 +233,7 @@ model Project {
   shoppingLists  ShoppingList[]
   discussion     Discussion?
   tasks          Task[]
+  surveys        Survey[]
 }
 
 model ProjectClient {
@@ -253,6 +255,7 @@ model ProjectClient {
   payments      Payment[]
   docFolders    ClientDocFolder[]
   docs          ClientDoc[]
+  surveys       Survey[]
 }
 
 model PaymentGroup {
@@ -716,6 +719,77 @@ enum TaskPriority {
   LOW
   MEDIUM
   HIGH
+}
+
+model Survey {
+  id             String          @id @default(cuid())
+  name           String
+  slug           String          @unique
+  shareToken     String          @unique @default(cuid())
+  status         String          @default("DRAFT") // DRAFT | ACTIVE | CLOSED
+  archived       Boolean         @default(false)
+  pinned         Boolean         @default(false)
+  order          Int             @default(0)
+  userId         String
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projectId      String?
+  project        Project?        @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  clientId       String?
+  client         ProjectClient?  @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  lastReminderAt DateTime?
+  isTemplate     Boolean         @default(false)
+  sections       SurveySection[]
+  questions      SurveyQuestion[]
+  responses      SurveyResponse[]
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+}
+
+model SurveySection {
+  id        String           @id @default(cuid())
+  name      String
+  order     Int              @default(0)
+  surveyId  String
+  survey    Survey           @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+  questions SurveyQuestion[]
+}
+
+model SurveyQuestion {
+  id          String          @id @default(cuid())
+  label       String
+  description String?
+  type        String
+  required    Boolean         @default(false)
+  order       Int             @default(0)
+  options     Json?
+  config      Json?
+  sectionId   String?
+  section     SurveySection?  @relation(fields: [sectionId], references: [id], onDelete: SetNull)
+  surveyId    String
+  survey      Survey          @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+  answers     SurveyAnswer[]
+}
+
+model SurveyResponse {
+  id              String        @id @default(cuid())
+  respondentEmail String
+  respondentName  String?
+  completedAt     DateTime?
+  surveyId        String
+  survey          Survey        @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+  answers         SurveyAnswer[]
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+}
+
+model SurveyAnswer {
+  id         String         @id @default(cuid())
+  value      Json
+  questionId String
+  question   SurveyQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  responseId String
+  response   SurveyResponse @relation(fields: [responseId], references: [id], onDelete: Cascade)
+  createdAt  DateTime       @default(now())
 }
 
 model Model3D {

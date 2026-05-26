@@ -234,6 +234,8 @@ export default function DashboardView({
         .then((data: { read: boolean }[]) => setNotifCount(data.filter((n) => !n.read).length))
         .catch(() => {});
     }
+    // Fresh fetch on every mount — overrides potentially stale server-rendered count from router cache
+    onUpdated();
     window.addEventListener("notifications-updated", onUpdated);
 
     let bc: BroadcastChannel | null = null;

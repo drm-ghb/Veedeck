@@ -292,3 +292,56 @@ export async function notifyClientDesignerListReply(opts: {
     `),
   );
 }
+
+export async function sendSurveyReminderEmail({
+  to,
+  surveyName,
+  shareLink,
+}: {
+  to: string;
+  surveyName: string;
+  shareLink: string;
+}) {
+  const safeName = escapeHtml(surveyName);
+  await transporter.sendMail({
+    from: FROM,
+    to,
+    subject: `Przypomnienie: wypełnij ankietę „${safeName}"`,
+    html: `
+      <div style="font-family: sans-serif; max-width: 520px; margin: 0 auto; padding: 32px 24px; color: #111;">
+        <h2 style="margin-bottom: 8px;">Przypomnienie o ankiecie</h2>
+        <p style="color: #555; margin-bottom: 24px;">
+          Prosimy o wypełnienie ankiety <strong>${safeName}</strong>.
+        </p>
+        <a href="${shareLink}"
+          style="display: inline-block; background: #6366f1; color: #fff; padding: 12px 24px;
+                 border-radius: 8px; text-decoration: none; font-weight: 600;">
+          Wypełnij ankietę
+        </a>
+        <p style="margin-top: 24px; font-size: 12px; color: #bbb;">${shareLink}</p>
+      </div>
+    `,
+  });
+}
+
+export async function notifyDesignerSurveySubmitted(opts: {
+  designerEmail: string;
+  surveyName: string;
+  surveyId: string;
+  respondentEmail: string;
+  respondentName: string | null;
+}) {
+  const link = `${APP_URL}/ankiety/${opts.surveyId}/odpowiedzi`;
+  const who = opts.respondentName
+    ? `${escapeHtml(opts.respondentName)} (${escapeHtml(opts.respondentEmail)})`
+    : escapeHtml(opts.respondentEmail);
+  await sendNotificationEmail(
+    opts.designerEmail,
+    `Nowa odpowiedź na ankietę „${opts.surveyName}"`,
+    emailBase(`
+      <h2 style="margin:0 0 8px;font-size:18px;color:#111;">Ankieta wypełniona</h2>
+      <p style="margin:0;font-size:14px;color:#6b7280;"><strong>${who}</strong> wypełnił(a) ankietę <strong>${escapeHtml(opts.surveyName)}</strong>.</p>
+      ${emailBtn("Zobacz odpowiedzi", link)}
+    `),
+  );
+}

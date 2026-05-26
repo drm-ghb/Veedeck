@@ -121,7 +121,15 @@ export default function DyskusjeView({ currentUserId, currentUserAvatarUrl, init
   const [uploading, setUploading] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
-  const [lastReadTimes, setLastReadTimes] = useState<Record<string, string>>({});
+  const [lastReadTimes, setLastReadTimes] = useState<Record<string, string>>(() => {
+    if (typeof window === "undefined") return {};
+    const times: Record<string, string> = {};
+    initialDiscussions.forEach((d) => {
+      const val = localStorage.getItem(`discussion-read-${d.id}`);
+      if (val) times[d.id] = val;
+    });
+    return times;
+  });
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<"all" | "internal" | "project">("all");
   const [archivedFilter, setArchivedFilter] = useState<"active" | "archived">("active");
@@ -144,14 +152,6 @@ export default function DyskusjeView({ currentUserId, currentUserAvatarUrl, init
 
   const selected = discussions.find((d) => d.id === selectedId) ?? null;
 
-  useEffect(() => {
-    const times: Record<string, string> = {};
-    initialDiscussions.forEach((d) => {
-      const val = localStorage.getItem(`discussion-read-${d.id}`);
-      if (val) times[d.id] = val;
-    });
-    setLastReadTimes(times);
-  }, []);
 
   const markAsRead = useCallback((id: string) => {
     const now = new Date().toISOString();

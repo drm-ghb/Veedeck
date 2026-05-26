@@ -4,11 +4,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
 import Pusher from "pusher-js";
-import { LayoutDashboard, Users, LocalMall, Package, PanelLeftClose, PanelLeftOpen, Settings, Sun, Moon, HelpCircle, X, CheckCircle, PushPin, ShieldCheck, CalendarDays, NotebookText, ChatBubble, CheckSquare, ViewInAr, BookOpen } from "@/components/ui/icons";
+import { LayoutDashboard, Users, LocalMall, Package, PanelLeftClose, PanelLeftOpen, Settings, Sun, Moon, HelpCircle, X, CheckCircle, PushPin, ShieldCheck, CalendarDays, NotebookText, ChatBubble, CheckSquare, ViewInAr, BookOpen, ClipboardList } from "@/components/ui/icons";
 import { useTheme } from "@/lib/theme";
 import { useT } from "@/lib/i18n";
 
-const DEFAULT_SIDEBAR_ORDER = ["klienci", "renderflow", "listy", "zadania", "produkty", "kalendarz", "notatnik", "dyskusje", "generator3d"];
+const DEFAULT_SIDEBAR_ORDER = ["klienci", "renderflow", "listy", "zadania", "ankiety", "produkty", "kalendarz", "notatnik", "dyskusje", "generator3d"];
 
 interface NavSidebarProps {
   hiddenModules: string[];
@@ -70,8 +70,22 @@ export default function NavSidebar({ hiddenModules, isAdmin, sidebarOrder, userI
   useEffect(() => {
     fetch("/api/discussions")
       .then((r) => r.json())
-      .then((data: { id: string }[]) => {
+      .then((data: { id: string; messages?: { createdAt: string }[] }[]) => {
         if (!Array.isArray(data)) return;
+
+        // Compute initial unread count from API data + localStorage read times.
+        // This ensures the badge is correct on every mount, not just after visiting /dyskusje.
+        const unreadIds = data.filter((d) => {
+          const lastMsg = d.messages?.[0];
+          if (!lastMsg) return false;
+          const readAt = localStorage.getItem(`discussion-read-${d.id}`);
+          if (!readAt) return true;
+          return new Date(lastMsg.createdAt) > new Date(readAt);
+        }).map((d) => d.id);
+        localStorage.setItem("discussions-unread-count", String(unreadIds.length));
+        localStorage.setItem("discussions-unread-ids", JSON.stringify(unreadIds));
+        setDiscussionUnread(unreadIds.length);
+
         if (!pusherRef.current) {
           pusherRef.current = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY!, {
             cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!,
@@ -110,6 +124,7 @@ export default function NavSidebar({ hiddenModules, isAdmin, sidebarOrder, userI
     { label: t.nav.renderflow, href: "/renderflow", icon: <PushPin size={18} />, slug: "renderflow", badge: 0, matchPrefixes: ["/projects/"] },
     { label: t.nav.lists, href: "/listy", icon: <LocalMall size={18} />, slug: "listy", badge: 0, matchPrefixes: [] as string[] },
     { label: t.nav.tasks, href: "/zadania", icon: <CheckSquare size={18} />, slug: null, badge: 0, matchPrefixes: [] as string[] },
+    { label: t.nav.surveys, href: "/ankiety", icon: <ClipboardList size={18} />, slug: null, badge: 0, matchPrefixes: [] as string[] },
     { label: t.nav.products, href: "/produkty", icon: <Package size={18} />, slug: "produkty", badge: 0, matchPrefixes: [] as string[] },
     { label: t.nav.calendar, href: "/kalendarz", icon: <CalendarDays size={18} />, slug: null, badge: 0, matchPrefixes: [] as string[] },
     { label: t.nav.notes, href: "/notatnik", icon: <NotebookText size={18} />, slug: null, badge: 0, matchPrefixes: [] as string[] },

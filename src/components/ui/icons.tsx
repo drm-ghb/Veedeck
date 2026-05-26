@@ -78,6 +78,8 @@ export const ChatBubble       = icon("chat_bubble");
 export const Comment          = icon("comment");
 export const CheckSquare      = icon("check_box");
 export const Columns3         = icon("view_column");
+export const ClipboardList    = icon("assignment");
+export const BarChart2        = icon("bar_chart");
 
 // ── Pins ───────────────────────────────────────────────────────────────────
 export const Pin              = icon("keep");

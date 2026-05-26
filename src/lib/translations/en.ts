@@ -54,6 +54,7 @@ export const en: TranslationKeys = {
     notes: "Notebook",
     discussions: "Discussions",
     tasks: "Tasks",
+    surveys: "Surveys",
     generator3d: "3D Generator",
     help: "Help",
     settings: "Settings",
