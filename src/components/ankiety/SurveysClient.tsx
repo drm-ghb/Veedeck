@@ -333,7 +333,7 @@ function SurveyCard({ survey, openMenuId, setOpenMenuId, onArchive, onPin, onDel
 
 // ── Survey Table (list view) ───────────────────────────────────────────────
 
-function SurveyTable({ surveys, openMenuId, setOpenMenuId, onArchive, onPin, onDelete, onCopyLink, formatDate }: CardProps & { surveys: Survey[] }) {
+function SurveyTable({ surveys, openMenuId, setOpenMenuId, onArchive, onPin, onDelete, onCopyLink, formatDate }: Omit<CardProps, "survey"> & { surveys: Survey[] }) {
   return (
     <div className="border border-border rounded-xl overflow-hidden">
       <table className="w-full text-sm">

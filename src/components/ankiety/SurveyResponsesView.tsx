@@ -290,7 +290,7 @@ function RatingChart({ answers, question }: { answers: unknown[]; question: Surv
   }
   const maxCount = Math.max(1, ...Object.values(counts));
   const avg = answers.length > 0
-    ? (answers.reduce((s, a) => s + (typeof a === "number" ? a : 0), 0) as number) / answers.length
+    ? (answers.reduce((s: number, a) => s + (typeof a === "number" ? a : 0), 0) as number) / answers.length
     : 0;
 
   return (
