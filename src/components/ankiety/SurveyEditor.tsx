@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
@@ -95,6 +95,7 @@ export default function SurveyEditor({ survey: initial }: Props) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [activeItem, setActiveItem] = useState<{ id: string; type: "section" | "question" } | null>(null);
   const [overSectionId, setOverSectionId] = useState<string | null | undefined>(undefined); // undefined = not dragging
+  const dragSourceSectionIdRef = useRef<string | null>(null); // original sectionId at drag start
   const [currentSectionId, setCurrentSectionId] = useState<string | null>(null);
   const [templateOpen, setTemplateOpen] = useState(false);
   const [statusSaving, setStatusSaving] = useState(false);
@@ -255,7 +256,9 @@ export default function SurveyEditor({ survey: initial }: Props) {
     const type = event.active.data.current?.type as "section" | "question";
     setActiveItem({ id: event.active.id as string, type });
     if (type === "question") {
-      setOverSectionId(event.active.data.current?.sectionId ?? null);
+      const sectionId = event.active.data.current?.sectionId ?? null;
+      setOverSectionId(sectionId);
+      dragSourceSectionIdRef.current = sectionId; // snapshot original section
     }
   }
 
@@ -295,7 +298,8 @@ export default function SurveyEditor({ survey: initial }: Props) {
     }
 
     // ── Question drag ─────────────────────────────────────────────────
-    const sourceSectionId: string | null = active.data.current?.sectionId ?? null;
+    // Use ref — active.data.current.sectionId may reflect displayQuestions (wrong)
+    const sourceSectionId: string | null = dragSourceSectionIdRef.current;
     const overType = over.data.current?.type as "section" | "question" | undefined;
 
     // Determine target section
