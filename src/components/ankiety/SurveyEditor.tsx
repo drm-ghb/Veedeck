@@ -618,16 +618,13 @@ export default function SurveyEditor({ survey: initial }: Props) {
                 {activeItem?.type === "question" && (() => {
                   const q = questions.find((q) => q.id === activeItem.id);
                   if (!q) return null;
+                  const typeLabel = QUESTION_TYPES.find((t) => t.value === q.type)?.label ?? q.type;
                   return (
-                    <PreviewCard
-                      question={q}
-                      selected={false}
-                      onSelect={() => {}}
-                      onGearClick={() => {}}
-                      onDelete={() => {}}
-                      onDuplicate={() => {}}
-                      onUpdate={() => {}}
-                    />
+                    <div className="bg-card border border-primary/40 rounded-xl px-5 py-3 flex items-center gap-3 shadow-lg">
+                      <GripVertical size={16} className="text-muted-foreground/40 flex-shrink-0" />
+                      <p className="text-sm font-medium truncate flex-1">{q.label || "Nowe pytanie"}</p>
+                      <span className="text-xs text-muted-foreground flex-shrink-0">{typeLabel}</span>
+                    </div>
                   );
                 })()}
                 {activeItem?.type === "section" && (() => {
@@ -885,7 +882,7 @@ function SortablePreviewCard({
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0 : 1,
+    opacity: isDragging ? 0.4 : 1,
   };
 
   return (
