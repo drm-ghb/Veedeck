@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import Pusher from "pusher-js";
 import { useUploadThing } from "@/lib/uploadthing-client";
+import { convertHeicFiles } from "@/lib/convert-heic";
 import ImageAnnotationModal from "./ImageAnnotationModal";
 import { SwipeableMessage } from "@/components/ui/swipeable-message";
 import { playMessageSound } from "@/lib/notification-sound";
@@ -354,10 +355,11 @@ export default function DyskusjeView({ currentUserId, currentUserAvatarUrl, init
     if (files.length === 0) return;
     setUploading(true);
     try {
-      const results = await startUpload(files);
+      const processedFiles = await convertHeicFiles(files);
+      const results = await startUpload(processedFiles);
       if (!results) throw new Error();
       const newAttachments: PendingAttachment[] = results.map((r, i) => {
-        const file = files[i];
+        const file = processedFiles[i];
         const type: AttachmentType = file.type.startsWith("image/")
           ? "image"
           : file.type === "application/pdf"
@@ -1476,13 +1478,36 @@ function MessageBubble({ msg, isOwn, ownAvatarUrl, onImageClick, receipts, onEdi
                   </div>
                 )}
                 {msg.attachmentType === "image" && msg.attachmentUrl && (
-                  <button
-                    onClick={() => onImageClick(msg.attachmentUrl!)}
-                    className="block rounded-2xl overflow-hidden border border-border hover:opacity-90 transition-opacity focus:outline-none focus:ring-2 focus:ring-primary/40"
-                    title="Kliknij aby zaznaczyć"
-                  >
-                    <img src={msg.attachmentUrl} alt={msg.attachmentName || ""} className="max-w-[260px] max-h-[200px] object-cover" />
-                  </button>
+                  <div>
+                    <button
+                      onClick={() => onImageClick(msg.attachmentUrl!)}
+                      className="block rounded-2xl overflow-hidden border border-border hover:opacity-90 transition-opacity focus:outline-none focus:ring-2 focus:ring-primary/40"
+                      title="Kliknij aby zaznaczyć"
+                    >
+                      <img
+                        src={msg.attachmentUrl}
+                        alt={msg.attachmentName || ""}
+                        className="max-w-[260px] max-h-[200px] object-cover"
+                        onError={(e) => {
+                          const btn = e.currentTarget.closest("button") as HTMLElement | null;
+                          if (btn) btn.style.display = "none";
+                          const fallback = btn?.nextElementSibling as HTMLElement | null;
+                          if (fallback) fallback.removeAttribute("hidden");
+                        }}
+                      />
+                    </button>
+                    <a
+                      href={msg.attachmentUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      hidden
+                      className="flex items-center gap-2 px-3 py-2 rounded-2xl border border-border text-sm text-muted-foreground hover:text-foreground"
+                    >
+                      <FileIcon size={16} className="flex-shrink-0" />
+                      <span className="truncate max-w-[220px]">{msg.attachmentName || "Zdjęcie"}</span>
+                      <ExternalLink size={12} className="flex-shrink-0" />
+                    </a>
+                  </div>
                 )}
                 {msg.attachmentType === "pdf" && msg.attachmentUrl && (
                   <div className="max-w-[280px] w-[280px] rounded-xl overflow-hidden border border-border">
