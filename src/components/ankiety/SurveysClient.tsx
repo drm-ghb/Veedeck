@@ -41,8 +41,12 @@ interface Props {
 }
 
 type SortMode = "manual" | "az" | "date";
+type GroupMode = "none" | "status";
 type ViewMode = "grid" | "list";
 type Tab = "active" | "archived" | "templates";
+
+const STATUS_ORDER: Survey["status"][] = ["ACTIVE", "DRAFT", "CLOSED"];
+const STATUS_LABELS: Record<string, string> = { ACTIVE: "Aktywne", DRAFT: "Szkice", CLOSED: "Zamknięte" };
 
 function StatusBadge({ status }: { status: string }) {
   if (status === "ACTIVE") return (
@@ -67,7 +71,19 @@ export default function SurveysClient({ surveys: initial, projects, customTempla
   const [surveys, setSurveys] = useState<Survey[]>(initial);
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<SortMode>("manual");
-  const [view, setView] = useState<ViewMode>("grid");
+  const [group, setGroup] = useState<GroupMode>("none");
+  const [view, setView] = useState<ViewMode>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("ankiety-view");
+      if (saved === "list" || saved === "grid") return saved;
+    }
+    return "grid";
+  });
+
+  function handleSetView(v: ViewMode) {
+    setView(v);
+    localStorage.setItem("ankiety-view", v);
+  }
   const [tab, setTab] = useState<Tab>("active");
   const [newOpen, setNewOpen] = useState(false);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
@@ -177,16 +193,26 @@ export default function SurveysClient({ surveys: initial, projects, customTempla
           <option value="date">Najnowsze</option>
         </select>
 
+        {/* Group */}
+        <select
+          value={group}
+          onChange={(e) => setGroup(e.target.value as GroupMode)}
+          className="px-3 py-1.5 text-sm border border-border rounded-lg bg-background focus:outline-none"
+        >
+          <option value="none">Brak grupowania</option>
+          <option value="status">Grupuj po statusie</option>
+        </select>
+
         {/* View toggle */}
-        <div className="flex items-center gap-1 border border-border rounded-lg p-0.5">
+        <div className="ml-auto flex items-center gap-1 border border-border rounded-lg p-0.5">
           <button
-            onClick={() => setView("grid")}
+            onClick={() => handleSetView("grid")}
             className={`p-1.5 rounded-md transition-colors ${view === "grid" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground"}`}
           >
             <LayoutGrid size={16} />
           </button>
           <button
-            onClick={() => setView("list")}
+            onClick={() => handleSetView("list")}
             className={`p-1.5 rounded-md transition-colors ${view === "list" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground"}`}
           >
             <List size={16} />
@@ -233,6 +259,30 @@ export default function SurveysClient({ surveys: initial, projects, customTempla
                     Utwórz pierwszą ankietę
                   </button>
                 )}
+              </div>
+            ) : group === "status" ? (
+              <div className="space-y-8">
+                {STATUS_ORDER.map((status) => {
+                  const items = filtered.filter((s) => s.status === status);
+                  if (items.length === 0) return null;
+                  return (
+                    <div key={status}>
+                      <div className="flex items-center gap-2 mb-3">
+                        <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{STATUS_LABELS[status]}</span>
+                        <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full">{items.length}</span>
+                      </div>
+                      {view === "grid" ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {items.map((survey) => (
+                            <SurveyCard key={survey.id} survey={survey} openMenuId={openMenuId} setOpenMenuId={setOpenMenuId} onArchive={handleArchive} onPin={handlePin} onDelete={handleDelete} onCopyLink={handleCopyLink} formatDate={formatDate} />
+                          ))}
+                        </div>
+                      ) : (
+                        <SurveyTable surveys={items} openMenuId={openMenuId} setOpenMenuId={setOpenMenuId} onArchive={handleArchive} onPin={handlePin} onDelete={handleDelete} onCopyLink={handleCopyLink} formatDate={formatDate} />
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             ) : view === "grid" ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
