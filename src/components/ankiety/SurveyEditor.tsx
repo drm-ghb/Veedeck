@@ -5,12 +5,14 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
   DndContext,
+  DragOverlay,
   pointerWithin,
   closestCenter,
   PointerSensor,
   useSensor,
   useSensors,
   type DragEndEvent,
+  type DragOverEvent,
   type DragStartEvent,
   type CollisionDetection,
 } from "@dnd-kit/core";
@@ -92,6 +94,7 @@ export default function SurveyEditor({ survey: initial }: Props) {
   const [sections, setSections] = useState<SurveySection[]>(initial.sections);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [activeItem, setActiveItem] = useState<{ id: string; type: "section" | "question" } | null>(null);
+  const [overSectionId, setOverSectionId] = useState<string | null | undefined>(undefined); // undefined = not dragging
   const [currentSectionId, setCurrentSectionId] = useState<string | null>(null);
   const [templateOpen, setTemplateOpen] = useState(false);
   const [statusSaving, setStatusSaving] = useState(false);
@@ -251,11 +254,26 @@ export default function SurveyEditor({ survey: initial }: Props) {
   function handleDragStart(event: DragStartEvent) {
     const type = event.active.data.current?.type as "section" | "question";
     setActiveItem({ id: event.active.id as string, type });
+    if (type === "question") {
+      setOverSectionId(event.active.data.current?.sectionId ?? null);
+    }
+  }
+
+  function handleDragOver(event: DragOverEvent) {
+    const { active, over } = event;
+    if (!over || active.data.current?.type !== "question") return;
+    const overType = over.data.current?.type;
+    let targetSectionId: string | null;
+    if (overType === "question") targetSectionId = over.data.current?.sectionId ?? null;
+    else if (overType === "section") targetSectionId = over.id as string;
+    else return;
+    setOverSectionId(targetSectionId);
   }
 
   async function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     setActiveItem(null);
+    setOverSectionId(undefined);
     if (!over || active.id === over.id) return;
 
     const activeType = active.data.current?.type as "section" | "question";
@@ -399,7 +417,17 @@ export default function SurveyEditor({ survey: initial }: Props) {
     toast.success("Szablon zastosowany");
   }
 
-  const unsectionedQs = questions.filter((q) => !q.sectionId);
+  // Visual state during drag: move dragged question to target section for animation
+  const displayQuestions = (() => {
+    if (overSectionId === undefined || !activeItem || activeItem.type !== "question") return questions;
+    const moving = questions.find((q) => q.id === activeItem.id);
+    if (!moving || moving.sectionId === overSectionId) return questions;
+    const updated = { ...moving, sectionId: overSectionId };
+    const rest = questions.filter((q) => q.id !== activeItem.id);
+    rest.push(updated);
+    return rest;
+  })();
+  const unsectionedQs = displayQuestions.filter((q) => !q.sectionId);
   const isEmpty = questions.length === 0 && sections.length === 0;
 
   return (
@@ -538,12 +566,13 @@ export default function SurveyEditor({ survey: initial }: Props) {
                 return pw.length > 0 ? pw : closestCenter(args);
               }) as CollisionDetection}
               onDragStart={handleDragStart}
+              onDragOver={handleDragOver}
               onDragEnd={handleDragEnd}
             >
               {sections.length > 0 && (
                 <SortableContext items={sections.map((s) => s.id)} strategy={verticalListSortingStrategy}>
                   {sections.map((section) => {
-                    const sectionQs = questions.filter((q) => q.sectionId === section.id);
+                    const sectionQs = displayQuestions.filter((q) => q.sectionId === section.id);
                     return (
                       <SortableSectionBlock
                         key={section.id}
@@ -583,6 +612,34 @@ export default function SurveyEditor({ survey: initial }: Props) {
                   ))}
                 </SortableContext>
               )}
+
+              <DragOverlay dropAnimation={null}>
+                {activeItem?.type === "question" && (() => {
+                  const q = questions.find((q) => q.id === activeItem.id);
+                  if (!q) return null;
+                  return (
+                    <PreviewCard
+                      question={q}
+                      selected={false}
+                      onSelect={() => {}}
+                      onGearClick={() => {}}
+                      onDelete={() => {}}
+                      onDuplicate={() => {}}
+                      onUpdate={() => {}}
+                    />
+                  );
+                })()}
+                {activeItem?.type === "section" && (() => {
+                  const s = sections.find((s) => s.id === activeItem.id);
+                  if (!s) return null;
+                  return (
+                    <div className="bg-card border border-primary/50 rounded-xl px-5 py-4 shadow-lg opacity-90">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-0.5">Sekcja</p>
+                      <p className="text-sm font-medium">{s.name}</p>
+                    </div>
+                  );
+                })()}
+              </DragOverlay>
             </DndContext>
 
           </div>
@@ -729,7 +786,7 @@ function SortableSectionBlock({
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.5 : 1,
+    opacity: isDragging ? 0 : 1,
   };
 
   return (
@@ -826,7 +883,7 @@ function SortablePreviewCard({
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.4 : 1,
+    opacity: isDragging ? 0 : 1,
   };
 
   return (
