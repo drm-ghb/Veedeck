@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { LayoutDashboard, LocalMall, PanelLeftClose, PanelLeftOpen, PushPin, Sun, Moon, HelpCircle, Settings, UserRound, X, CheckCircle, ChatBubble, LogOut } from "@/components/ui/icons";
+import { LayoutDashboard, LocalMall, PanelLeftClose, PanelLeftOpen, PushPin, Sun, Moon, HelpCircle, Settings, UserRound, X, CheckCircle, ChatBubble, LogOut, Payments } from "@/components/ui/icons";
 import { signOut } from "next-auth/react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -21,18 +21,22 @@ interface ShoppingListLink {
 interface ShareSidebarProps {
   token: string;
   discussionId?: string | null;
-  showRenderFlow?: boolean;
+  showProjectFlow?: boolean;
   showListy?: boolean;
   showDyskusje?: boolean;
   shoppingLists?: ShoppingListLink[];
   /** When provided, clicking Dashboard calls this instead of navigating (for SPA-style view) */
   onHomeClick?: () => void;
-  /** When provided, clicking RenderFlow calls this instead of navigating (for SPA-style view) */
-  onRenderFlowClick?: () => void;
+  /** When provided, clicking ProjectFlow calls this instead of navigating (for SPA-style view) */
+  onProjectFlowClick?: () => void;
   /** When provided, clicking Dyskusje calls this instead of navigating */
   onDiscussionClick?: () => void;
   /** When provided, clicking Listy calls this instead of navigating */
   onListClick?: () => void;
+  /** When true, show Płatności item in sidebar */
+  showPayments?: boolean;
+  /** When provided, clicking Płatności calls this */
+  onPaymentsClick?: () => void;
   /** When provided, clicking Ustawienia calls this instead of navigating (client mode) */
   onSettingsClick?: () => void;
   /** When provided, use /client/[projectId] links instead of /share/[token] links */
@@ -52,14 +56,16 @@ interface ShareSidebarProps {
 export default function ShareSidebar({
   token,
   discussionId,
-  showRenderFlow = true,
+  showProjectFlow = true,
   showListy = true,
   showDyskusje = false,
+  showPayments = false,
   shoppingLists = [],
   onHomeClick,
-  onRenderFlowClick,
+  onProjectFlowClick,
   onDiscussionClick,
   onListClick,
+  onPaymentsClick,
   onSettingsClick,
   clientProjectId,
   activeView,
@@ -320,11 +326,11 @@ export default function ShareSidebar({
           </Link>
         )}
 
-        {/* RenderFlow */}
-        {showRenderFlow &&
-          (onRenderFlowClick ? (
+        {/* ProjectFlow */}
+        {showProjectFlow &&
+          (onProjectFlowClick ? (
             <button
-              onClick={() => { onRenderFlowClick(); setMobileSidebarOpen(false); }}
+              onClick={() => { onProjectFlowClick(); setMobileSidebarOpen(false); }}
               title={isCollapsed ? t.share.renderflow : undefined}
               className={`w-full ${linkCls(isRenderActive)}`}
             >
@@ -373,6 +379,20 @@ export default function ShareSidebar({
               {showLabels && t.share.lists}
             </Link>
           )
+        )}
+
+        {/* Płatności */}
+        {showPayments && onPaymentsClick && (
+          <button
+            onClick={() => { onPaymentsClick(); setMobileSidebarOpen(false); }}
+            title={isCollapsed ? "Płatności" : undefined}
+            className={`w-full ${linkCls(clientProjectId ? activeView === "payments" : false)}`}
+          >
+            <span className="flex-shrink-0 w-5 flex items-center justify-center">
+              <Payments size={18} />
+            </span>
+            {showLabels && "Płatności"}
+          </button>
         )}
 
         {/* Dyskusje */}

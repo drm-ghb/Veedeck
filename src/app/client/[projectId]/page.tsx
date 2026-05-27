@@ -8,6 +8,7 @@ import ClientThemeApplier from "@/components/share/ClientThemeApplier";
 import ShareNavbar from "@/components/share/ShareNavbar";
 import ShareSidebar from "@/components/share/ShareSidebar";
 import ClientDiscussionView from "@/components/dyskusje/ClientDiscussionView";
+import ClientPaymentsView from "@/components/share/ClientPaymentsView";
 import ShareListClient from "@/components/listy/ShareListClient";
 import ModuleGuideSlider from "@/components/share/ModuleGuideSlider";
 import { getRoomIcon } from "@/lib/roomIcons";
@@ -51,6 +52,7 @@ interface Project {
   designerName: string | null; navMode: string; hiddenModules: string[];
   shoppingLists: { id: string; name: string; shareToken: string }[];
   hasDiscussion: boolean; discussionId: string | null; colorTheme: string;
+  paymentsSharedWithClient: boolean;
 }
 
 export default function ClientProjectPage() {
@@ -87,6 +89,8 @@ export default function ClientProjectPage() {
           setSelectedRender(null); setView("room");
         }
       }
+    } else if (v === "payments") {
+      setView("payments"); setSelectedRoom(null); setSelectedFolder(null);
     } else if (v === "discussion") {
       setView("discussion"); setSelectedRoom(null); setSelectedFolder(null);
     } else if (v === "settings") {
@@ -101,7 +105,7 @@ export default function ClientProjectPage() {
   }
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState<"home" | "rooms" | "room" | "render" | "discussion" | "settings" | "lists" | "list">("home");
+  const [view, setView] = useState<"home" | "rooms" | "room" | "render" | "discussion" | "settings" | "lists" | "list" | "payments">("home");
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
   const [selectedFolder, setSelectedFolder] = useState<{ id: string; name: string } | null>(null);
   const [selectedRender, setSelectedRender] = useState<Render | null>(null);
@@ -373,6 +377,43 @@ export default function ClientProjectPage() {
 
   const themeApplier = <ClientThemeApplier colorTheme={project.colorTheme} />;
 
+  const sidebarProps = {
+    token: "",
+    discussionId: project.discussionId,
+    showProjectFlow: !project.hiddenModules.includes("renderflow"),
+    showListy: !project.hiddenModules.includes("listy"),
+    showDyskusje: !project.hiddenModules.includes("dyskusje"),
+    showPayments: project.paymentsSharedWithClient,
+    shoppingLists: project.shoppingLists,
+    onHomeClick: () => { setView("home"); setSelectedRoom(null); setSelectedFolder(null); navigate({}); },
+    onProjectFlowClick: () => { if (project.rooms.length === 1) { setSelectedRoom(project.rooms[0]); setSelectedFolder(null); setView("room"); navigate({ view: "room", roomId: project.rooms[0].id }); } else { setView("rooms"); navigate({ view: "rooms" }); } },
+    onDiscussionClick: () => { setView("discussion"); navigate({ view: "discussion" }); },
+    onSettingsClick: () => { setView("settings"); navigate({ view: "settings" }); },
+    onListClick: () => { if (project.shoppingLists.length === 1) { openList(project.shoppingLists[0].id); } else { setView("lists"); navigate({ view: "lists" }); } },
+    onPaymentsClick: () => { setView("payments"); navigate({ view: "payments" }); },
+    clientProjectId: projectId,
+    activeView: view,
+    currentUserId,
+    mobileOpen: mobileSidebarOpen,
+    onMobileOpenChange: setMobileSidebarOpen,
+  };
+
+  // Payments view
+  if (view === "payments") {
+    return (
+      <div className="h-dvh flex flex-col bg-muted/60">
+        {themeApplier}
+        <ShareNavbar clientLogoUrl={project.clientLogoUrl} designerName={project.designerName ?? undefined} clientName={authorName} onLogoClick={() => { setView("home"); setSelectedRoom(null); setSelectedFolder(null); navigate({}); }} onMobileMenuOpen={() => setMobileSidebarOpen(true)} />
+        <div className="flex flex-1 min-h-0">
+          <ShareSidebar {...sidebarProps} />
+          <main className="flex-1 overflow-y-auto bg-background rounded-tl-2xl">
+            <ClientPaymentsView projectId={projectId} />
+          </main>
+        </div>
+      </div>
+    );
+  }
+
   // Discussion view
   if (view === "discussion" && project.discussionId) {
     const content = (
@@ -395,15 +436,17 @@ export default function ClientProjectPage() {
           <ShareSidebar
             token=""
             discussionId={project.discussionId}
-            showRenderFlow={!project.hiddenModules.includes("renderflow")}
+            showProjectFlow={!project.hiddenModules.includes("renderflow")}
             showListy={!project.hiddenModules.includes("listy")}
             showDyskusje={!project.hiddenModules.includes("dyskusje")}
             shoppingLists={project.shoppingLists}
             onHomeClick={() => { setView("home"); setSelectedRoom(null); setSelectedFolder(null); navigate({}); }}
-            onRenderFlowClick={() => { if (project.rooms.length === 1) { setSelectedRoom(project.rooms[0]); setSelectedFolder(null); setView("room"); navigate({ view: "room", roomId: project.rooms[0].id }); } else { setView("rooms"); navigate({ view: "rooms" }); } }}
+            onProjectFlowClick={() => { if (project.rooms.length === 1) { setSelectedRoom(project.rooms[0]); setSelectedFolder(null); setView("room"); navigate({ view: "room", roomId: project.rooms[0].id }); } else { setView("rooms"); navigate({ view: "rooms" }); } }}
             onDiscussionClick={() => { setView("discussion"); navigate({ view: "discussion" }); }}
             onSettingsClick={() => { setView("settings"); navigate({ view: "settings" }); }}
             onListClick={() => { if (project.shoppingLists.length === 1) { openList(project.shoppingLists[0].id); } else { setView("lists"); navigate({ view: "lists" }); } }}
+            showPayments={project.paymentsSharedWithClient}
+            onPaymentsClick={() => { setView("payments"); navigate({ view: "payments" }); }}
             clientProjectId={projectId}
             activeView={view}
             currentUserId={currentUserId}
@@ -465,15 +508,17 @@ export default function ClientProjectPage() {
           <ShareSidebar
             token=""
             discussionId={project.discussionId}
-            showRenderFlow={!project.hiddenModules.includes("renderflow")}
+            showProjectFlow={!project.hiddenModules.includes("renderflow")}
             showListy={!project.hiddenModules.includes("listy")}
             showDyskusje={!project.hiddenModules.includes("dyskusje")}
             shoppingLists={project.shoppingLists}
             onHomeClick={() => { setView("home"); setSelectedRoom(null); setSelectedFolder(null); navigate({}); }}
-            onRenderFlowClick={() => { if (project.rooms.length === 1) { setSelectedRoom(project.rooms[0]); setSelectedFolder(null); setView("room"); navigate({ view: "room", roomId: project.rooms[0].id }); } else { setView("rooms"); navigate({ view: "rooms" }); } }}
+            onProjectFlowClick={() => { if (project.rooms.length === 1) { setSelectedRoom(project.rooms[0]); setSelectedFolder(null); setView("room"); navigate({ view: "room", roomId: project.rooms[0].id }); } else { setView("rooms"); navigate({ view: "rooms" }); } }}
             onDiscussionClick={() => { setView("discussion"); navigate({ view: "discussion" }); }}
             onSettingsClick={() => { setView("settings"); navigate({ view: "settings" }); }}
             onListClick={() => { if (project.shoppingLists.length === 1) { openList(project.shoppingLists[0].id); } else { setView("lists"); navigate({ view: "lists" }); } }}
+            showPayments={project.paymentsSharedWithClient}
+            onPaymentsClick={() => { setView("payments"); navigate({ view: "payments" }); }}
             clientProjectId={projectId}
             activeView={view}
             currentUserId={currentUserId}
@@ -504,7 +549,7 @@ export default function ClientProjectPage() {
 
       {view === "rooms" && (
         <>
-          <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-6">Pomieszczenia</h2>
+          <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-6">Foldery</h2>
           {project.rooms.length === 0 ? (
             <p className="text-gray-400 text-center py-16">Brak pomieszczeń w tym projekcie.</p>
           ) : (
@@ -841,7 +886,7 @@ export default function ClientProjectPage() {
                 <div className="space-y-3 pt-1 border-t border-border">
                   <p className="text-xs text-gray-400 pt-1">Wybierz moduły:</p>
                   {[
-                    { slug: "renderflow", label: "RenderFlow", desc: "Odpowiedzi projektanta na piny i komentarze" },
+                    { slug: "renderflow", label: "ProjectFlow", desc: "Odpowiedzi projektanta na piny i komentarze" },
                     { slug: "listy", label: "Listy zakupowe", desc: "Odpowiedzi projektanta na komentarze do produktów" },
                   ].map(({ slug, label, desc }) => {
                     const checked = emailNotifModules.includes(slug);
@@ -942,15 +987,17 @@ export default function ClientProjectPage() {
         <ShareSidebar
           token=""
           discussionId={project.discussionId}
-          showRenderFlow={!project.hiddenModules.includes("renderflow")}
+          showProjectFlow={!project.hiddenModules.includes("renderflow")}
           showListy={!project.hiddenModules.includes("listy")}
           showDyskusje={!project.hiddenModules.includes("dyskusje")}
           shoppingLists={project.shoppingLists}
           onHomeClick={() => { setView("home"); setSelectedRoom(null); setSelectedFolder(null); navigate({}); }}
-          onRenderFlowClick={() => { if (project.rooms.length === 1) { setSelectedRoom(project.rooms[0]); setSelectedFolder(null); setView("room"); navigate({ view: "room", roomId: project.rooms[0].id }); } else { setView("rooms"); navigate({ view: "rooms" }); } }}
+          onProjectFlowClick={() => { if (project.rooms.length === 1) { setSelectedRoom(project.rooms[0]); setSelectedFolder(null); setView("room"); navigate({ view: "room", roomId: project.rooms[0].id }); } else { setView("rooms"); navigate({ view: "rooms" }); } }}
           onDiscussionClick={() => { setView("discussion"); navigate({ view: "discussion" }); }}
           onSettingsClick={() => { setView("settings"); navigate({ view: "settings" }); }}
           onListClick={() => { if (project.shoppingLists.length === 1) { openList(project.shoppingLists[0].id); } else { setView("lists"); navigate({ view: "lists" }); } }}
+          showPayments={project.paymentsSharedWithClient}
+          onPaymentsClick={() => { setView("payments"); navigate({ view: "payments" }); }}
           clientProjectId={projectId}
           activeView={view}
           currentUserId={currentUserId}

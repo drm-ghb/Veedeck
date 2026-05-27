@@ -24,6 +24,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       ...(body.name !== undefined && { name: body.name }),
       ...(body.parentId !== undefined && { parentId: body.parentId }),
       ...(body.order !== undefined && { order: body.order }),
+      ...(body.rfProjectId !== undefined && { rfProjectId: body.rfProjectId }),
+      ...(body.hiddenFromClient !== undefined && { hiddenFromClient: !!body.hiddenFromClient }),
     },
   });
 

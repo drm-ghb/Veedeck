@@ -223,9 +223,10 @@ model Project {
   addressCity        String?
   addressPostalCode  String?
   addressStreet      String?
-  clientCanUpload    Boolean         @default(false)
-  startDate          DateTime?
-  endDate            DateTime?
+  clientCanUpload              Boolean         @default(false)
+  startDate                    DateTime?
+  endDate                      DateTime?
+  paymentsSharedWithClient     Boolean         @default(false)
   user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   clients        ProjectClient[]
   renders        Render[]
@@ -234,6 +235,8 @@ model Project {
   discussion     Discussion?
   tasks          Task[]
   surveys        Survey[]
+  paymentGroupsAsRfProject PaymentGroup[] @relation("PaymentGroupRfProject")
+  paymentsAsRfProject      Payment[]      @relation("PaymentRfProject")
 }
 
 model ProjectClient {
@@ -259,16 +262,19 @@ model ProjectClient {
 }
 
 model PaymentGroup {
-  id        String         @id @default(cuid())
-  clientId  String
-  parentId  String?
-  name      String
-  order     Int            @default(0)
-  createdAt DateTime       @default(now())
-  client    ProjectClient  @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  parent    PaymentGroup?  @relation("PaymentGroupChildren", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  children  PaymentGroup[] @relation("PaymentGroupChildren")
-  payments  Payment[]
+  id           String         @id @default(cuid())
+  clientId     String
+  parentId     String?
+  rfProjectId      String?
+  hiddenFromClient Boolean    @default(false)
+  name         String
+  order        Int            @default(0)
+  createdAt    DateTime       @default(now())
+  client       ProjectClient  @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  parent       PaymentGroup?  @relation("PaymentGroupChildren", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  children     PaymentGroup[] @relation("PaymentGroupChildren")
+  payments     Payment[]
+  rfProject    Project?       @relation("PaymentGroupRfProject", fields: [rfProjectId], references: [id], onDelete: SetNull)
 }
 
 model Payment {
@@ -282,8 +288,10 @@ model Payment {
   attachmentName String?
   order          Int            @default(0)
   createdAt      DateTime       @default(now())
+  rfProjectId    String?
   client         ProjectClient  @relation(fields: [clientId], references: [id], onDelete: Cascade)
   group          PaymentGroup?  @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  rfProject      Project?       @relation("PaymentRfProject", fields: [rfProjectId], references: [id], onDelete: SetNull)
 }
 
 model ShoppingList {

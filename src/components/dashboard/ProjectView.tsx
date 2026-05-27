@@ -170,7 +170,7 @@ export default function ProjectView({ projectId, rooms, archivedRooms, allRender
                 : "border-transparent text-muted-foreground hover:text-foreground"
             }`}
           >
-            Pomieszczenia
+            Foldery
             {rooms.length > 0 && (
               <span className={`ml-1.5 text-xs px-1.5 py-0.5 rounded-full ${tab === "active" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
                 {rooms.length}

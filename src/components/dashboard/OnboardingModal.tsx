@@ -22,7 +22,7 @@ const STEPS: Step[] = [
   {
     icon: Users,
     title: "Klienci",
-    desc: "Punkt startowy platformy. Tu dodajesz klientów, których potem podpisujesz do projektów w RenderFlow i list zakupowych.",
+    desc: "Punkt startowy platformy. Tu dodajesz klientów, których potem podpisujesz do projektów w ProjectFlow i list zakupowych.",
     steps: [
       'Przejdź do modułu Klienci i kliknij "Dodaj klienta"',
       "Podaj imię, nazwisko i e-mail klienta",
@@ -31,7 +31,7 @@ const STEPS: Step[] = [
   },
   {
     icon: PushPin,
-    title: "RenderFlow — wizualizacje",
+    title: "ProjectFlow — wizualizacje",
     desc: "Udostępniaj wizualizacje i pliki projektu. Klient komentuje, akceptuje i śledzi zmiany w jednym miejscu.",
     steps: [
       "Utwórz projekt i przypisz istniejącego klienta",

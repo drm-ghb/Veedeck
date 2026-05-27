@@ -124,7 +124,7 @@ export default function ProjectCard({
             </DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
-            Moduł <strong>RenderFlow</strong> jest oznaczony jako <strong>NIE WIDOCZNY</strong> dla klienta. Przed udostępnieniem linku zmień to w ustawieniach projektu.
+            Moduł <strong>ProjectFlow</strong> jest oznaczony jako <strong>NIE WIDOCZNY</strong> dla klienta. Przed udostępnieniem linku zmień to w ustawieniach projektu.
           </p>
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setWarningOpen(false)}>Zamknij</Button>

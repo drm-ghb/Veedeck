@@ -225,6 +225,7 @@ export const ListChecks       = icon("checklist");
 export const Wallet           = icon("account_balance_wallet");
 export const DollarSign       = icon("attach_money");
 export const Sheet            = icon("table_chart");
+export const Payments         = icon("payments");
 
 // ── Misc ──────────────────────────────────────────────────────────────────
 export const Home             = icon("home");

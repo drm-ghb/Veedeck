@@ -25,7 +25,7 @@ export default function ShareDialog({
   shareUrl,
   hiddenModules = [],
   moduleSlug = "renderflow",
-  moduleName = "RenderFlow",
+  moduleName = "ProjectFlow",
 }: ShareDialogProps) {
   const [copied, setCopied] = useState(false);
   const [warningOpen, setWarningOpen] = useState(false);

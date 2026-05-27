@@ -36,6 +36,7 @@ export interface IconOption {
 }
 
 export const ICON_OPTIONS: IconOption[] = [
+  { key: "INNE",     label: "Inne",       icon: FolderOpen },
   { key: "SALON",    label: "Salon",      icon: Sofa },
   { key: "KUCHNIA",  label: "Kuchnia",    icon: Flame },
   { key: "SYPIALNIA",label: "Sypialnia",  icon: Bed },
@@ -51,7 +52,6 @@ export const ICON_OPTIONS: IconOption[] = [
   { key: "SILOWNIA", label: "Siłownia",   icon: Dumbbell },
   { key: "GARAZ",    label: "Garaż",      icon: Car },
   { key: "OGROD",    label: "Ogród",      icon: TreePine },
-  { key: "INNE",     label: "Inne",       icon: FolderOpen },
 ];
 
 const ICON_MAP: Record<string, LucideIcon> = Object.fromEntries(

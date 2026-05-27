@@ -20,7 +20,7 @@ interface DesignerStep {
 const DESIGNER_MODULES: DesignerStep[] = [
   {
     title: "1. Klienci",
-    desc: "Punkt startowy — tu dodajesz klientów, z którymi pracujesz. Każdy klient jest bazą do podpięcia projektów w RenderFlow i list zakupowych. Dzięki temu masz wszystko w jednym miejscu, przypisane do konkretnej osoby.",
+    desc: "Punkt startowy — tu dodajesz klientów, z którymi pracujesz. Każdy klient jest bazą do podpięcia projektów w ProjectFlow i list zakupowych. Dzięki temu masz wszystko w jednym miejscu, przypisane do konkretnej osoby.",
     steps: [
       'Przejdź do modułu Klienci i kliknij "Dodaj klienta"',
       "Podaj imię, nazwisko i e-mail klienta",
@@ -29,7 +29,7 @@ const DESIGNER_MODULES: DesignerStep[] = [
     ],
   },
   {
-    title: "2. RenderFlow",
+    title: "2. ProjectFlow",
     desc: "Moduł do udostępniania wizualizacji i plików projektu. Po dodaniu klienta tworzysz projekt, przypisujesz go do istniejącego klienta, a następnie dodajesz pomieszczenia (np. Salon, Sypialnia) i wrzucasz do nich wizualizacje, pliki PDF lub kolejne foldery dla większego porządku.",
     tips: ["Możesz też dodać projekt z nowym klientem od razu — wystarczy wpisać jego dane przy tworzeniu projektu, a klient automatycznie trafi do modułu Klienci."],
     steps: [
@@ -136,7 +136,7 @@ interface ClientModule {
 const CLIENT_MODULES: ClientModule[] = [
   {
     id: "renderflow",
-    name: "RenderFlow — wizualizacje",
+    name: "ProjectFlow — wizualizacje",
     icon: <PushPin size={22} />,
     desc: "Klient widzi wszystkie wizualizacje i pliki przesłane przez projektanta. Może je komentować — ogólnie lub bezpośrednio na renderze (pinezka), akceptować gotowe elementy i śledzić historię zmian.",
     steps: [

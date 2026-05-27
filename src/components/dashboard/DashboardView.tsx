@@ -411,7 +411,7 @@ export default function DashboardView({
                 </div>
                 <div className="min-w-0">
                   <p className="text-xl font-bold leading-none">{stats.renderflowProjects}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5 truncate">Projektów RenderFlow</p>
+                  <p className="text-xs text-muted-foreground mt-0.5 truncate">Projektów ProjectFlow</p>
                 </div>
               </Link>
             )}
@@ -455,7 +455,7 @@ export default function DashboardView({
         {/* Projekty */}
         <div className="order-6 space-y-3">
             <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-foreground">Ostatnie projekty RenderFlow</h2>
+              <h2 className="text-sm font-semibold text-foreground">Ostatnie projekty ProjectFlow</h2>
               <Link href="/renderflow" className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-0.5 transition-colors">
                 Wszystkie <ChevronRight size={13} />
               </Link>
@@ -617,7 +617,7 @@ export default function DashboardView({
         <div className="order-3 space-y-3">
             <div className="flex items-center gap-1.5">
               <h2 className="text-sm font-semibold text-foreground">Nieprzeczytane wiadomości</h2>
-              <InfoTooltip items={["Nieprzeczytane wiadomości z dyskusji w projektach RenderFlow", "Nieprzeczytane komentarze na listach zakupowych"]} />
+              <InfoTooltip items={["Nieprzeczytane wiadomości z dyskusji w projektach ProjectFlow", "Nieprzeczytane komentarze na listach zakupowych"]} />
             </div>
 
             {(() => {

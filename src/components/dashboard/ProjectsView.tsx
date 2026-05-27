@@ -81,7 +81,7 @@ export default function ProjectsView({ projects, archivedProjects }: ProjectsVie
   }
 
   async function handleDelete(id: string, title: string) {
-    if (!confirm(`Usunąć projekt "${title}" z RenderFlow?`)) return;
+    if (!confirm(`Usunąć projekt "${title}" z ProjectFlow?`)) return;
     const res = await fetch(`/api/projects/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -377,7 +377,7 @@ function ProjectListView({ projects }: { projects: Project[] }) {
             </DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
-            Moduł <strong>RenderFlow</strong> jest oznaczony jako <strong>NIE WIDOCZNY</strong> dla klienta. Przed udostępnieniem linku zmień to w ustawieniach projektu.
+            Moduł <strong>ProjectFlow</strong> jest oznaczony jako <strong>NIE WIDOCZNY</strong> dla klienta. Przed udostępnieniem linku zmień to w ustawieniach projektu.
           </p>
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setWarningLink(null)}>Zamknij</Button>

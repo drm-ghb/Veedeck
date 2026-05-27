@@ -78,7 +78,7 @@ export default async function PublicListPage({ params }: { params: Promise<{ tok
   const hasTotal = allProducts.some((p) => parsePrice(p.price) !== null);
 
   const projectToken = list.project?.shareToken;
-  const showRenderFlow = !list.project?.hiddenModules.includes("renderflow");
+  const showProjectFlow = !list.project?.hiddenModules.includes("renderflow");
   const showListy = !list.project?.hiddenModules.includes("listy");
   const hasRenders = (list.project?.renders.length ?? 0) > 0;
 
@@ -233,7 +233,7 @@ export default async function PublicListPage({ params }: { params: Promise<{ tok
           <ShareSidebar
             token={projectToken}
             discussionId={list.project?.discussion?.id ?? null}
-            showRenderFlow={showRenderFlow && hasRenders}
+            showProjectFlow={showProjectFlow && hasRenders}
             showListy={showListy}
             showDyskusje={!list.project?.hiddenModules.includes("dyskusje")}
             shoppingLists={list.project?.shoppingLists ?? []}

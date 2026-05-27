@@ -29,7 +29,7 @@ export default function AdminSidebar({
           </div>
           <div>
             <p className="text-sm font-semibold text-white leading-tight">Admin</p>
-            <p className="text-[10px] text-white/30 leading-tight">RenderFlow</p>
+            <p className="text-[10px] text-white/30 leading-tight">ProjectFlow</p>
           </div>
         </div>
       </div>

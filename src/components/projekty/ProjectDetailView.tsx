@@ -84,6 +84,7 @@ interface ProjectData {
   hasLists: boolean;
   startDate: string | null;
   endDate: string | null;
+  paymentsSharedWithClient: boolean;
   clients: ProjectClient[];
 }
 
@@ -976,6 +977,7 @@ export default function ProjectDetailView({ project }: { project: ProjectData })
         <PaymentsTab
           clientId={clients[0]?.id ?? ""}
           projectId={project.id}
+          paymentsSharedWithClient={project.paymentsSharedWithClient}
         />
       )}
 

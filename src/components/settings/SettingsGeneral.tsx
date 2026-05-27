@@ -145,7 +145,7 @@ export function SettingsGeneral({
   const DEFAULT_SIDEBAR_ORDER = ["klienci", "renderflow", "listy", "zadania", "produkty", "kalendarz", "notatnik", "dyskusje", "veezard"];
   const SIDEBAR_ITEM_META: Record<string, { label: string; icon: React.ElementType }> = {
     klienci:     { label: "Klienci",       icon: Users },
-    renderflow:  { label: "RenderFlow",    icon: PushPin },
+    renderflow:  { label: "ProjectFlow",    icon: PushPin },
     listy:       { label: "Listy zakupowe",icon: LocalMall },
     zadania:     { label: "Zadania",       icon: CheckSquare },
     produkty:    { label: "Produkty",      icon: Package },
@@ -662,7 +662,7 @@ const COLOR_THEMES: {
           {[
             {
               slug: "renderflow",
-              label: "RenderFlow",
+              label: "ProjectFlow",
               description: t.settings.renderflowModuleDesc,
               icon: (
                 <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center flex-shrink-0">
@@ -918,7 +918,7 @@ const COLOR_THEMES: {
             <div className="space-y-3 pt-1 border-t border-border">
               <p className="text-xs text-muted-foreground pt-1">Wybierz moduły, z których chcesz otrzymywać powiadomienia:</p>
               {[
-                { slug: "renderflow", label: "RenderFlow", desc: "Piny, komentarze, prośby o status i przywrócenie wersji" },
+                { slug: "renderflow", label: "ProjectFlow", desc: "Piny, komentarze, prośby o status i przywrócenie wersji" },
                 { slug: "listy", label: "Listy zakupowe", desc: "Komentarze do produktów na listach" },
               ].map(({ slug, label, desc }) => {
                 const checked = emailNotifModules.includes(slug);

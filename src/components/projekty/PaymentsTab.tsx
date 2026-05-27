@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   ChevronDown, ChevronRight, Plus, Pencil, Trash2,
-  Paperclip, Check, X, Download, Loader2, GripVertical,
+  Paperclip, Check, X, Download, Loader2, GripVertical, Users, Eye, EyeOff,
 } from "@/components/ui/icons";
 import { useUploadThing } from "@/lib/uploadthing-client";
 import {
@@ -57,10 +57,17 @@ function AttachmentUploadButton({ onUploaded }: { onUploaded: (url: string, name
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
+interface RfProject {
+  id: string;
+  title: string;
+}
+
 interface PaymentGroup {
   id: string;
   clientId: string;
   parentId: string | null;
+  rfProjectId: string | null;
+  hiddenFromClient: boolean;
   name: string;
   order: number;
 }
@@ -69,6 +76,7 @@ interface Payment {
   id: string;
   clientId: string;
   groupId: string | null;
+  rfProjectId: string | null;
   name: string;
   amount: number;
   status: "pending" | "paid";
@@ -80,6 +88,7 @@ interface Payment {
 interface Props {
   clientId: string;
   projectId: string;
+  paymentsSharedWithClient: boolean;
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -101,6 +110,74 @@ function sumGroup(groupId: string, payments: Payment[], groups: PaymentGroup[]):
 function isDescendant(ancestorId: string, targetId: string, groups: PaymentGroup[]): boolean {
   const children = groups.filter((g) => g.parentId === ancestorId);
   return children.some((g) => g.id === targetId || isDescendant(g.id, targetId, groups));
+}
+
+// ── Dialog: Nowa płatność (projekt) ─────────────────────────────────────────
+
+function NewPaymentProjectDialog({
+  rfProjects,
+  onConfirm,
+  onClose,
+}: {
+  rfProjects: RfProject[];
+  onConfirm: (rfProjectId: string, projectTitle: string) => Promise<void>;
+  onClose: () => void;
+}) {
+  const [rfProjectId, setRfProjectId] = useState<string>(rfProjects[0]?.id ?? "");
+  const [loading, setLoading] = useState(false);
+
+  const selectedProject = rfProjects.find((p) => p.id === rfProjectId);
+
+  async function handleSubmit() {
+    if (!rfProjectId || !selectedProject) return;
+    setLoading(true);
+    await onConfirm(rfProjectId, selectedProject.title);
+    setLoading(false);
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="bg-card border border-border rounded-2xl shadow-xl p-6 w-full max-w-md space-y-4 mx-4">
+        <h2 className="font-semibold text-base">Nowa płatność</h2>
+
+        <div className="space-y-1.5">
+          <label className="text-sm font-medium">Projekt ProjectFlow</label>
+          {rfProjects.length === 0 ? (
+            <p className="text-sm text-muted-foreground bg-muted/50 rounded-lg px-3 py-2">
+              Brak projektów powiązanych z tym klientem.
+            </p>
+          ) : (
+            <select
+              value={rfProjectId}
+              onChange={(e) => setRfProjectId(e.target.value)}
+              className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary/20"
+            >
+              {rfProjects.map((p) => (
+                <option key={p.id} value={p.id}>{p.title}</option>
+              ))}
+            </select>
+          )}
+        </div>
+
+        <div className="flex gap-2 pt-1">
+          <button
+            onClick={onClose}
+            disabled={loading}
+            className="flex-1 py-2 text-sm border border-border rounded-lg hover:bg-muted transition-colors"
+          >
+            Anuluj
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={loading || !rfProjectId}
+            className="flex-1 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-opacity disabled:opacity-40"
+          >
+            {loading ? "Tworzenie..." : "Utwórz"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 // ── GroupRow component ───────────────────────────────────────────────────────
@@ -240,6 +317,7 @@ function PaymentRow({
       ref={setNodeRef}
       style={{ ...sortableStyle, paddingLeft: `${12 + indent}px` }}
       className="flex items-center gap-2 py-1.5 pr-3 rounded-lg hover:bg-muted/40 group"
+      data-edit-row
     >
       <div
         {...attributes}
@@ -263,14 +341,32 @@ function PaymentRow({
 
       {isEditing ? (
         <>
-          <Input autoFocus value={editingName} onChange={(e) => onEditNameChange(e.target.value)} className="h-6 text-sm flex-1" />
-          <Input value={editingAmount} onChange={(e) => onEditAmountChange(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") onSaveEdit(); }} className="h-6 text-sm w-28" />
-          <Button size="icon" variant="ghost" className="h-6 w-6" onClick={onSaveEdit}><Check size={12} /></Button>
-          <Button size="icon" variant="ghost" className="h-6 w-6" onClick={onCancelEdit}><X size={12} /></Button>
+          <Input
+            autoFocus
+            value={editingName}
+            onChange={(e) => onEditNameChange(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") onSaveEdit(); if (e.key === "Escape") onCancelEdit(); }}
+            onBlur={(e) => { if (!(e.relatedTarget instanceof HTMLElement) || !e.currentTarget.closest("[data-edit-row]")?.contains(e.relatedTarget)) onSaveEdit(); }}
+            className="h-6 text-sm flex-1"
+            data-edit-input
+          />
+          <Input
+            value={editingAmount}
+            onChange={(e) => onEditAmountChange(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") onSaveEdit(); if (e.key === "Escape") onCancelEdit(); }}
+            onBlur={(e) => { if (!(e.relatedTarget instanceof HTMLElement) || !e.currentTarget.closest("[data-edit-row]")?.contains(e.relatedTarget)) onSaveEdit(); }}
+            className="h-6 text-sm w-28"
+            data-edit-input
+          />
+          <Button size="icon" variant="ghost" className="h-6 w-6" onClick={onSaveEdit} data-edit-input><Check size={12} /></Button>
+          <Button size="icon" variant="ghost" className="h-6 w-6" onClick={onCancelEdit} data-edit-input><X size={12} /></Button>
         </>
       ) : (
         <>
-          <span className={`flex-1 text-sm ${payment.status === "paid" ? "line-through text-muted-foreground" : ""}`}>
+          <span
+            className={`flex-1 text-sm cursor-pointer hover:text-primary transition-colors ${payment.status === "paid" ? "line-through text-muted-foreground" : ""}`}
+            onClick={onStartEdit}
+          >
             {payment.name}
           </span>
           {inlineAmountEdit ? (
@@ -319,17 +415,79 @@ function PaymentRow({
   );
 }
 
+// ── ProjectSection — zwijalna sekcja per projekt ──────────────────────────────
+
+function ProjectSection({
+  label,
+  rfProjectId,
+  isCollapsed,
+  isHidden,
+  onToggle,
+  onDelete,
+  onToggleHidden,
+  children,
+}: {
+  label: string;
+  rfProjectId: string | null;
+  isCollapsed: boolean;
+  isHidden?: boolean;
+  onToggle: () => void;
+  onDelete?: () => void;
+  onToggleHidden?: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className={`border border-border rounded-xl overflow-hidden mb-3 ${isHidden ? "opacity-60" : ""}`}>
+      <div className="flex items-center gap-2 px-4 py-3 bg-muted/30 hover:bg-muted/50 transition-colors">
+        <button onClick={onToggle} className="flex items-center gap-2 flex-1 text-left min-w-0">
+          {isCollapsed ? <ChevronRight size={15} className="flex-shrink-0 text-muted-foreground" /> : <ChevronDown size={15} className="flex-shrink-0 text-muted-foreground" />}
+          <span className="text-sm font-semibold truncate">{label}</span>
+        </button>
+        {rfProjectId && (
+          <span className="text-[11px] text-muted-foreground bg-muted px-2 py-0.5 rounded-full flex-shrink-0">ProjectFlow</span>
+        )}
+        {onToggleHidden && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onToggleHidden(); }}
+            title={isHidden ? "Pokaż klientowi" : "Ukryj przed klientem"}
+            className="p-1 rounded text-muted-foreground hover:text-foreground flex-shrink-0 transition-colors"
+          >
+            {isHidden ? <EyeOff size={14} /> : <Eye size={14} />}
+          </button>
+        )}
+        {onDelete && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onDelete(); }}
+            title="Usuń sekcję"
+            className="p-1 rounded text-muted-foreground hover:text-destructive flex-shrink-0 transition-colors"
+          >
+            <Trash2 size={14} />
+          </button>
+        )}
+      </div>
+      {!isCollapsed && (
+        <div className="p-2">
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Main component ───────────────────────────────────────────────────────────
 
-export function PaymentsTab({ clientId, projectId }: Props) {
+export function PaymentsTab({ clientId, projectId, paymentsSharedWithClient: initialShared }: Props) {
   const [groups, setGroups] = useState<PaymentGroup[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
+  const [rfProjects, setRfProjects] = useState<RfProject[]>([]);
   const [loading, setLoading] = useState(true);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const [sectionCollapsed, setSectionCollapsed] = useState<Record<string, boolean>>({});
+  const [shared, setShared] = useState(initialShared);
+  const [sharingLoading, setSharingLoading] = useState(false);
 
-  const [totalAmount, setTotalAmount] = useState<number | null>(null);
-  const [editingTotal, setEditingTotal] = useState(false);
-  const [totalInput, setTotalInput] = useState("");
+
+  const [showNewPaymentDialog, setShowNewPaymentDialog] = useState(false);
 
   const [addingGroup, setAddingGroup] = useState<string | null>(null);
   const [newGroupName, setNewGroupName] = useState("");
@@ -351,35 +509,114 @@ export function PaymentsTab({ clientId, projectId }: Props) {
   // ── Load ────────────────────────────────────────────────────────────────────
 
   const load = useCallback(async () => {
+    if (!clientId) { setLoading(false); return; }
     try {
-      const res = await fetch(`/api/payments?clientId=${clientId}`);
-      if (!res.ok) return;
-      const data = await res.json();
-      setGroups(data.groups);
-      setPayments(data.payments);
-      if (data.totalAmount != null) setTotalAmount(data.totalAmount);
+      const [dataRes, projectsRes] = await Promise.all([
+        fetch(`/api/payments?clientId=${clientId}`),
+        fetch(`/api/payments/associated-projects?clientId=${clientId}`),
+      ]);
+      if (dataRes.ok) {
+        const data = await dataRes.json();
+        setGroups(data.groups);
+        setPayments(data.payments);
+      }
+      if (projectsRes.ok) {
+        setRfProjects(await projectsRes.json());
+      }
     } finally {
       setLoading(false);
     }
   }, [clientId]);
 
-  useEffect(() => { if (clientId) load(); else setLoading(false); }, [load, clientId]);
+  useEffect(() => { load(); }, [load]);
 
   // ── Computed ────────────────────────────────────────────────────────────────
 
   const paidAmount = payments.filter((p) => p.status === "paid").reduce((sum, p) => sum + p.amount, 0);
   const totalPaymentsAmount = payments.reduce((sum, p) => sum + p.amount, 0);
-  const remaining = (totalAmount ?? totalPaymentsAmount) - paidAmount;
-  const allPaid = payments.length > 0 && payments.every((p) => p.status === "paid");
+  const remaining = totalPaymentsAmount - paidAmount;
+
+  // Group top-level groups by rfProjectId
+  const topLevelGroups = groups.filter((g) => g.parentId === null);
+
+  // Collect unique rfProjectIds from top-level groups AND ungrouped payments
+  const groupRfProjectIds = topLevelGroups.map((g) => g.rfProjectId);
+  const paymentRfProjectIds = payments.filter((p) => p.rfProjectId && p.groupId === null).map((p) => p.rfProjectId!);
+  const rfProjectIds = Array.from(new Set([...groupRfProjectIds, ...paymentRfProjectIds]));
+
+  // Sections: one per rfProject + one for "unassigned"
+  const sections: { key: string; label: string; rfProjectId: string | null; topGroups: PaymentGroup[] }[] = [];
+
+  for (const rfProjId of rfProjectIds) {
+    if (rfProjId === null) continue;
+    const rfProject = rfProjects.find((p) => p.id === rfProjId);
+    const label = rfProject?.title ?? "Nieznany projekt";
+    sections.push({
+      key: rfProjId,
+      label,
+      rfProjectId: rfProjId,
+      topGroups: topLevelGroups.filter((g) => g.rfProjectId === rfProjId).sort((a, b) => a.order - b.order),
+    });
+  }
+
+  // Unassigned top-level groups
+  const unassignedGroups = topLevelGroups.filter((g) => g.rfProjectId === null).sort((a, b) => a.order - b.order);
+  // Only truly unassigned payments (no group AND no rfProject)
+  const ungroupedPayments = payments.filter((p) => p.groupId === null && !p.rfProjectId).sort((a, b) => a.order - b.order);
+
+  const hasUnassigned = unassignedGroups.length > 0 || ungroupedPayments.length > 0 || addingGroup === "root" || addingPayment === "root";
 
   // ── Handlers ────────────────────────────────────────────────────────────────
 
-  async function handleAddGroup(parentId: string | null) {
+  async function handleCreatePaymentProject(rfProjectId: string, projectTitle: string) {
+    const res = await fetch("/api/payments", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ clientId, groupId: null, rfProjectId, name: projectTitle, amount: 0 }),
+    });
+    if (!res.ok) { toast.error("Błąd tworzenia płatności"); return; }
+    const newPayment = await res.json();
+    setPayments((prev) => [...prev, newPayment]);
+    setShowNewPaymentDialog(false);
+    setSectionCollapsed((c) => ({ ...c, [rfProjectId]: false }));
+  }
+
+  async function handleDeleteSection(rfProjectId: string) {
+    const sectionGroups = groups.filter((g) => g.rfProjectId === rfProjectId && g.parentId === null);
+    const sectionPayments = payments.filter((p) => p.rfProjectId === rfProjectId && p.groupId === null);
+    if (!confirm(`Usunąć całą sekcję płatności z tym projektem i wszystkie jej elementy?`)) return;
+    for (const g of sectionGroups) {
+      await fetch(`/api/payment-groups/${g.id}`, { method: "DELETE" });
+    }
+    for (const p of sectionPayments) {
+      await fetch(`/api/payments/${p.id}`, { method: "DELETE" });
+    }
+    load();
+  }
+
+  async function handleToggleSectionHidden(rfProjectId: string) {
+    const sectionGroups = groups.filter((g) => g.rfProjectId === rfProjectId && g.parentId === null);
+    const isHidden = sectionGroups.every((g) => g.hiddenFromClient);
+    for (const g of sectionGroups) {
+      await fetch(`/api/payment-groups/${g.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ hiddenFromClient: !isHidden }),
+      });
+    }
+    setGroups((prev) => prev.map((g) =>
+      g.rfProjectId === rfProjectId && g.parentId === null
+        ? { ...g, hiddenFromClient: !isHidden }
+        : g
+    ));
+  }
+
+  async function handleAddGroup(parentId: string | null, rfProjectId?: string | null) {
     if (!newGroupName.trim()) return;
     const res = await fetch("/api/payment-groups", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ clientId, parentId, name: newGroupName.trim() }),
+      body: JSON.stringify({ clientId, parentId, name: newGroupName.trim(), rfProjectId: rfProjectId ?? null }),
     });
     if (!res.ok) { toast.error("Błąd dodawania grupy"); return; }
     const newGroup = await res.json();
@@ -388,13 +625,14 @@ export function PaymentsTab({ clientId, projectId }: Props) {
     setAddingGroup(null);
   }
 
-  async function handleAddPayment(groupId: string | null) {
+  async function handleAddPayment(groupId: string | null, rfProjectId?: string | null) {
     if (!newPaymentName.trim()) return;
     const res = await fetch("/api/payments", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         clientId, groupId,
+        rfProjectId: rfProjectId ?? null,
         name: newPaymentName.trim(),
         amount: newPaymentAmount.trim() ? parseFloat(newPaymentAmount.replace(",", ".")) : 0,
       }),
@@ -468,16 +706,17 @@ export function PaymentsTab({ clientId, projectId }: Props) {
     setPayments((prev) => prev.map((p) => p.id === paymentId ? { ...p, attachmentUrl: url, attachmentName: name } : p));
   }
 
-  async function handleSaveTotal() {
-    const val = parseFloat(totalInput.replace(",", "."));
-    if (isNaN(val)) return;
-    await fetch(`/api/payments?clientId=${clientId}`, {
+  async function handleToggleShare() {
+    setSharingLoading(true);
+    const res = await fetch(`/api/projects/${projectId}/payments-share`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ totalAmount: val }),
+      body: JSON.stringify({ shared: !shared }),
     });
-    setTotalAmount(val);
-    setEditingTotal(false);
+    setSharingLoading(false);
+    if (!res.ok) { toast.error("Błąd zmiany udostępnienia"); return; }
+    setShared(!shared);
+    toast.success(shared ? "Płatności ukryte dla klienta" : "Płatności udostępnione klientowi");
   }
 
   function handleExportCSV() {
@@ -512,7 +751,6 @@ export function PaymentsTab({ clientId, projectId }: Props) {
 
     if (activeType === "payment") {
       if (overType === "group") {
-        // Drop payment INTO a group
         const payment = payments.find((p) => p.id === activeId);
         if (!payment || payment.groupId === overId) return;
         setPayments((prev) => prev.map((p) => p.id === activeId ? { ...p, groupId: overId } : p));
@@ -522,42 +760,18 @@ export function PaymentsTab({ clientId, projectId }: Props) {
           body: JSON.stringify({ groupId: overId }),
         }).catch(() => toast.error("Błąd przenoszenia płatności"));
       } else {
-        // Reorder payment or move to different group
         const activePayment = payments.find((p) => p.id === activeId);
         const overPayment = payments.find((p) => p.id === overId);
         if (!activePayment || !overPayment) return;
 
         if (activePayment.groupId === overPayment.groupId) {
-          // Same group — reorder
-          const siblings = payments
-            .filter((p) => p.groupId === activePayment.groupId)
-            .sort((a, b) => a.order - b.order);
-          const reordered = arrayMove(
-            siblings,
-            siblings.findIndex((p) => p.id === activeId),
-            siblings.findIndex((p) => p.id === overId),
-          ).map((p, i) => ({ ...p, order: i }));
-          setPayments((prev) => [
-            ...prev.filter((p) => p.groupId !== activePayment.groupId),
-            ...reordered,
-          ]);
-          reordered.forEach((p) =>
-            fetch(`/api/payments/${p.id}`, {
-              method: "PATCH",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ order: p.order }),
-            }).catch(() => {})
-          );
+          const siblings = payments.filter((p) => p.groupId === activePayment.groupId).sort((a, b) => a.order - b.order);
+          const reordered = arrayMove(siblings, siblings.findIndex((p) => p.id === activeId), siblings.findIndex((p) => p.id === overId)).map((p, i) => ({ ...p, order: i }));
+          setPayments((prev) => [...prev.filter((p) => p.groupId !== activePayment.groupId), ...reordered]);
+          reordered.forEach((p) => fetch(`/api/payments/${p.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ order: p.order }) }).catch(() => {}));
         } else {
-          // Different group — move payment there
-          setPayments((prev) =>
-            prev.map((p) => p.id === activeId ? { ...p, groupId: overPayment.groupId } : p)
-          );
-          fetch(`/api/payments/${activeId}`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ groupId: overPayment.groupId }),
-          }).catch(() => toast.error("Błąd przenoszenia płatności"));
+          setPayments((prev) => prev.map((p) => p.id === activeId ? { ...p, groupId: overPayment.groupId } : p));
+          fetch(`/api/payments/${activeId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ groupId: overPayment.groupId }) }).catch(() => toast.error("Błąd przenoszenia płatności"));
         }
       }
     } else if (activeType === "group") {
@@ -567,35 +781,14 @@ export function PaymentsTab({ clientId, projectId }: Props) {
         if (!activeGroup || !overGroup) return;
 
         if (activeGroup.parentId === overGroup.parentId) {
-          // Same parent — reorder
-          const siblings = groups
-            .filter((g) => g.parentId === activeGroup.parentId)
-            .sort((a, b) => a.order - b.order);
-          const reordered = arrayMove(
-            siblings,
-            siblings.findIndex((g) => g.id === activeId),
-            siblings.findIndex((g) => g.id === overId),
-          ).map((g, i) => ({ ...g, order: i }));
-          setGroups((prev) => [
-            ...prev.filter((g) => g.parentId !== activeGroup.parentId),
-            ...reordered,
-          ]);
-          reordered.forEach((g) =>
-            fetch(`/api/payment-groups/${g.id}`, {
-              method: "PATCH",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ order: g.order }),
-            }).catch(() => {})
-          );
+          const siblings = groups.filter((g) => g.parentId === activeGroup.parentId).sort((a, b) => a.order - b.order);
+          const reordered = arrayMove(siblings, siblings.findIndex((g) => g.id === activeId), siblings.findIndex((g) => g.id === overId)).map((g, i) => ({ ...g, order: i }));
+          setGroups((prev) => [...prev.filter((g) => g.parentId !== activeGroup.parentId), ...reordered]);
+          reordered.forEach((g) => fetch(`/api/payment-groups/${g.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ order: g.order }) }).catch(() => {}));
         } else {
-          // Different parent — move group into over group
-          if (isDescendant(activeId, overId, groups)) return; // prevent circular
+          if (isDescendant(activeId, overId, groups)) return;
           setGroups((prev) => prev.map((g) => g.id === activeId ? { ...g, parentId: overId } : g));
-          fetch(`/api/payment-groups/${activeId}`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ parentId: overId }),
-          }).catch(() => toast.error("Błąd przenoszenia grupy"));
+          fetch(`/api/payment-groups/${activeId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ parentId: overId }) }).catch(() => toast.error("Błąd przenoszenia grupy"));
         }
       }
     }
@@ -603,60 +796,40 @@ export function PaymentsTab({ clientId, projectId }: Props) {
 
   // ── Render helpers ───────────────────────────────────────────────────────────
 
-  function renderAddGroupForm(parentId: string | null) {
-    const key = parentId ?? "root";
+  function renderAddGroupForm(parentId: string | null, rfProjectId?: string | null, sectionKey?: string) {
+    const key = parentId ?? sectionKey ?? "root";
     if (addingGroup !== key) return null;
     return (
       <div className="flex items-center gap-2 mt-2 ml-4">
-        <Input
-          autoFocus
-          placeholder="Nazwa grupy"
-          value={newGroupName}
-          onChange={(e) => setNewGroupName(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter") handleAddGroup(parentId); if (e.key === "Escape") { setAddingGroup(null); setNewGroupName(""); } }}
-          className="h-7 text-sm"
-        />
-        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => handleAddGroup(parentId)}><Check size={14} /></Button>
+        <Input autoFocus placeholder="Nazwa grupy" value={newGroupName} onChange={(e) => setNewGroupName(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") handleAddGroup(parentId, rfProjectId); if (e.key === "Escape") { setAddingGroup(null); setNewGroupName(""); } }}
+          className="h-7 text-sm" />
+        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => handleAddGroup(parentId, rfProjectId)}><Check size={14} /></Button>
         <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => { setAddingGroup(null); setNewGroupName(""); }}><X size={14} /></Button>
       </div>
     );
   }
 
-  function renderAddPaymentForm(groupId: string | null) {
-    const key = groupId ?? "root";
+  function renderAddPaymentForm(groupId: string | null, sectionKey?: string, rfProjectId?: string | null) {
+    const key = groupId ?? sectionKey ?? "root";
     if (addingPayment !== key) return null;
     return (
       <div className="flex items-center gap-2 mt-2 ml-4">
-        <Input
-          autoFocus
-          placeholder="Nazwa płatności"
-          value={newPaymentName}
-          onChange={(e) => setNewPaymentName(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter") handleAddPayment(groupId); if (e.key === "Escape") { setAddingPayment(null); setNewPaymentName(""); setNewPaymentAmount(""); } }}
-          className="h-7 text-sm flex-1"
-        />
-        <Input
-          placeholder="Kwota"
-          value={newPaymentAmount}
-          onChange={(e) => setNewPaymentAmount(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter") handleAddPayment(groupId); }}
-          className="h-7 text-sm w-28"
-        />
-        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => handleAddPayment(groupId)}><Check size={14} /></Button>
+        <Input autoFocus placeholder="Nazwa płatności" value={newPaymentName} onChange={(e) => setNewPaymentName(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") handleAddPayment(groupId, rfProjectId); if (e.key === "Escape") { setAddingPayment(null); setNewPaymentName(""); setNewPaymentAmount(""); } }}
+          className="h-7 text-sm flex-1" />
+        <Input placeholder="Kwota" value={newPaymentAmount} onChange={(e) => setNewPaymentAmount(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") handleAddPayment(groupId, rfProjectId); }} className="h-7 text-sm w-28" />
+        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => handleAddPayment(groupId, rfProjectId)}><Check size={14} /></Button>
         <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => { setAddingPayment(null); setNewPaymentName(""); setNewPaymentAmount(""); }}><X size={14} /></Button>
       </div>
     );
   }
 
   function renderGroup(group: PaymentGroup, depth: number): React.ReactNode {
-    const groupPayments = payments
-      .filter((p) => p.groupId === group.id)
-      .sort((a, b) => a.order - b.order);
+    const groupPayments = payments.filter((p) => p.groupId === group.id).sort((a, b) => a.order - b.order);
     const childGroups = buildTree(groups, group.id);
-    const childIds = [
-      ...groupPayments.map((p) => p.id),
-      ...childGroups.map((g) => g.id),
-    ];
+    const childIds = [...groupPayments.map((p) => p.id), ...childGroups.map((g) => g.id)];
 
     return (
       <GroupRow
@@ -708,40 +881,50 @@ export function PaymentsTab({ clientId, projectId }: Props) {
           const amount = parseFloat(val.replace(",", "."));
           if (isNaN(amount)) return;
           setPayments((prev) => prev.map((p) => p.id === payment.id ? { ...p, amount } : p));
-          fetch(`/api/payments/${payment.id}`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ amount }),
-          }).catch(() => toast.error("Błąd zapisu kwoty"));
+          fetch(`/api/payments/${payment.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ amount }) }).catch(() => toast.error("Błąd zapisu kwoty"));
         }}
       />
     );
   }
 
-  // ── DragOverlay ghost ────────────────────────────────────────────────────────
-
   function renderDragGhost() {
     if (!dndActiveId) return null;
     const payment = payments.find((p) => p.id === dndActiveId);
-    if (payment) {
-      return (
-        <div className="flex items-center gap-2 py-1.5 px-3 rounded-lg bg-card border border-primary/40 shadow-lg opacity-95">
-          <GripVertical size={14} className="text-muted-foreground flex-shrink-0" />
-          <span className="text-sm font-medium flex-1">{payment.name}</span>
-          <span className="text-sm font-medium tabular-nums">{formatPLN(payment.amount)}</span>
-        </div>
-      );
-    }
+    if (payment) return (
+      <div className="flex items-center gap-2 py-1.5 px-3 rounded-lg bg-card border border-primary/40 shadow-lg opacity-95">
+        <GripVertical size={14} className="text-muted-foreground flex-shrink-0" />
+        <span className="text-sm font-medium flex-1">{payment.name}</span>
+        <span className="text-sm font-medium tabular-nums">{formatPLN(payment.amount)}</span>
+      </div>
+    );
     const group = groups.find((g) => g.id === dndActiveId);
-    if (group) {
-      return (
-        <div className="flex items-center gap-2 py-1.5 px-3 rounded-lg bg-card border border-primary/40 shadow-lg opacity-95">
-          <GripVertical size={14} className="text-muted-foreground flex-shrink-0" />
-          <span className="text-sm font-semibold">{group.name}</span>
-        </div>
-      );
-    }
+    if (group) return (
+      <div className="flex items-center gap-2 py-1.5 px-3 rounded-lg bg-card border border-primary/40 shadow-lg opacity-95">
+        <GripVertical size={14} className="text-muted-foreground flex-shrink-0" />
+        <span className="text-sm font-semibold">{group.name}</span>
+      </div>
+    );
     return null;
+  }
+
+  function renderSectionContent(topGroups: PaymentGroup[], rfProjectId: string | null) {
+    const sectionUngrouped = rfProjectId
+      ? payments.filter((p) => p.groupId === null && p.rfProjectId === rfProjectId).sort((a, b) => a.order - b.order)
+      : [];
+    const allIds = [...topGroups.map((g) => g.id), ...sectionUngrouped.map((p) => p.id)];
+    return (
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+        <SortableContext items={allIds} strategy={verticalListSortingStrategy}>
+          <div className="divide-y divide-border/30">
+            {topGroups.map((g) => renderGroup(g, 0))}
+            {sectionUngrouped.map((p) => renderPaymentItem(p, 0))}
+          </div>
+          {renderAddGroupForm(null, rfProjectId, rfProjectId ?? "none")}
+          {renderAddPaymentForm(null, rfProjectId ?? "none", rfProjectId)}
+        </SortableContext>
+        <DragOverlay dropAnimation={null}>{renderDragGhost()}</DragOverlay>
+      </DndContext>
+    );
   }
 
   // ── Early returns ────────────────────────────────────────────────────────────
@@ -754,98 +937,119 @@ export function PaymentsTab({ clientId, projectId }: Props) {
     );
   }
 
-  const rootGroups = buildTree(groups, null);
-  const ungroupedPayments = payments.filter((p) => p.groupId === null).sort((a, b) => a.order - b.order);
-  const hasContent = rootGroups.length > 0 || ungroupedPayments.length > 0 || addingGroup === "root" || addingPayment === "root";
+  const hasAnyContent = sections.length > 0 || hasUnassigned;
 
   return (
     <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">Suma całkowita:</span>
-            {editingTotal ? (
-              <div className="flex items-center gap-1.5">
-                <Input
-                  autoFocus
-                  value={totalInput}
-                  onChange={(e) => setTotalInput(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter") handleSaveTotal(); if (e.key === "Escape") setEditingTotal(false); }}
-                  className="h-7 text-sm w-28"
-                  placeholder="0.00"
-                />
-                <Button size="icon" variant="ghost" className="h-7 w-7" onClick={handleSaveTotal}><Check size={13} /></Button>
-                <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setEditingTotal(false)}><X size={13} /></Button>
-              </div>
-            ) : (
-              <button
-                onClick={() => { setEditingTotal(true); setTotalInput(totalAmount != null ? String(totalAmount) : String(totalPaymentsAmount)); }}
-                className="flex items-center gap-1.5 text-sm font-semibold hover:text-primary transition-colors"
-              >
-                {formatPLN(totalAmount ?? totalPaymentsAmount)}
-                <Pencil size={12} className="text-muted-foreground" />
-              </button>
-            )}
-          </div>
-          {allPaid && (
-            <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
-              <Check size={11} /> Opłacone
-            </span>
-          )}
-        </div>
-        <Button variant="outline" size="sm" onClick={handleExportCSV} className="gap-1.5">
-          <Download size={13} />
-          Eksport CSV
+        <Button onClick={() => setShowNewPaymentDialog(true)} size="sm" className="gap-1.5">
+          <Plus size={13} />
+          Nowa płatność
         </Button>
-      </div>
-
-      {/* Actions */}
-      <div className="flex items-center gap-2">
-        <Button variant="outline" size="sm" className="gap-1.5" onClick={() => { setAddingGroup("root"); setNewGroupName(""); }}>
-          <Plus size={13} />Dodaj grupę
-        </Button>
-        <Button variant="outline" size="sm" className="gap-1.5" onClick={() => { setAddingPayment("root"); setNewPaymentName(""); setNewPaymentAmount(""); }}>
-          <Plus size={13} />Dodaj płatność
-        </Button>
-      </div>
-
-      {/* Tree */}
-      {hasContent ? (
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragStart={handleDragStart}
-          onDragEnd={handleDragEnd}
-        >
-          <SortableContext items={[...rootGroups.map((g) => g.id), ...ungroupedPayments.map((p) => p.id)]} strategy={verticalListSortingStrategy}>
-            <div className="border border-border rounded-xl">
-              <div className="divide-y divide-border/50">
-                {rootGroups.map((g) => renderGroup(g, 0))}
-                {ungroupedPayments.map((p) => renderPaymentItem(p, 0))}
-              </div>
-              {renderAddGroupForm(null)}
-              {renderAddPaymentForm(null)}
+        <div className="flex items-center gap-2">
+          {/* Share toggle */}
+          <div className="relative group/share">
+            <button
+              onClick={handleToggleShare}
+              disabled={sharingLoading}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
+                shared
+                  ? "bg-primary/10 border-primary/30 text-primary hover:bg-primary/20"
+                  : "border-border hover:bg-muted"
+              }`}
+            >
+              <Users size={13} />
+              {shared ? "Udostępniono klientowi" : "Udostępnij klientowi"}
+            </button>
+            <div className="absolute right-0 top-full mt-1.5 z-20 w-64 bg-popover border border-border rounded-lg px-3 py-2 text-xs text-muted-foreground shadow-md opacity-0 pointer-events-none group-hover/share:opacity-100 group-hover/share:pointer-events-auto transition-opacity">
+              {shared
+                ? "Klient widzi zakładkę \"Płatności\" w swoim panelu z listą wszystkich płatności i ich statusów. Kliknij aby ukryć."
+                : "Po kliknięciu klient zobaczy zakładkę \"Płatności\" w swoim panelu z listą wszystkich płatności i ich statusów."}
             </div>
-          </SortableContext>
-          <DragOverlay dropAnimation={null}>
-            {renderDragGhost()}
-          </DragOverlay>
-        </DndContext>
+          </div>
+          <Button variant="outline" size="sm" onClick={handleExportCSV} className="gap-1.5">
+            <Download size={13} />
+            Eksport CSV
+          </Button>
+        </div>
+      </div>
+
+      {/* Sections per project */}
+      {hasAnyContent ? (
+        <>
+          {sections.map((section) => (
+            <ProjectSection
+              key={section.key}
+              label={section.label}
+              rfProjectId={section.rfProjectId}
+              isCollapsed={!!sectionCollapsed[section.key]}
+              isHidden={section.topGroups.length > 0 && section.topGroups.every((g) => g.hiddenFromClient)}
+              onToggle={() => setSectionCollapsed((c) => ({ ...c, [section.key]: !c[section.key] }))}
+              onDelete={() => handleDeleteSection(section.rfProjectId!)}
+              onToggleHidden={() => handleToggleSectionHidden(section.rfProjectId!)}
+            >
+              {renderSectionContent(section.topGroups, section.rfProjectId)}
+              {/* Sub-actions */}
+              {!sectionCollapsed[section.key] && (
+                <div className="flex items-center gap-2 mt-2 px-2">
+                  <Button variant="outline" size="sm" className="gap-1 h-7 text-xs" onClick={() => { setAddingGroup(section.rfProjectId ?? "none"); setNewGroupName(""); }}>
+                    <Plus size={11} />Dodaj grupę
+                  </Button>
+                  <Button variant="outline" size="sm" className="gap-1 h-7 text-xs" onClick={() => { setAddingPayment(section.rfProjectId ?? "none"); setNewPaymentName(""); setNewPaymentAmount(""); }}>
+                    <Plus size={11} />Dodaj płatność
+                  </Button>
+                </div>
+              )}
+            </ProjectSection>
+          ))}
+
+          {/* Unassigned section */}
+          {hasUnassigned && (
+            <ProjectSection
+              key="unassigned"
+              label="Nieprzypisane"
+              rfProjectId={null}
+              isCollapsed={!!sectionCollapsed["unassigned"]}
+              onToggle={() => setSectionCollapsed((c) => ({ ...c, unassigned: !c["unassigned"] }))}
+            >
+              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+                <SortableContext items={[...unassignedGroups.map((g) => g.id), ...ungroupedPayments.map((p) => p.id)]} strategy={verticalListSortingStrategy}>
+                  <div className="divide-y divide-border/30">
+                    {unassignedGroups.map((g) => renderGroup(g, 0))}
+                    {ungroupedPayments.map((p) => renderPaymentItem(p, 0))}
+                  </div>
+                  {renderAddGroupForm(null, null, "unassigned")}
+                  {renderAddPaymentForm(null, "unassigned")}
+                </SortableContext>
+                <DragOverlay dropAnimation={null}>{renderDragGhost()}</DragOverlay>
+              </DndContext>
+              {!sectionCollapsed["unassigned"] && (
+                <div className="flex items-center gap-2 mt-2 px-2">
+                  <Button variant="outline" size="sm" className="gap-1 h-7 text-xs" onClick={() => { setAddingGroup("unassigned"); setNewGroupName(""); }}>
+                    <Plus size={11} />Dodaj grupę
+                  </Button>
+                  <Button variant="outline" size="sm" className="gap-1 h-7 text-xs" onClick={() => { setAddingPayment("unassigned"); setNewPaymentName(""); setNewPaymentAmount(""); }}>
+                    <Plus size={11} />Dodaj płatność
+                  </Button>
+                </div>
+              )}
+            </ProjectSection>
+          )}
+        </>
       ) : (
         <div className="text-center py-12 text-sm text-muted-foreground border border-border border-dashed rounded-xl">
-          Brak płatności. Dodaj grupę lub płatność.
+          Brak płatności. Kliknij &quot;Nowa płatność&quot; aby dodać.
         </div>
       )}
 
-      {/* Footer */}
-      {payments.length > 0 && (
-        <div className="flex items-center justify-between pt-3 border-t border-border">
-          <span className="text-sm text-muted-foreground">Łącznie do opłacenia:</span>
-          <span className={`text-sm font-bold tabular-nums ${remaining <= 0 ? "text-green-600 dark:text-green-400" : "text-foreground"}`}>
-            {formatPLN(Math.max(0, remaining))}
-          </span>
-        </div>
+      {/* Dialog */}
+      {showNewPaymentDialog && (
+        <NewPaymentProjectDialog
+          rfProjects={rfProjects}
+          onConfirm={handleCreatePaymentProject}
+          onClose={() => setShowNewPaymentDialog(false)}
+        />
       )}
     </div>
   );

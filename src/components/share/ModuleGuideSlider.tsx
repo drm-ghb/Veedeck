@@ -32,7 +32,7 @@ interface ModuleInfo {
 const ALL_MODULES: ModuleInfo[] = [
   {
     id: "renderflow",
-    name: "RenderFlow",
+    name: "ProjectFlow",
     icon: <PushPin size={28} />,
     shortDesc: "Przeglądaj wizualizacje i pliki przygotowane przez projektanta. Komentuj i akceptuj gotowe elementy.",
     fullDesc: {

@@ -45,6 +45,7 @@ export default async function KlientDetailPage({ params }: { params: Promise<{ s
     hasLists: project.shoppingLists.length > 0,
     startDate: project.startDate ? project.startDate.toISOString().slice(0, 10) : null,
     endDate: project.endDate ? project.endDate.toISOString().slice(0, 10) : null,
+    paymentsSharedWithClient: project.paymentsSharedWithClient,
     clients: project.clients.map((c) => ({
       id: c.id,
       name: c.name,

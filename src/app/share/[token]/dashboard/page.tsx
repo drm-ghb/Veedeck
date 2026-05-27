@@ -32,7 +32,7 @@ export default async function ProjectHomePage({ params }: { params: Promise<{ to
   }
 
   const hasRenders = project.renders.length > 0;
-  const showRenderFlow = !project.hiddenModules.includes("renderflow");
+  const showProjectFlow = !project.hiddenModules.includes("renderflow");
   const showListy = !project.hiddenModules.includes("listy");
   const hasDyskusje = !project.hiddenModules.includes("dyskusje");
   const welcomeMessage = project.user.clientWelcomeMessage?.trim() || null;
@@ -56,7 +56,7 @@ export default async function ProjectHomePage({ params }: { params: Promise<{ to
         <ShareSidebar
           token={token}
           discussionId={project.discussion?.id}
-          showRenderFlow={showRenderFlow && hasRenders}
+          showProjectFlow={showProjectFlow && hasRenders}
           showListy={showListy}
           showDyskusje={hasDyskusje}
           shoppingLists={project.shoppingLists}

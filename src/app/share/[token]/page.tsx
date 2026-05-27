@@ -515,9 +515,9 @@ export default function SharePage() {
     <div className="flex items-center justify-center min-h-screen px-4 bg-background">
       <div className="w-full max-w-sm text-center">
         <div className="flex items-center justify-center gap-2 mb-2">
-          <Image src="/logo.svg" alt="RenderFlow" width={32} height={32} className="block dark:hidden" />
-          <Image src="/logo-dark.svg" alt="RenderFlow" width={32} height={32} className="hidden dark:block" />
-          <h1 className="text-2xl font-bold">Render<span className="text-primary dark:text-white">Flow</span></h1>
+          <Image src="/logo.svg" alt="ProjectFlow" width={32} height={32} className="block dark:hidden" />
+          <Image src="/logo-dark.svg" alt="ProjectFlow" width={32} height={32} className="hidden dark:block" />
+          <h1 className="text-2xl font-bold">Project<span className="text-primary dark:text-white">Flow</span></h1>
         </div>
         <div className="flex justify-center mb-4">
           <Lock size={20} className="text-gray-400" />
@@ -690,11 +690,11 @@ export default function SharePage() {
           <ShareSidebar
             token={token}
             discussionId={project.discussionId}
-            showRenderFlow={!project.hiddenModules.includes("renderflow")}
+            showProjectFlow={!project.hiddenModules.includes("renderflow")}
             showListy={!project.hiddenModules.includes("listy")}
             showDyskusje={!project.hiddenModules.includes("dyskusje")}
             shoppingLists={project.shoppingLists}
-            onRenderFlowClick={() => setView("rooms")}
+            onProjectFlowClick={() => setView("rooms")}
           />
           <div className="flex-1 min-h-0 bg-background">
             {renderViewer}
@@ -718,7 +718,7 @@ export default function SharePage() {
       {/* Rooms view */}
       {view === "rooms" && (
         <>
-          <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-6">Pomieszczenia</h2>
+          <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-6">Foldery</h2>
           {project.rooms.length === 0 ? (
             <p className="text-gray-400 text-center py-16">Brak pomieszczeń w tym projekcie.</p>
           ) : (
@@ -984,11 +984,11 @@ export default function SharePage() {
         <ShareSidebar
           token={token}
           discussionId={project.discussionId}
-          showRenderFlow={!project.hiddenModules.includes("renderflow")}
+          showProjectFlow={!project.hiddenModules.includes("renderflow")}
           showListy={!project.hiddenModules.includes("listy")}
           showDyskusje={!project.hiddenModules.includes("dyskusje")}
           shoppingLists={project.shoppingLists}
-          onRenderFlowClick={() => setView("rooms")}
+          onProjectFlowClick={() => setView("rooms")}
         />
         <main className="flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-6 bg-background rounded-tl-2xl">
           {pageContent}

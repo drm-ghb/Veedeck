@@ -42,13 +42,13 @@ export default function AddRoomDialog({ projectId }: AddRoomDialogProps) {
 
       if (!res.ok) throw new Error();
 
-      toast.success(`Pomieszczenie "${name.trim()}" dodane`);
+      toast.success(`Folder "${name.trim()}" dodany`);
       setOpen(false);
       setName("");
       setIcon("INNE");
       router.refresh();
     } catch {
-      toast.error("Błąd dodawania pomieszczenia");
+      toast.error("Błąd dodawania folderu");
     } finally {
       setLoading(false);
     }
@@ -61,7 +61,7 @@ export default function AddRoomDialog({ projectId }: AddRoomDialogProps) {
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Nowe pomieszczenie</DialogTitle>
+          <DialogTitle>Nowy folder</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-5">
           <div className="space-y-1.5">

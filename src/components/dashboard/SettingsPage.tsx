@@ -532,7 +532,7 @@ export function SettingsPage({
               <ImageIcon size={15} className="text-gray-400" />
               <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Logo firmy</p>
             </div>
-            <p className="text-xs text-gray-400">Wyświetlane zamiast logo RenderFlow na stronie klienta.</p>
+            <p className="text-xs text-gray-400">Wyświetlane zamiast logo ProjectFlow na stronie klienta.</p>
             {clientLogoUrl ? (
               <div className="flex items-center gap-3">
                 {/* eslint-disable-next-line @next/next/no-img-element */}

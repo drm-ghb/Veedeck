@@ -61,7 +61,7 @@ export default async function ShareDyskusjePage({ params }: { params: Promise<{ 
         <ShareSidebar
           token={token}
           discussionId={project.discussion.id}
-          showRenderFlow={!project.hiddenModules.includes("renderflow") && hasRenders}
+          showProjectFlow={!project.hiddenModules.includes("renderflow") && hasRenders}
           showListy={!project.hiddenModules.includes("listy")}
           showDyskusje={true}
           shoppingLists={project.shoppingLists}

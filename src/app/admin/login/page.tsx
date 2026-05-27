@@ -50,7 +50,7 @@ export default function AdminLoginPage() {
             <ShieldCheck size={26} className="text-blue-400" />
           </div>
           <h1 className="text-xl font-semibold text-white">Panel Administracyjny</h1>
-          <p className="text-sm text-white/30 mt-1">RenderFlow</p>
+          <p className="text-sm text-white/30 mt-1">ProjectFlow</p>
         </div>
 
         {/* Form */}

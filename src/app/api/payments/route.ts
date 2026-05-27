@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json();
-  const { clientId, groupId, name, amount, status } = body;
+  const { clientId, groupId, rfProjectId, name, amount, status } = body;
 
   if (!clientId || !name || amount == null) {
     return NextResponse.json({ error: "clientId, name, amount required" }, { status: 400 });
@@ -75,6 +75,7 @@ export async function POST(req: NextRequest) {
     data: {
       clientId,
       groupId: groupId ?? null,
+      rfProjectId: rfProjectId ?? null,
       name,
       amount: parseFloat(amount),
       status: status ?? "pending",
