@@ -3,8 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Plus, Edit2, Trash2, ClipboardList } from "@/components/ui/icons";
-import { surveyTemplates } from "@/lib/surveyTemplates";
+import { Plus, Edit2, Trash2, ClipboardList, Eye, X } from "@/components/ui/icons";
+import { surveyTemplates, type SurveyTemplate } from "@/lib/surveyTemplates";
 
 type Project = { id: string; title: string };
 
@@ -98,12 +98,171 @@ function UseTemplateDialog({
   );
 }
 
+// ── Template preview overlay ─────────────────────────────────────────────────
+
+function TemplatePreviewQuestion({ question }: { question: import("@/lib/surveyTemplates").TemplateQuestion }) {
+  const [value, setValue] = useState<unknown>(null);
+  const config = (question.config ?? {}) as Record<string, number>;
+
+  return (
+    <div className="bg-background border border-border rounded-xl p-5 space-y-3">
+      <div>
+        <p className="text-sm font-semibold">
+          {question.label}
+          {question.required && <span className="text-red-500 ml-1">*</span>}
+        </p>
+        {question.description && (
+          <p className="text-xs text-muted-foreground mt-0.5">{question.description}</p>
+        )}
+      </div>
+
+      {question.type === "short_text" && (
+        <input type="text" value={(value as string) ?? ""} onChange={(e) => setValue(e.target.value)}
+          className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-card focus:outline-none focus:ring-2 focus:ring-primary/20"
+          placeholder="Twoja odpowiedź..." />
+      )}
+
+      {question.type === "long_text" && (
+        <textarea value={(value as string) ?? ""} onChange={(e) => setValue(e.target.value)} rows={3}
+          className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-card focus:outline-none focus:ring-2 focus:ring-primary/20 resize-none"
+          placeholder="Twoja odpowiedź..." />
+      )}
+
+      {question.type === "single_choice" && (
+        <div className="space-y-2">
+          {(question.options ?? []).map((opt) => (
+            <label key={opt} className="flex items-center gap-3 cursor-pointer group">
+              <div className={`w-4 h-4 rounded-full border-2 flex-shrink-0 transition-colors ${value === opt ? "border-primary bg-primary" : "border-border group-hover:border-primary/50"}`}>
+                {value === opt && <div className="w-full h-full rounded-full bg-white scale-50 transform" />}
+              </div>
+              <span className="text-sm" onClick={() => setValue(opt)}>{opt}</span>
+            </label>
+          ))}
+        </div>
+      )}
+
+      {question.type === "multiple_choice" && (
+        <div className="space-y-2">
+          {(question.options ?? []).map((opt) => {
+            const selected = Array.isArray(value) && (value as string[]).includes(opt);
+            return (
+              <label key={opt} className="flex items-center gap-3 cursor-pointer">
+                <input type="checkbox" checked={selected}
+                  onChange={() => {
+                    const current = Array.isArray(value) ? (value as string[]) : [];
+                    setValue(selected ? current.filter((v) => v !== opt) : [...current, opt]);
+                  }}
+                  className="w-4 h-4 rounded border-border accent-primary" />
+                <span className="text-sm">{opt}</span>
+              </label>
+            );
+          })}
+        </div>
+      )}
+
+      {question.type === "rating" && (
+        <div className="flex items-center gap-2 flex-wrap">
+          {Array.from({ length: (config.max ?? 5) - (config.min ?? 1) + 1 }, (_, i) => (config.min ?? 1) + i).map((n) => (
+            <button key={n} onClick={() => setValue(n)}
+              className={`w-10 h-10 rounded-lg border-2 text-sm font-semibold transition-colors ${value === n ? "border-primary bg-primary text-primary-foreground" : "border-border hover:border-primary/50 hover:bg-muted"}`}>
+              {n}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {question.type === "yes_no" && (
+        <div className="flex items-center gap-3">
+          {["Tak", "Nie"].map((opt) => (
+            <button key={opt} onClick={() => setValue(opt)}
+              className={`px-6 py-2.5 rounded-xl text-sm font-semibold border-2 transition-colors ${value === opt ? "border-primary bg-primary text-primary-foreground" : "border-border hover:border-primary/50 hover:bg-muted"}`}>
+              {opt}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {question.type === "budget_range" && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-muted-foreground">{(config.min ?? 0).toLocaleString("pl-PL")} zł</span>
+            <span className="font-semibold text-primary">
+              {typeof value === "number" ? value.toLocaleString("pl-PL") : (config.min ?? 0).toLocaleString("pl-PL")} zł
+            </span>
+            <span className="text-muted-foreground">{(config.max ?? 200000).toLocaleString("pl-PL")} zł</span>
+          </div>
+          <input type="range" min={config.min ?? 0} max={config.max ?? 200000} step={config.step ?? 1000}
+            value={typeof value === "number" ? value : (config.min ?? 0)}
+            onChange={(e) => setValue(Number(e.target.value))}
+            className="w-full accent-primary" />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TemplatePreview({ tpl, onClose, onUse }: { tpl: SurveyTemplate; onClose: () => void; onUse: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="bg-card border border-border rounded-2xl shadow-xl w-full max-w-2xl max-h-[85vh] flex flex-col">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border flex-shrink-0">
+          <div>
+            <p className="font-semibold">{tpl.name}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">{tpl.description}</p>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-md hover:bg-muted text-muted-foreground transition-colors">
+            <X size={16} />
+          </button>
+        </div>
+
+        {/* Survey preview */}
+        <div className="overflow-y-auto flex-1 bg-muted/40 px-6 py-6 space-y-6">
+          <h1 className="text-xl font-bold text-foreground">{tpl.name}</h1>
+
+          {tpl.sections.map((section) => (
+            section.questions.length > 0 ? (
+              <div key={section.name} className="space-y-4">
+                <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground border-b border-border pb-2">
+                  {section.name}
+                </h3>
+                {section.questions.map((q, i) => (
+                  <TemplatePreviewQuestion key={i} question={q} />
+                ))}
+              </div>
+            ) : null
+          ))}
+
+          {tpl.questions.length > 0 && (
+            <div className="space-y-4">
+              {tpl.questions.map((q, i) => (
+                <TemplatePreviewQuestion key={i} question={q} />
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="flex gap-3 px-6 py-4 border-t border-border flex-shrink-0">
+          <button onClick={onClose} className="flex-1 py-2 text-sm border border-border rounded-lg hover:bg-muted transition-colors">
+            Zamknij
+          </button>
+          <button onClick={onUse} className="flex-1 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-opacity">
+            Użyj szablonu
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Main component ───────────────────────────────────────────────────────────
 
 export default function TemplatesTab({ customTemplates: initial, projects }: Props) {
   const router = useRouter();
   const [customTemplates, setCustomTemplates] = useState<CustomTemplate[]>(initial);
   const [useDialog, setUseDialog] = useState<{ type: "builtin"; templateId: string; name: string } | { type: "custom"; survey: CustomTemplate } | null>(null);
+  const [previewTpl, setPreviewTpl] = useState<SurveyTemplate | null>(null);
 
   // Create a new blank custom template
   async function handleNewTemplate() {
@@ -188,12 +347,21 @@ export default function TemplatesTab({ customTemplates: initial, projects }: Pro
                 </div>
               </div>
               <p className="text-xs text-muted-foreground leading-relaxed flex-1">{tpl.description}</p>
-              <button
-                onClick={() => setUseDialog({ type: "builtin", templateId: tpl.id, name: tpl.name })}
-                className="w-full py-2 text-xs font-medium bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-opacity"
-              >
-                Użyj szablonu
-              </button>
+              <div className="flex items-center gap-2 justify-end">
+                <button
+                  onClick={() => setPreviewTpl(tpl)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-border rounded-lg hover:bg-muted transition-colors"
+                >
+                  <Eye size={13} />
+                  Podgląd
+                </button>
+                <button
+                  onClick={() => setUseDialog({ type: "builtin", templateId: tpl.id, name: tpl.name })}
+                  className="px-3 py-1.5 text-xs font-medium bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-opacity"
+                >
+                  Użyj szablonu
+                </button>
+              </div>
             </div>
           ))}
         </div>
@@ -257,6 +425,18 @@ export default function TemplatesTab({ customTemplates: initial, projects }: Pro
           </div>
         )}
       </section>
+
+      {/* Template preview */}
+      {previewTpl && (
+        <TemplatePreview
+          tpl={previewTpl}
+          onClose={() => setPreviewTpl(null)}
+          onUse={() => {
+            setUseDialog({ type: "builtin", templateId: previewTpl.id, name: previewTpl.name });
+            setPreviewTpl(null);
+          }}
+        />
+      )}
 
       {/* Dialog */}
       {useDialog && (

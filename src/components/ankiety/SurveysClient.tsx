@@ -50,12 +50,12 @@ const STATUS_LABELS: Record<string, string> = { ACTIVE: "Aktywne", DRAFT: "Szkic
 
 function StatusBadge({ status }: { status: string }) {
   if (status === "ACTIVE") return (
-    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
+    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
       Aktywna
     </span>
   );
   if (status === "CLOSED") return (
-    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">
+    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
       Zamknięta
     </span>
   );
