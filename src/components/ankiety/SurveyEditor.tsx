@@ -21,7 +21,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import {
   GripVertical, Plus, Trash2, Eye, Check,
-  ArrowLeft, Edit2, X,
+  ArrowLeft, Edit2, X, ChevronDown, Copy, Share2, Settings,
 } from "@/components/ui/icons";
 import SurveyTemplateDialog from "./SurveyTemplateDialog";
 
@@ -55,6 +55,8 @@ interface Survey {
   id: string;
   name: string;
   status: string;
+  shareToken: string;
+  projectId: string | null;
   project: { id: string; title: string } | null;
   client: { id: string; name: string } | null;
   sections: SurveySection[];
@@ -87,11 +89,16 @@ export default function SurveyEditor({ survey: initial }: Props) {
   const [questions, setQuestions] = useState<SurveyQuestion[]>(initial.questions);
   const [sections, setSections] = useState<SurveySection[]>(initial.sections);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [activeQuestionId, setActiveQuestionId] = useState<string | null>(null);
-  const [activeSectionId, setActiveSectionId] = useState<string | null>(null);
+  const [activeItem, setActiveItem] = useState<{ id: string; type: "section" | "question" } | null>(null);
   const [currentSectionId, setCurrentSectionId] = useState<string | null>(null);
   const [templateOpen, setTemplateOpen] = useState(false);
   const [statusSaving, setStatusSaving] = useState(false);
+  const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
+  const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [shareLinkCopied, setShareLinkCopied] = useState(false);
+  const [saveTemplateOpen, setSaveTemplateOpen] = useState(false);
+  const [templateName, setTemplateName] = useState("");
+  const [savingTemplate, setSavingTemplate] = useState(false);
   const [addSectionOpen, setAddSectionOpen] = useState(false);
   const [newSectionName, setNewSectionName] = useState("");
   const [editNameOpen, setEditNameOpen] = useState(false);
@@ -118,6 +125,41 @@ export default function SurveyEditor({ survey: initial }: Props) {
     if (!res.ok) { toast.error("Błąd zmiany statusu"); return; }
     setSurvey((s) => ({ ...s, status }));
     toast.success(`Status: ${STATUS_LABELS[status]}`);
+  }
+
+  // ── Save as template ───────────────────────────────────────────────────
+
+  function openSaveTemplate() {
+    setTemplateName(survey.name);
+    setSaveTemplateOpen(true);
+  }
+
+  async function handleSaveAsTemplate() {
+    if (!templateName.trim()) return;
+    setSavingTemplate(true);
+    const res = await fetch(`/api/surveys/${survey.id}/save-as-template`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: templateName.trim() }),
+    });
+    setSavingTemplate(false);
+    if (!res.ok) { toast.error("Błąd zapisywania szablonu"); return; }
+    setSaveTemplateOpen(false);
+    toast.success("Szablon zapisany");
+  }
+
+  function getShareLink(): string {
+    const base = typeof window !== "undefined" ? window.location.origin : "";
+    if (survey.projectId && survey.client) {
+      return `${base}/client/${survey.projectId}/ankiety`;
+    }
+    return `${base}/share/survey/${survey.shareToken}`;
+  }
+
+  function handleCopyShareLink() {
+    navigator.clipboard.writeText(getShareLink());
+    setShareLinkCopied(true);
+    setTimeout(() => setShareLinkCopied(false), 2000);
   }
 
   // ── Name ───────────────────────────────────────────────────────────────
@@ -175,76 +217,106 @@ export default function SurveyEditor({ survey: initial }: Props) {
     toast.success("Pytanie usunięte");
   }
 
-  // ── Section drag ───────────────────────────────────────────────────────
+  // ── Drag handlers (unified — supports cross-section) ─────────────────
 
-  function handleSectionDragStart(event: DragStartEvent) {
-    setActiveSectionId(event.active.id as string);
+  function handleDragStart(event: DragStartEvent) {
+    const type = event.active.data.current?.type as "section" | "question";
+    setActiveItem({ id: event.active.id as string, type });
   }
 
-  async function handleSectionDragEnd(event: DragEndEvent) {
-    setActiveSectionId(null);
+  async function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
+    setActiveItem(null);
     if (!over || active.id === over.id) return;
-    const oldIdx = sections.findIndex((s) => s.id === active.id);
-    const newIdx = sections.findIndex((s) => s.id === over.id);
-    const reordered = arrayMove(sections, oldIdx, newIdx).map((s, i) => ({ ...s, order: i }));
-    setSections(reordered);
-    await Promise.all(
-      reordered.map((s) =>
+
+    const activeType = active.data.current?.type as "section" | "question";
+
+    // ── Section reorder ────────────────────────────────────────────────
+    if (activeType === "section") {
+      const oldIdx = sections.findIndex((s) => s.id === active.id);
+      const newIdx = sections.findIndex((s) => s.id === over.id);
+      if (oldIdx === -1 || newIdx === -1) return;
+      const reordered = arrayMove(sections, oldIdx, newIdx).map((s, i) => ({ ...s, order: i }));
+      setSections(reordered);
+      await Promise.all(reordered.map((s) =>
         fetch(`/api/surveys/${survey.id}/sections/${s.id}`, {
           method: "PATCH", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ order: s.order }),
         })
-      )
-    );
-  }
+      ));
+      return;
+    }
 
-  // ── Question drag within section ──────────────────────────────────────
+    // ── Question drag ─────────────────────────────────────────────────
+    const sourceSectionId: string | null = active.data.current?.sectionId ?? null;
+    const overType = over.data.current?.type as "section" | "question" | undefined;
 
-  async function handleSectionQuestionDragEnd(sectionId: string, event: DragEndEvent) {
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
+    // Determine target section
+    let targetSectionId: string | null;
+    if (overType === "question") {
+      targetSectionId = over.data.current?.sectionId ?? null;
+    } else if (overType === "section") {
+      targetSectionId = over.id as string;
+    } else {
+      return;
+    }
 
-    const sectionQs = questions.filter((q) => q.sectionId === sectionId);
-    const oldIdx = sectionQs.findIndex((q) => q.id === active.id);
-    const newIdx = sectionQs.findIndex((q) => q.id === over.id);
-    if (oldIdx === -1 || newIdx === -1) return;
+    // Same container reorder
+    if (sourceSectionId === targetSectionId && overType === "question") {
+      const groupQs = questions.filter((q) => q.sectionId === sourceSectionId);
+      const oldIdx = groupQs.findIndex((q) => q.id === active.id);
+      const newIdx = groupQs.findIndex((q) => q.id === over.id);
+      if (oldIdx === -1 || newIdx === -1) return;
+      const reorderedGroup = arrayMove(groupQs, oldIdx, newIdx);
+      const allReordered = sourceSectionId !== null
+        ? [
+            ...sections.flatMap((s) =>
+              s.id === sourceSectionId ? reorderedGroup : questions.filter((q) => q.sectionId === s.id)
+            ),
+            ...questions.filter((q) => !q.sectionId),
+          ].map((q, i) => ({ ...q, order: i }))
+        : [
+            ...sections.flatMap((s) => questions.filter((q) => q.sectionId === s.id)),
+            ...reorderedGroup,
+          ].map((q, i) => ({ ...q, order: i }));
+      setQuestions(allReordered);
+      await fetch(`/api/surveys/${survey.id}/questions/reorder`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ questions: allReordered.map((q) => ({ id: q.id, order: q.order })) }),
+      });
+      return;
+    }
 
-    const reorderedSection = arrayMove(sectionQs, oldIdx, newIdx);
-    const allBySection = sections.flatMap((s) =>
-      s.id === sectionId ? reorderedSection : questions.filter((q) => q.sectionId === s.id)
-    );
-    const unsectioned = questions.filter((q) => !q.sectionId);
-    const allReordered = [...allBySection, ...unsectioned].map((q, i) => ({ ...q, order: i }));
+    // Cross-section move
+    if (sourceSectionId === targetSectionId) return; // dropped on own section header — no-op
+    const movingQ = questions.find((q) => q.id === active.id);
+    if (!movingQ) return;
+    const updatedMovingQ = { ...movingQ, sectionId: targetSectionId };
+    const remaining = questions.filter((q) => q.id !== active.id);
+
+    if (overType === "question") {
+      const overIdx = remaining.findIndex((q) => q.id === over.id);
+      if (overIdx !== -1) remaining.splice(overIdx, 0, updatedMovingQ);
+      else remaining.push(updatedMovingQ);
+    } else {
+      // Dropped on section header → append to end of that section
+      let insertIdx = remaining.length;
+      for (let i = remaining.length - 1; i >= 0; i--) {
+        if (remaining[i].sectionId === targetSectionId) { insertIdx = i + 1; break; }
+      }
+      remaining.splice(insertIdx, 0, updatedMovingQ);
+    }
+
+    const allReordered = [
+      ...sections.flatMap((s) => remaining.filter((q) => q.sectionId === s.id)),
+      ...remaining.filter((q) => !q.sectionId),
+    ].map((q, i) => ({ ...q, order: i }));
     setQuestions(allReordered);
 
-    await fetch(`/api/surveys/${survey.id}/questions/reorder`, {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ questions: allReordered.map((q) => ({ id: q.id, order: q.order })) }),
+    await fetch(`/api/surveys/${survey.id}/questions/${active.id}`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sectionId: targetSectionId }),
     });
-  }
-
-  // ── Unsectioned question drag ──────────────────────────────────────────
-
-  function handleQuestionDragStart(event: DragStartEvent) {
-    setActiveQuestionId(event.active.id as string);
-  }
-
-  async function handleQuestionDragEnd(event: DragEndEvent) {
-    setActiveQuestionId(null);
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
-
-    const unsectioned = questions.filter((q) => !q.sectionId);
-    const oldIdx = unsectioned.findIndex((q) => q.id === active.id);
-    const newIdx = unsectioned.findIndex((q) => q.id === over.id);
-    if (oldIdx === -1 || newIdx === -1) return;
-
-    const reorderedUnsectioned = arrayMove(unsectioned, oldIdx, newIdx);
-    const sectioned = sections.flatMap((s) => questions.filter((q) => q.sectionId === s.id));
-    const allReordered = [...sectioned, ...reorderedUnsectioned].map((q, i) => ({ ...q, order: i }));
-    setQuestions(allReordered);
-
     await fetch(`/api/surveys/${survey.id}/questions/reorder`, {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ questions: allReordered.map((q) => ({ id: q.id, order: q.order })) }),
@@ -302,7 +374,7 @@ export default function SurveyEditor({ survey: initial }: Props) {
   const isEmpty = questions.length === 0 && sections.length === 0;
 
   return (
-    <div className="flex flex-col h-full overflow-hidden">
+    <div className="flex flex-col overflow-hidden -mx-6 -my-6 h-[calc(100%+3rem)]">
       {/* Top bar */}
       <div className="flex items-center gap-3 px-4 py-3 border-b border-border bg-card flex-shrink-0">
         <button
@@ -335,18 +407,22 @@ export default function SurveyEditor({ survey: initial }: Props) {
         )}
 
         <div className="ml-auto flex items-center gap-2">
-          <select
-            value={survey.status}
-            onChange={(e) => handleStatusChange(e.target.value)}
-            disabled={statusSaving}
-            className="px-2 py-1 text-xs border border-border rounded-lg bg-background focus:outline-none"
+          <StatusDropdown value={survey.status} onChange={handleStatusChange} disabled={statusSaving} open={statusDropdownOpen} onOpenChange={setStatusDropdownOpen} />
+          <button
+            onClick={openSaveTemplate}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-border rounded-lg hover:bg-muted transition-colors"
           >
-            <option value="DRAFT">Szkic</option>
-            <option value="ACTIVE">Aktywna</option>
-            <option value="CLOSED">Zamknięta</option>
-          </select>
+            Zapisz jako szablon
+          </button>
+          <button
+            onClick={() => setShareModalOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-border rounded-lg hover:bg-muted transition-colors"
+          >
+            <Share2 size={14} />
+            Udostępnij
+          </button>
           <a
-            href={`/share/survey/${survey.id}/podglad`}
+            href={`/ankiety/${survey.id}/podglad`}
             target="_blank" rel="noopener noreferrer"
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-border rounded-lg hover:bg-muted transition-colors"
           >
@@ -357,30 +433,10 @@ export default function SurveyEditor({ survey: initial }: Props) {
       </div>
 
       {/* Main area */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex-1 overflow-hidden relative">
 
-        {/* LEFT: config + empty state */}
-        <div className="w-72 flex-shrink-0 border-r border-border flex flex-col overflow-hidden bg-card">
-          <div className="flex-1 overflow-y-auto p-4">
-            {selectedQuestion ? (
-              <QuestionConfigPanel
-                key={selectedQuestion.id}
-                question={selectedQuestion}
-                onUpdate={(data) => handleUpdateQuestion(selectedQuestion.id, data)}
-                sections={sections}
-              />
-            ) : (
-              <div className="flex flex-col items-center justify-center h-full text-center gap-2 px-4">
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  Kliknij pytanie na podglądzie, aby edytować jego konfigurację.
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* RIGHT: live preview */}
-        <div className="flex-1 overflow-y-auto bg-muted/30 flex flex-col">
+        {/* Preview — full width */}
+        <div className="h-full overflow-y-auto bg-muted/30 flex flex-col">
 
           {/* ── Sticky toolbar ── */}
           <div className="sticky top-0 z-20 pt-3 pb-1 bg-muted/30 flex-shrink-0 flex justify-center px-6">
@@ -445,9 +501,9 @@ export default function SurveyEditor({ survey: initial }: Props) {
               </div>
             )}
 
-            {/* ── Section blocks (sortable) ── */}
-            {sections.length > 0 && (
-              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleSectionDragStart} onDragEnd={handleSectionDragEnd}>
+            {/* ── All sortable content — single DndContext for cross-section drag ── */}
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+              {sections.length > 0 && (
                 <SortableContext items={sections.map((s) => s.id)} strategy={verticalListSortingStrategy}>
                   {sections.map((section) => {
                     const sectionQs = questions.filter((q) => q.sectionId === section.id);
@@ -458,24 +514,22 @@ export default function SurveyEditor({ survey: initial }: Props) {
                         sectionQs={sectionQs}
                         selectedId={selectedId}
                         onSelect={selectQuestion}
+                        onGearClick={(id) => { selectedId === id ? setSelectedId(null) : selectQuestion(id); }}
                         onSectionActivate={() => setCurrentSectionId(section.id)}
                         onRename={(name) => handleRenameSection(section.id, name)}
                         onDelete={() => handleDeleteSection(section.id)}
                         onQuestionDelete={handleDeleteQuestion}
                         onQuestionUpdate={handleUpdateQuestion}
-                        onQuestionDragEnd={(e) => handleSectionQuestionDragEnd(section.id, e)}
                         sensors={sensors}
-                        isCollapsed={activeSectionId !== null && activeSectionId !== section.id}
+                        isCollapsed={activeItem?.type === "section" && activeItem.id !== section.id}
+                        activeQuestionId={activeItem?.type === "question" ? activeItem.id : null}
                       />
                     );
                   })}
                 </SortableContext>
-              </DndContext>
-            )}
+              )}
 
-            {/* ── Unsectioned questions (sortable) ── */}
-            {unsectionedQs.length > 0 && (
-              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleQuestionDragStart} onDragEnd={handleQuestionDragEnd}>
+              {unsectionedQs.length > 0 && (
                 <SortableContext items={unsectionedQs.map((q) => q.id)} strategy={verticalListSortingStrategy}>
                   {unsectionedQs.map((q) => (
                     <SortablePreviewCard
@@ -483,16 +537,37 @@ export default function SurveyEditor({ survey: initial }: Props) {
                       question={q}
                       selected={selectedId === q.id}
                       onSelect={() => { selectQuestion(q.id); setCurrentSectionId(null); }}
+                      onGearClick={() => { selectedId === q.id ? setSelectedId(null) : selectQuestion(q.id); setCurrentSectionId(null); }}
                       onDelete={() => handleDeleteQuestion(q.id)}
                       onUpdate={(data) => handleUpdateQuestion(q.id, data)}
-                      isCollapsed={activeQuestionId !== null && activeQuestionId !== q.id}
+                      isCollapsed={activeItem?.type === "question" && activeItem.id !== q.id}
                     />
                   ))}
                 </SortableContext>
-              </DndContext>
-            )}
+              )}
+            </DndContext>
 
           </div>
+          </div>
+        </div>
+
+        {/* Right sliding config panel */}
+        <div className={`absolute top-0 right-0 h-full w-72 z-30 bg-card border-l border-border shadow-xl flex flex-col transform transition-transform duration-200 ${selectedId ? "translate-x-0" : "translate-x-full"}`}>
+          <div className="flex items-center justify-between px-4 py-3 border-b border-border flex-shrink-0">
+            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Ustawienia pytania</span>
+            <button onClick={() => setSelectedId(null)} className="p-1.5 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
+              <X size={16} />
+            </button>
+          </div>
+          <div className="flex-1 overflow-y-auto p-4">
+            {selectedQuestion && (
+              <QuestionConfigPanel
+                key={selectedQuestion.id}
+                question={selectedQuestion}
+                onUpdate={(data) => handleUpdateQuestion(selectedQuestion.id, data)}
+                sections={sections}
+              />
+            )}
           </div>
         </div>
       </div>
@@ -503,6 +578,87 @@ export default function SurveyEditor({ survey: initial }: Props) {
         onApplied={handleTemplateApplied}
         surveyId={survey.id}
       />
+
+      {saveTemplateOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4" onClick={() => setSaveTemplateOpen(false)}>
+          <div className="bg-card border border-border rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <h2 className="text-base font-semibold">Zapisz jako szablon</h2>
+              <button onClick={() => setSaveTemplateOpen(false)} className="text-muted-foreground hover:text-foreground transition-colors">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Nazwa szablonu</label>
+              <input
+                type="text"
+                value={templateName}
+                onChange={(e) => setTemplateName(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") handleSaveAsTemplate(); if (e.key === "Escape") setSaveTemplateOpen(false); }}
+                className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary/20"
+                autoFocus
+              />
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setSaveTemplateOpen(false)}
+                className="flex-1 py-2 text-sm border border-border rounded-lg hover:bg-muted transition-colors"
+              >
+                Anuluj
+              </button>
+              <button
+                onClick={handleSaveAsTemplate}
+                disabled={savingTemplate || !templateName.trim()}
+                className="flex-1 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-opacity disabled:opacity-40"
+              >
+                {savingTemplate ? "Zapisywanie..." : "Zapisz"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {shareModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4"
+          onClick={() => setShareModalOpen(false)}
+        >
+          <div className="bg-card border border-border rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <h2 className="text-base font-semibold">Udostępnij ankietę</h2>
+              <button onClick={() => setShareModalOpen(false)} className="text-muted-foreground hover:text-foreground transition-colors">
+                <X size={18} />
+              </button>
+            </div>
+            {survey.projectId && survey.client ? (
+              <p className="text-sm text-muted-foreground">
+                Klient <span className="font-medium text-foreground">{survey.client.name}</span> zobaczy ankietę w swoim panelu po zalogowaniu.
+              </p>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Klient poda adres e-mail przed wypełnieniem ankiety.
+              </p>
+            )}
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={getShareLink()}
+                readOnly
+                className="flex-1 px-3 py-2 text-sm border border-border rounded-lg bg-muted/40 focus:outline-none text-foreground"
+              />
+              <button
+                onClick={handleCopyShareLink}
+                className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg border transition-colors ${
+                  shareLinkCopied ? "bg-green-100 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800" : "border-border hover:bg-muted"
+                }`}
+              >
+                {shareLinkCopied ? <Check size={14} /> : <Copy size={14} />}
+                {shareLinkCopied ? "Skopiowano" : "Kopiuj"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -510,24 +666,27 @@ export default function SurveyEditor({ survey: initial }: Props) {
 // ── Sortable Section Block ─────────────────────────────────────────────────
 
 function SortableSectionBlock({
-  section, sectionQs, selectedId, onSelect, onSectionActivate, onRename, onDelete, onQuestionDelete, onQuestionUpdate,
-  onQuestionDragEnd, sensors, isCollapsed,
+  section, sectionQs, selectedId, onSelect, onGearClick, onSectionActivate, onRename, onDelete, onQuestionDelete, onQuestionUpdate,
+  sensors, isCollapsed, activeQuestionId,
 }: {
   section: SurveySection;
   sectionQs: SurveyQuestion[];
   selectedId: string | null;
   onSelect: (id: string) => void;
+  onGearClick: (id: string) => void;
   onSectionActivate: () => void;
   onRename: (name: string) => void;
   onDelete: () => void;
   onQuestionDelete: (id: string) => void;
   onQuestionUpdate: (id: string, data: any) => void;
-  onQuestionDragEnd: (event: DragEndEvent) => void;
   sensors: ReturnType<typeof useSensors>;
   isCollapsed?: boolean;
+  activeQuestionId: string | null;
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: section.id });
-  const [activeInnerQId, setActiveInnerQId] = useState<string | null>(null);
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: section.id,
+    data: { type: "section" },
+  });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -562,32 +721,26 @@ function SortableSectionBlock({
         </button>
       </div>
 
-      {/* Questions in this section — sortable */}
+      {/* Questions in this section — sortable (shares parent DndContext) */}
       {!isCollapsed && (
         <>
           {sectionQs.length === 0 ? (
             <p className="text-xs text-muted-foreground text-center py-2">Brak pytań w tej sekcji</p>
           ) : (
-            <DndContext
-              sensors={sensors}
-              collisionDetection={closestCenter}
-              onDragStart={(e) => setActiveInnerQId(e.active.id as string)}
-              onDragEnd={(e) => { setActiveInnerQId(null); onQuestionDragEnd(e); }}
-            >
-              <SortableContext items={sectionQs.map((q) => q.id)} strategy={verticalListSortingStrategy}>
-                {sectionQs.map((q) => (
-                  <SortablePreviewCard
-                    key={q.id}
-                    question={q}
-                    selected={selectedId === q.id}
-                    onSelect={() => onSelect(q.id)}
-                    onDelete={() => onQuestionDelete(q.id)}
-                    onUpdate={(data) => onQuestionUpdate(q.id, data)}
-                    isCollapsed={activeInnerQId !== null && activeInnerQId !== q.id}
-                  />
-                ))}
-              </SortableContext>
-            </DndContext>
+            <SortableContext items={sectionQs.map((q) => q.id)} strategy={verticalListSortingStrategy}>
+              {sectionQs.map((q) => (
+                <SortablePreviewCard
+                  key={q.id}
+                  question={q}
+                  selected={selectedId === q.id}
+                  onSelect={() => onSelect(q.id)}
+                  onGearClick={() => onGearClick(q.id)}
+                  onDelete={() => onQuestionDelete(q.id)}
+                  onUpdate={(data) => onQuestionUpdate(q.id, data)}
+                  isCollapsed={activeQuestionId !== null && activeQuestionId !== q.id}
+                />
+              ))}
+            </SortableContext>
           )}
         </>
       )}
@@ -614,16 +767,20 @@ function SectionNameInput({ section, onRename }: { section: SurveySection; onRen
 // ── Sortable Preview Card (unsectioned) ────────────────────────────────────
 
 function SortablePreviewCard({
-  question, selected, onSelect, onDelete, onUpdate, isCollapsed,
+  question, selected, onSelect, onGearClick, onDelete, onUpdate, isCollapsed,
 }: {
   question: SurveyQuestion;
   selected: boolean;
   onSelect: () => void;
+  onGearClick: () => void;
   onDelete: () => void;
   onUpdate: (data: any) => void;
   isCollapsed?: boolean;
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: question.id });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: question.id,
+    data: { type: "question", sectionId: question.sectionId },
+  });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -637,10 +794,11 @@ function SortablePreviewCard({
         question={question}
         selected={selected}
         onSelect={onSelect}
+        onGearClick={onGearClick}
         onDelete={onDelete}
         onUpdate={onUpdate}
         dragHandleProps={{ ...attributes, ...listeners }}
-        isCollapsed={isCollapsed}
+        isCollapsed={isDragging || isCollapsed}
       />
     </div>
   );
@@ -649,11 +807,12 @@ function SortablePreviewCard({
 // ── Preview Card ───────────────────────────────────────────────────────────
 
 function PreviewCard({
-  question, selected, onSelect, onDelete, onUpdate, dragHandleProps, isCollapsed,
+  question, selected, onSelect, onGearClick, onDelete, onUpdate, dragHandleProps, isCollapsed,
 }: {
   question: SurveyQuestion;
   selected: boolean;
   onSelect: () => void;
+  onGearClick: () => void;
   onDelete: () => void;
   onUpdate: (data: any) => void;
   dragHandleProps?: Record<string, any>;
@@ -680,7 +839,7 @@ function PreviewCard({
         selected ? "border-primary border-l-4 shadow-sm" : "border-border hover:shadow-sm"
       }`}
     >
-      {/* Top row: drag handle + delete */}
+      {/* Top row: drag handle + actions */}
       <div className="flex items-center justify-between px-4 pt-3 pb-0">
         <span
           {...(dragHandleProps ?? {})}
@@ -689,12 +848,20 @@ function PreviewCard({
         >
           <GripVertical size={16} />
         </span>
-        <button
-          onClick={(e) => { e.stopPropagation(); onDelete(); }}
-          className="opacity-0 group-hover:opacity-100 p-1 rounded text-muted-foreground hover:text-red-500 transition-all"
-        >
-          <Trash2 size={13} />
-        </button>
+        <div className="flex items-center gap-0.5">
+          <button
+            onClick={(e) => { e.stopPropagation(); onGearClick(); }}
+            className={`p-1 rounded transition-all ${selected ? "text-primary opacity-100" : "opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-foreground"}`}
+          >
+            <Settings size={13} />
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); onDelete(); }}
+            className="opacity-0 group-hover:opacity-100 p-1 rounded text-muted-foreground hover:text-red-500 transition-all"
+          >
+            <Trash2 size={13} />
+          </button>
+        </div>
       </div>
 
       {/* Content */}
@@ -817,6 +984,56 @@ function PreviewFormControl({ question, onUpdate }: { question: SurveyQuestion; 
     default:
       return null;
   }
+}
+
+// ── Status Dropdown ────────────────────────────────────────────────────────
+
+const STATUS_STYLES: Record<string, { bg: string; text: string; label: string }> = {
+  DRAFT:  { bg: "bg-gray-100 dark:bg-gray-800",      text: "text-gray-600 dark:text-gray-400",    label: "Szkic" },
+  ACTIVE: { bg: "bg-blue-100 dark:bg-blue-900/30",   text: "text-blue-700 dark:text-blue-400",    label: "Aktywna" },
+  CLOSED: { bg: "bg-green-100 dark:bg-green-900/30", text: "text-green-700 dark:text-green-400",  label: "Zamknięta" },
+};
+
+function StatusDropdown({
+  value, onChange, disabled, open, onOpenChange,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  disabled?: boolean;
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+}) {
+  const s = STATUS_STYLES[value] ?? STATUS_STYLES.DRAFT;
+  return (
+    <div className="relative">
+      <button
+        onClick={() => !disabled && onOpenChange(!open)}
+        disabled={disabled}
+        className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${s.bg} ${s.text}`}
+      >
+        {s.label}
+        <ChevronDown size={12} />
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-20" onClick={() => onOpenChange(false)} />
+          <div className="absolute top-full mt-1 right-0 z-30 bg-card border border-border rounded-xl shadow-lg py-1 min-w-32">
+            {Object.entries(STATUS_STYLES).map(([v, style]) => (
+              <button
+                key={v}
+                onClick={() => { onChange(v); onOpenChange(false); }}
+                className={`w-full flex items-center px-3 py-2 text-xs transition-colors hover:bg-muted ${v === value ? "opacity-100" : "opacity-70"}`}
+              >
+                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${style.bg} ${style.text}`}>
+                  {style.label}
+                </span>
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
 }
 
 // ── Question Config Panel ──────────────────────────────────────────────────
