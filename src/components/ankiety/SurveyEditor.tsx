@@ -589,6 +589,7 @@ export default function SurveyEditor({ survey: initial }: Props) {
                         onQuestionUpdate={handleUpdateQuestion}
                         sensors={sensors}
                         isCollapsed={activeItem?.type === "section" && activeItem.id !== section.id}
+                        activeQuestionId={activeItem?.type === "question" ? activeItem.id : null}
                       />
                     );
                   })}
@@ -607,7 +608,7 @@ export default function SurveyEditor({ survey: initial }: Props) {
                       onDelete={() => handleDeleteQuestion(q.id)}
                       onDuplicate={() => handleDuplicateQuestion(q.id)}
                       onUpdate={(data) => handleUpdateQuestion(q.id, data)}
-                      isCollapsed={false}
+                      isCollapsed={activeItem?.type === "question" && activeItem.id !== q.id}
                     />
                   ))}
                 </SortableContext>
@@ -762,7 +763,7 @@ export default function SurveyEditor({ survey: initial }: Props) {
 
 function SortableSectionBlock({
   section, sectionQs, selectedId, onSelect, onGearClick, onSectionActivate, onRename, onDelete, onQuestionDelete, onQuestionDuplicate, onQuestionUpdate,
-  sensors, isCollapsed,
+  sensors, isCollapsed, activeQuestionId,
 }: {
   section: SurveySection;
   sectionQs: SurveyQuestion[];
@@ -777,6 +778,7 @@ function SortableSectionBlock({
   onQuestionUpdate: (id: string, data: any) => void;
   sensors: ReturnType<typeof useSensors>;
   isCollapsed?: boolean;
+  activeQuestionId: string | null;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: section.id,
@@ -834,7 +836,7 @@ function SortableSectionBlock({
                   onDelete={() => onQuestionDelete(q.id)}
                   onDuplicate={() => onQuestionDuplicate(q.id)}
                   onUpdate={(data) => onQuestionUpdate(q.id, data)}
-                  isCollapsed={false}
+                  isCollapsed={activeQuestionId !== null && activeQuestionId !== q.id}
                 />
               ))}
             </SortableContext>
