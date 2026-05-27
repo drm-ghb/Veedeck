@@ -5,12 +5,14 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
   DndContext,
+  pointerWithin,
   closestCenter,
   PointerSensor,
   useSensor,
   useSensors,
   type DragEndEvent,
   type DragStartEvent,
+  type CollisionDetection,
 } from "@dnd-kit/core";
 import {
   SortableContext,
@@ -206,6 +208,33 @@ export default function SurveyEditor({ survey: initial }: Props) {
     const updated: SurveyQuestion = await res.json();
     setQuestions((prev) => prev.map((q) => q.id === id ? updated : q));
   }, [survey.id]);
+
+  // ── Duplicate question ─────────────────────────────────────────────────
+
+  async function handleDuplicateQuestion(id: string) {
+    const q = questions.find((q) => q.id === id);
+    if (!q) return;
+    const res = await fetch(`/api/surveys/${survey.id}/questions`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        label: q.label, type: q.type, required: q.required,
+        description: q.description, options: q.options, config: q.config,
+        sectionId: q.sectionId, order: q.order,
+      }),
+    });
+    if (!res.ok) { toast.error("Błąd duplikowania pytania"); return; }
+    const newQ: SurveyQuestion = await res.json();
+    const srcIdx = questions.findIndex((q) => q.id === id);
+    const inserted = [...questions];
+    inserted.splice(srcIdx + 1, 0, newQ);
+    const reordered = inserted.map((q, i) => ({ ...q, order: i }));
+    setQuestions(reordered);
+    await fetch(`/api/surveys/${survey.id}/questions/reorder`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ questions: reordered.map((q) => ({ id: q.id, order: q.order })) }),
+    });
+    toast.success("Pytanie zduplikowane");
+  }
 
   // ── Delete question ────────────────────────────────────────────────────
 
@@ -502,7 +531,15 @@ export default function SurveyEditor({ survey: initial }: Props) {
             )}
 
             {/* ── All sortable content — single DndContext for cross-section drag ── */}
-            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+            <DndContext
+              sensors={sensors}
+              collisionDetection={((args) => {
+                const pw = pointerWithin(args);
+                return pw.length > 0 ? pw : closestCenter(args);
+              }) as CollisionDetection}
+              onDragStart={handleDragStart}
+              onDragEnd={handleDragEnd}
+            >
               {sections.length > 0 && (
                 <SortableContext items={sections.map((s) => s.id)} strategy={verticalListSortingStrategy}>
                   {sections.map((section) => {
@@ -519,10 +556,10 @@ export default function SurveyEditor({ survey: initial }: Props) {
                         onRename={(name) => handleRenameSection(section.id, name)}
                         onDelete={() => handleDeleteSection(section.id)}
                         onQuestionDelete={handleDeleteQuestion}
+                        onQuestionDuplicate={handleDuplicateQuestion}
                         onQuestionUpdate={handleUpdateQuestion}
                         sensors={sensors}
                         isCollapsed={activeItem?.type === "section" && activeItem.id !== section.id}
-                        activeQuestionId={activeItem?.type === "question" ? activeItem.id : null}
                       />
                     );
                   })}
@@ -539,8 +576,9 @@ export default function SurveyEditor({ survey: initial }: Props) {
                       onSelect={() => { selectQuestion(q.id); setCurrentSectionId(null); }}
                       onGearClick={() => { selectedId === q.id ? setSelectedId(null) : selectQuestion(q.id); setCurrentSectionId(null); }}
                       onDelete={() => handleDeleteQuestion(q.id)}
+                      onDuplicate={() => handleDuplicateQuestion(q.id)}
                       onUpdate={(data) => handleUpdateQuestion(q.id, data)}
-                      isCollapsed={activeItem?.type === "question" && activeItem.id !== q.id}
+                      isCollapsed={false}
                     />
                   ))}
                 </SortableContext>
@@ -666,8 +704,8 @@ export default function SurveyEditor({ survey: initial }: Props) {
 // ── Sortable Section Block ─────────────────────────────────────────────────
 
 function SortableSectionBlock({
-  section, sectionQs, selectedId, onSelect, onGearClick, onSectionActivate, onRename, onDelete, onQuestionDelete, onQuestionUpdate,
-  sensors, isCollapsed, activeQuestionId,
+  section, sectionQs, selectedId, onSelect, onGearClick, onSectionActivate, onRename, onDelete, onQuestionDelete, onQuestionDuplicate, onQuestionUpdate,
+  sensors, isCollapsed,
 }: {
   section: SurveySection;
   sectionQs: SurveyQuestion[];
@@ -678,10 +716,10 @@ function SortableSectionBlock({
   onRename: (name: string) => void;
   onDelete: () => void;
   onQuestionDelete: (id: string) => void;
+  onQuestionDuplicate: (id: string) => void;
   onQuestionUpdate: (id: string, data: any) => void;
   sensors: ReturnType<typeof useSensors>;
   isCollapsed?: boolean;
-  activeQuestionId: string | null;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: section.id,
@@ -737,8 +775,9 @@ function SortableSectionBlock({
                   onSelect={() => onSelect(q.id)}
                   onGearClick={() => onGearClick(q.id)}
                   onDelete={() => onQuestionDelete(q.id)}
+                  onDuplicate={() => onQuestionDuplicate(q.id)}
                   onUpdate={(data) => onQuestionUpdate(q.id, data)}
-                  isCollapsed={activeQuestionId !== null && activeQuestionId !== q.id}
+                  isCollapsed={false}
                 />
               ))}
             </SortableContext>
@@ -768,13 +807,14 @@ function SectionNameInput({ section, onRename }: { section: SurveySection; onRen
 // ── Sortable Preview Card (unsectioned) ────────────────────────────────────
 
 function SortablePreviewCard({
-  question, selected, onSelect, onGearClick, onDelete, onUpdate, isCollapsed,
+  question, selected, onSelect, onGearClick, onDelete, onDuplicate, onUpdate, isCollapsed,
 }: {
   question: SurveyQuestion;
   selected: boolean;
   onSelect: () => void;
   onGearClick: () => void;
   onDelete: () => void;
+  onDuplicate: () => void;
   onUpdate: (data: any) => void;
   isCollapsed?: boolean;
 }) {
@@ -797,6 +837,7 @@ function SortablePreviewCard({
         onSelect={onSelect}
         onGearClick={onGearClick}
         onDelete={onDelete}
+        onDuplicate={onDuplicate}
         onUpdate={onUpdate}
         dragHandleProps={{ ...attributes, ...listeners }}
         isCollapsed={isDragging || isCollapsed}
@@ -808,13 +849,14 @@ function SortablePreviewCard({
 // ── Preview Card ───────────────────────────────────────────────────────────
 
 function PreviewCard({
-  question, selected, onSelect, onGearClick, onDelete, onUpdate, dragHandleProps, isCollapsed,
+  question, selected, onSelect, onGearClick, onDelete, onDuplicate, onUpdate, dragHandleProps, isCollapsed,
 }: {
   question: SurveyQuestion;
   selected: boolean;
   onSelect: () => void;
   onGearClick: () => void;
   onDelete: () => void;
+  onDuplicate: () => void;
   onUpdate: (data: any) => void;
   dragHandleProps?: Record<string, any>;
   isCollapsed?: boolean;
@@ -855,6 +897,13 @@ function PreviewCard({
             className={`p-1 rounded transition-all ${selected ? "text-primary opacity-100" : "opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-foreground"}`}
           >
             <Settings size={13} />
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); onDuplicate(); }}
+            className="opacity-0 group-hover:opacity-100 p-1 rounded text-muted-foreground hover:text-foreground transition-all"
+            title="Duplikuj pytanie"
+          >
+            <Copy size={13} />
           </button>
           <button
             onClick={(e) => { e.stopPropagation(); onDelete(); }}
