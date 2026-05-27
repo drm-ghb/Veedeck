@@ -25,6 +25,7 @@ const securityHeaders = [
       "connect-src 'self' https: wss:",
       "font-src 'self' data:",
       "frame-src 'self' https://utfs.io",
+      "worker-src 'self'",
       "frame-ancestors 'self'",
       "base-uri 'self'",
       "form-action 'self'",

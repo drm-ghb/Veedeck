@@ -3,12 +3,17 @@
 import { useEffect, useRef, useState } from "react";
 import { FileText } from "@/components/ui/icons";
 
+// Module-level URL — webpack copies pdfjs worker to /_next/static/ at build time
+// with correct MIME type. Must be at module level for webpack static analysis.
+const workerSrc = new URL("pdfjs-dist/build/pdf.worker.min.mjs", import.meta.url);
+
 interface PdfThumbnailProps {
   fileUrl: string;
   className?: string;
+  iconSize?: number;
 }
 
-export default function PdfThumbnail({ fileUrl, className }: PdfThumbnailProps) {
+export default function PdfThumbnail({ fileUrl, className, iconSize = 36 }: PdfThumbnailProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [status, setStatus] = useState<"loading" | "done" | "error">("loading");
 
@@ -18,11 +23,9 @@ export default function PdfThumbnail({ fileUrl, className }: PdfThumbnailProps) 
     async function render() {
       try {
         const pdfjsLib = await import("pdfjs-dist");
-        // Use CDN worker matching installed version — avoids ES module worker issues in production
-        pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
+        pdfjsLib.GlobalWorkerOptions.workerSrc = workerSrc.href;
 
-        const loadingTask = pdfjsLib.getDocument(fileUrl);
-        const pdf = await loadingTask.promise;
+        const pdf = await pdfjsLib.getDocument(fileUrl).promise;
         if (cancelled) return;
 
         const page = await pdf.getPage(1);
@@ -31,15 +34,21 @@ export default function PdfThumbnail({ fileUrl, className }: PdfThumbnailProps) 
         const canvas = canvasRef.current;
         if (!canvas) return;
 
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
+
+        const dpr = window.devicePixelRatio || 1;
         const viewport = page.getViewport({ scale: 1 });
-        // Scale to fit container width (max ~400px) maintaining aspect ratio
-        const scale = Math.min(400 / viewport.width, 300 / viewport.height);
+        // Render at 2× target size × device pixel ratio for sharp thumbnails
+        const scale = Math.min(800 / viewport.width, 600 / viewport.height) * dpr;
         const scaled = page.getViewport({ scale });
 
         canvas.width = scaled.width;
         canvas.height = scaled.height;
+        canvas.style.width = "100%";
+        canvas.style.height = "100%";
 
-        await page.render({ canvas, viewport: scaled }).promise;
+        await page.render({ canvas, canvasContext: ctx, viewport: scaled }).promise;
         if (!cancelled) setStatus("done");
       } catch {
         if (!cancelled) setStatus("error");
@@ -52,21 +61,20 @@ export default function PdfThumbnail({ fileUrl, className }: PdfThumbnailProps) 
 
   if (status === "error") {
     return (
-      <div className={`flex items-center justify-center bg-red-50 ${className ?? ""}`}>
-        <FileText size={40} className="text-red-400" />
+      <div className={`flex items-center justify-center bg-muted ${className ?? ""}`}>
+        <FileText size={iconSize} className="text-red-400" />
       </div>
     );
   }
 
   return (
-    <div className={`relative flex items-center justify-center bg-gray-100 overflow-hidden ${className ?? ""}`}>
+    <div className={`relative flex items-center justify-center bg-muted overflow-hidden ${className ?? ""}`}>
       {status === "loading" && (
-        <FileText size={40} className="text-red-300 animate-pulse" />
+        <FileText size={iconSize} className="text-red-300 animate-pulse absolute" />
       )}
       <canvas
         ref={canvasRef}
-        className={`w-full h-full object-cover transition-opacity duration-300 ${status === "done" ? "opacity-100" : "opacity-0 absolute"}`}
-        style={{ objectFit: "cover" }}
+        className={`w-full h-full object-cover transition-opacity duration-300 ${status === "done" ? "opacity-100" : "opacity-0"}`}
       />
     </div>
   );

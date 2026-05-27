@@ -6,6 +6,7 @@ import { useSession } from "next-auth/react";
 import Link from "next/link";
 import Image from "next/image";
 import RenderViewer from "@/components/render/RenderViewer";
+import PdfThumbnail from "@/components/render/PdfThumbnail";
 import ShareSidebar from "@/components/share/ShareSidebar";
 import ClientThemeApplier from "@/components/share/ClientThemeApplier";
 import ShareNavbar from "@/components/share/ShareNavbar";
@@ -893,12 +894,15 @@ export default function SharePage() {
                 <div className={`grid ${SHARE_GRID_COLS_CLASS[gridCols]} gap-2 sm:gap-3`}>
                   {folderRenders.map((render) => (
                     <button key={render.id} onClick={() => { setSelectedRender(render); setView("render"); fetch(`/api/share/${token}/renders/${render.id}/view`, { method: "POST" }); }} className="text-left bg-card border border-border rounded-xl overflow-hidden shadow-sm hover:shadow-[0_4px_16px_rgba(25,33,61,0.2)] hover:border-primary/30 transition-all group">
-                      <div className="aspect-video bg-muted overflow-hidden flex items-center justify-center">
+                      <div className="relative aspect-video bg-muted overflow-hidden flex items-center justify-center">
                         {render.fileType === "pdf" ? (
-                          <FileText size={36} className="text-red-400" />
+                          <PdfThumbnail fileUrl={render.fileUrl} className="w-full h-full group-hover:scale-105 transition-transform duration-200" />
                         ) : (
                           /* eslint-disable-next-line @next/next/no-img-element */
                           <img src={render.fileUrl} alt={render.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" />
+                        )}
+                        {render.fileType === "pdf" && (
+                          <span className="absolute bottom-2 left-2 z-10 bg-black/50 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">PDF</span>
                         )}
                       </div>
                       <div className="p-3">
@@ -936,12 +940,15 @@ export default function SharePage() {
                     <div className={`grid ${SHARE_GRID_COLS_CLASS[gridCols]} gap-2 sm:gap-3`}>
                       {ungrouped.map((render) => (
                         <button key={render.id} onClick={() => { setSelectedRender(render); setView("render"); fetch(`/api/share/${token}/renders/${render.id}/view`, { method: "POST" }); }} className="text-left bg-card border border-border rounded-xl overflow-hidden shadow-sm hover:shadow-[0_4px_16px_rgba(25,33,61,0.2)] hover:border-primary/30 transition-all group">
-                          <div className="aspect-video bg-muted overflow-hidden flex items-center justify-center">
+                          <div className="relative aspect-video bg-muted overflow-hidden flex items-center justify-center">
                             {render.fileType === "pdf" ? (
-                              <FileText size={36} className="text-red-400" />
+                              <PdfThumbnail fileUrl={render.fileUrl} className="w-full h-full group-hover:scale-105 transition-transform duration-200" />
                             ) : (
                               /* eslint-disable-next-line @next/next/no-img-element */
                               <img src={render.fileUrl} alt={render.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" />
+                            )}
+                            {render.fileType === "pdf" && (
+                              <span className="absolute bottom-2 left-2 z-10 bg-black/50 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">PDF</span>
                             )}
                           </div>
                           <div className="p-3">

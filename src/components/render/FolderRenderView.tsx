@@ -6,6 +6,7 @@ import { Check, CopyCheck, Eye, FileText, LayoutGrid, List, Pin, Upload } from "
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import RenderMenu from "./RenderMenu";
+import PdfThumbnail from "./PdfThumbnail";
 import BulkActionBar from "./BulkActionBar";
 import BulkMoveDialog from "./BulkMoveDialog";
 import { useRouter } from "next/navigation";
@@ -246,12 +247,15 @@ export default function FolderRenderView({ projectId, roomId, folderId, renders 
                     <Pin size={13} className="text-red-500 fill-red-500 drop-shadow" />
                   </div>
                 )}
-                <div className="aspect-video bg-muted overflow-hidden flex items-center justify-center">
+                <div className="relative aspect-video bg-muted overflow-hidden flex items-center justify-center">
                   {render.fileType === "pdf" ? (
-                    <FileText size={36} className="text-red-400" />
+                    <PdfThumbnail fileUrl={render.fileUrl} className="w-full h-full group-hover:scale-105 transition-transform duration-200" />
                   ) : (
                     /* eslint-disable-next-line @next/next/no-img-element */
                     <img src={render.fileUrl} alt={render.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" />
+                  )}
+                  {render.fileType === "pdf" && (
+                    <span className="absolute bottom-2 left-2 z-10 bg-black/50 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">PDF</span>
                   )}
                 </div>
                 <div className="p-3">
@@ -294,7 +298,7 @@ export default function FolderRenderView({ projectId, roomId, folderId, renders 
                 <div className="flex items-center gap-3 flex-1 min-w-0">
                   <div className="w-14 h-10 rounded-md overflow-hidden bg-muted flex-shrink-0 flex items-center justify-center">
                     {render.fileType === "pdf" ? (
-                      <FileText size={20} className="text-red-400" />
+                      <PdfThumbnail fileUrl={render.fileUrl} className="w-full h-full" iconSize={16} />
                     ) : (
                       /* eslint-disable-next-line @next/next/no-img-element */
                       <img src={render.fileUrl} alt={render.name} className="w-full h-full object-cover" />
