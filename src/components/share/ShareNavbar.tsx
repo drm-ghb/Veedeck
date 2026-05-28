@@ -9,6 +9,7 @@ import { useTheme, type Theme } from "@/lib/theme";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useT } from "@/lib/i18n";
+import NotificationBell from "@/components/dashboard/NotificationBell";
 
 interface ShareNavbarProps {
   backHref?: string;
@@ -23,9 +24,11 @@ interface ShareNavbarProps {
   onLogoClick?: () => void;
   /** When provided, renders a mobile hamburger button in the navbar */
   onMobileMenuOpen?: () => void;
+  /** Logged-in client user ID — when provided, shows notification bell */
+  currentUserId?: string;
 }
 
-export default function ShareNavbar({ backHref, backLabel, clientLogoUrl, designerName, listToken, projectShareToken, clientName, onLogoClick, onMobileMenuOpen }: ShareNavbarProps) {
+export default function ShareNavbar({ backHref, backLabel, clientLogoUrl, designerName, listToken, projectShareToken, clientName, onLogoClick, onMobileMenuOpen, currentUserId }: ShareNavbarProps) {
   const t = useT();
   const { theme, setTheme } = useTheme();
 
@@ -109,6 +112,9 @@ export default function ShareNavbar({ backHref, backLabel, clientLogoUrl, design
                 <span className="font-medium text-foreground">Panel klienta:</span>
                 {clientName || authorName}
               </span>
+            )}
+            {currentUserId && (
+              <NotificationBell userId={currentUserId} />
             )}
             {clientName && (
               <button

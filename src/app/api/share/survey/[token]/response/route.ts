@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { notifyDesignerSurveySubmitted } from "@/lib/email";
+import { pusherServer } from "@/lib/pusher";
 
 async function getVerifiedResponse(token: string, responseId: string) {
   const response = await prisma.surveyResponse.findFirst({
@@ -119,6 +120,7 @@ export async function POST(
         select: {
           id: true,
           name: true,
+          userId: true,
           user: { select: { email: true } },
         },
       },
@@ -132,6 +134,21 @@ export async function POST(
     surveyId: updated.survey.id,
     respondentEmail: updated.respondentEmail,
     respondentName: updated.respondentName,
+  }).catch(() => {});
+
+  // In-app notification for designer
+  prisma.notification.create({
+    data: {
+      userId: updated.survey.userId,
+      message: `Klient wypełnił ankietę: „${updated.survey.name}"`,
+      link: `/ankiety/${updated.survey.id}/odpowiedzi`,
+      type: "info",
+    },
+  }).then((notif) => {
+    pusherServer.trigger(`user-${updated.survey.userId}`, "new-notification", {
+      ...notif,
+      createdAt: notif.createdAt.toISOString(),
+    }).catch(() => {});
   }).catch(() => {});
 
   return NextResponse.json({ success: true });

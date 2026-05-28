@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getWorkspaceUserId } from "@/lib/workspace";
+import { pusherServer } from "@/lib/pusher";
 
 export async function GET(
   _req: NextRequest,
@@ -63,6 +64,28 @@ export async function PATCH(
       ...(clientId !== undefined ? { clientId } : {}),
     },
   });
+
+  // Notify client when survey becomes ACTIVE
+  if (status === "ACTIVE" && survey.status !== "ACTIVE" && survey.clientId) {
+    const pc = await prisma.projectClient.findFirst({
+      where: { id: survey.clientId },
+      select: { userId: true, projectId: true },
+    });
+    if (pc?.userId) {
+      const notif = await prisma.notification.create({
+        data: {
+          userId: pc.userId,
+          message: `Masz nową ankietę do wypełnienia: „${updated.name}"`,
+          link: `/client/${pc.projectId}/ankiety`,
+          type: "info",
+        },
+      });
+      pusherServer.trigger(`user-${pc.userId}`, "new-notification", {
+        ...notif,
+        createdAt: notif.createdAt.toISOString(),
+      }).catch(() => {});
+    }
+  }
 
   return NextResponse.json(updated);
 }
