@@ -69,7 +69,7 @@ export function SearchProductDialog({ open, onOpenChange, onSelectProduct }: Pro
     }));
   };
 
-  const getActiveCount = (filterType: keyof typeof search.filters): number => {
+  const getActiveCount = (filterType: "categories" | "manufacturers" | "colors"): number => {
     return search.filters[filterType].length;
   };
 
