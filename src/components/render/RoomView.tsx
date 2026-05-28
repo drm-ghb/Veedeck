@@ -113,8 +113,21 @@ export default function RoomView({ projectId, roomId, renders, archivedRenders, 
   const [moveOpen, setMoveOpen] = useState(false);
   const [localFolders, setLocalFolders] = useState(folders);
   const [localRenders, setLocalRenders] = useState(renders);
+  const [newRenderIds, setNewRenderIds] = useState<Set<string>>(new Set());
   const pendingFolderIds = useRef<Set<string>>(new Set());
   const pendingRenderIds = useRef<Set<string>>(new Set());
+
+  function addHighlight(ids: string[]) {
+    if (!ids.length) return;
+    setNewRenderIds((prev) => new Set([...prev, ...ids]));
+    setTimeout(() => {
+      setNewRenderIds((prev) => {
+        const next = new Set(prev);
+        ids.forEach((id) => next.delete(id));
+        return next;
+      });
+    }, 5000);
+  }
   useEffect(() => {
     setLocalFolders(prev => {
       for (const f of folders) pendingFolderIds.current.delete(f.id);
@@ -154,6 +167,7 @@ export default function RoomView({ projectId, roomId, renders, archivedRenders, 
           createdAt: new Date().toISOString(),
         })),
       ]);
+      addHighlight(newRenders.map((r) => r.id));
     }
     function onFolderRemoved(e: Event) {
       const { id } = (e as CustomEvent).detail;
@@ -239,7 +253,10 @@ export default function RoomView({ projectId, roomId, renders, archivedRenders, 
           created.push({ id: render.id, name: render.name, fileUrl: render.fileUrl, fileType: render.fileType ?? null, commentCount: 0, viewCount: 0, status: (render.status ?? "REVIEW") as "REVIEW" | "ACCEPTED", folderId: render.folderId ?? null, pinned: false, createdAt: new Date().toISOString() });
         }
       }
-      if (created.length > 0) setLocalRenders((prev) => [...prev, ...created]);
+      if (created.length > 0) {
+        setLocalRenders((prev) => [...prev, ...created]);
+        addHighlight(created.map((r) => r.id));
+      }
       toast.success(`Dodano ${results.length} plik${results.length === 1 ? "" : results.length < 5 ? "i" : "ów"}`);
       router.refresh();
     } catch {
@@ -544,6 +561,7 @@ export default function RoomView({ projectId, roomId, renders, archivedRenders, 
                   <div className={`grid ${GRID_COLS_CLASS[gridCols]} gap-2 sm:gap-4`}>
                     {ungrouped.map((render) => {
                       const isSelected = selectedIds.has(render.id);
+                      const isNew = newRenderIds.has(render.id);
                       const cardContent = (
                         <Card className={`overflow-hidden transition-all cursor-pointer group relative ${isSelected ? "ring-2 ring-primary border-primary" : "hover:shadow-[0_4px_16px_rgba(25,33,61,0.2)] hover:border-primary/30"}`}>
                           {selectionMode && (
@@ -591,9 +609,9 @@ export default function RoomView({ projectId, roomId, renders, archivedRenders, 
                         </Card>
                       );
                       return selectionMode ? (
-                        <div key={render.id} onClick={() => toggleSelect(render.id)}>{cardContent}</div>
+                        <div key={render.id} onClick={() => toggleSelect(render.id)} className={`rounded-xl transition-all duration-500 ${isNew ? "ring-2 ring-violet-500 ring-offset-2" : ""}`}>{cardContent}</div>
                       ) : (
-                        <Link key={render.id} href={`/projects/${projectId}/renders/${render.id}`}>{cardContent}</Link>
+                        <Link key={render.id} href={`/projects/${projectId}/renders/${render.id}`} className={`block rounded-xl transition-all duration-500 ${isNew ? "ring-2 ring-violet-500 ring-offset-2" : ""}`}>{cardContent}</Link>
                       );
                     })}
                   </div>
@@ -601,8 +619,10 @@ export default function RoomView({ projectId, roomId, renders, archivedRenders, 
                   <div className="bg-card border border-border rounded-xl overflow-hidden">
                     {ungrouped.map((render, i) => {
                       const isSelected = selectedIds.has(render.id);
+                      const isNew = newRenderIds.has(render.id);
                       const row = (
-                        <div className={`flex items-center gap-3 px-4 py-3 transition-colors group ${i !== ungrouped.length - 1 ? "border-b border-border" : ""} ${isSelected ? "bg-primary/5" : "hover:bg-muted/50"} ${selectionMode ? "cursor-pointer" : ""}`}>
+                        <div className={`relative flex items-center gap-3 px-4 py-3 transition-all duration-500 group ${i !== ungrouped.length - 1 ? "border-b border-border" : ""} ${isSelected ? "bg-primary/5" : isNew ? "bg-violet-500/5" : "hover:bg-muted/50"} ${selectionMode ? "cursor-pointer" : ""}`}>
+                          {isNew && <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-violet-500" />}
                           {selectionMode && (
                             <div className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${isSelected ? "bg-primary border-primary" : "border-gray-400"}`}>
                               {isSelected && <svg width="8" height="6" viewBox="0 0 10 8" fill="none"><path d="M1 4L4 7L9 1" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}

@@ -50,10 +50,32 @@ export default function FolderRenderView({ projectId, roomId, folderId, renders 
   const [moveOpen, setMoveOpen] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [newRenderIds, setNewRenderIds] = useState<Set<string>>(new Set());
   const dragCounterRef = useRef(0);
   const router = useRouter();
 
   const { startUpload } = useUploadThing("renderUploader");
+
+  // Track previous render IDs to detect newly added ones
+  const prevRenderIdsRef = useRef<Set<string>>(new Set(renders.map((r) => r.id)));
+
+  useEffect(() => {
+    const prevIds = prevRenderIdsRef.current;
+    const currentIds = new Set(renders.map((r) => r.id));
+    const addedIds = [...currentIds].filter((id) => !prevIds.has(id));
+prevRenderIdsRef.current = currentIds;
+    if (!addedIds.length) return;
+
+    setNewRenderIds((prev) => new Set([...prev, ...addedIds]));
+    const t = setTimeout(() => {
+      setNewRenderIds((prev) => {
+        const next = new Set(prev);
+        addedIds.forEach((id) => next.delete(id));
+        return next;
+      });
+    }, 5000);
+    return () => clearTimeout(t);
+  }, [renders]);
 
   const handleDragEnter = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -233,6 +255,7 @@ export default function FolderRenderView({ projectId, roomId, folderId, renders 
         <div className={`grid ${GRID_COLS_CLASS[gridCols]} gap-2 sm:gap-4`}>
           {sorted.map((render) => {
             const isSelected = selectedIds.has(render.id);
+            const isNew = newRenderIds.has(render.id);
             const card = (
               <Card className={`overflow-hidden transition-all cursor-pointer group relative ${isSelected ? "ring-2 ring-primary border-primary" : "hover:shadow-[0_4px_16px_rgba(25,33,61,0.2)] hover:border-primary/30"}`}>
                 {selectionMode && (
@@ -278,9 +301,9 @@ export default function FolderRenderView({ projectId, roomId, folderId, renders 
               </Card>
             );
             return selectionMode ? (
-              <div key={render.id} onClick={() => toggleSelect(render.id)}>{card}</div>
+              <div key={render.id} onClick={() => toggleSelect(render.id)} className={`rounded-xl transition-all duration-500 ${isNew ? "ring-2 ring-violet-500 ring-offset-2" : ""}`}>{card}</div>
             ) : (
-              <Link key={render.id} href={`/projects/${projectId}/renders/${render.id}`}>{card}</Link>
+              <Link key={render.id} href={`/projects/${projectId}/renders/${render.id}`} className={`block rounded-xl transition-all duration-500 ${isNew ? "ring-2 ring-violet-500 ring-offset-2" : ""}`}>{card}</Link>
             );
           })}
         </div>
@@ -288,8 +311,10 @@ export default function FolderRenderView({ projectId, roomId, folderId, renders 
         <div className="bg-card border border-border rounded-xl overflow-hidden">
           {sorted.map((render, i) => {
             const isSelected = selectedIds.has(render.id);
+            const isNew = newRenderIds.has(render.id);
             const row = (
-              <div className={`flex items-center gap-3 px-4 py-3 transition-colors group ${i !== sorted.length - 1 ? "border-b border-border" : ""} ${isSelected ? "bg-primary/5" : "hover:bg-muted/50"} ${selectionMode ? "cursor-pointer" : ""}`}>
+              <div className={`relative flex items-center gap-3 px-4 py-3 transition-all duration-500 group ${i !== sorted.length - 1 ? "border-b border-border" : ""} ${isSelected ? "bg-primary/5" : isNew ? "bg-violet-500/5" : "hover:bg-muted/50"} ${selectionMode ? "cursor-pointer" : ""}`}>
+                {isNew && <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-violet-500" />}
                 {selectionMode && (
                   <div className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${isSelected ? "bg-primary border-primary" : "border-gray-400"}`}>
                     {isSelected && <svg width="8" height="6" viewBox="0 0 10 8" fill="none"><path d="M1 4L4 7L9 1" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
