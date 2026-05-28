@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { Search, Package, ChevronLeft, ArrowUpDown, Pencil, Trash2, ExternalLink, Plus, Check, X, SlidersHorizontal, Layers, StarOutline, StarFilled } from "@/components/ui/icons";
+import { Search, Package, ChevronLeft, ArrowUpDown, Pencil, Trash2, ExternalLink, Plus, Check, X, SlidersHorizontal, StarOutline, StarFilled } from "@/components/ui/icons";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -179,6 +179,13 @@ export default function ProduktyView({ initialProducts }: Props) {
     }
   }
 
+  const tabCounts = useMemo(() => ({
+    none: products.length,
+    favorites: products.filter((p) => p.favorite).length,
+    category: new Set(products.map((p) => p.category).filter(Boolean)).size,
+    manufacturer: new Set(products.map((p) => p.manufacturer).filter(Boolean)).size,
+  }), [products]);
+
   const showFolders = groupBy !== "none" && groupBy !== "favorites" && folderKey === null;
   const folderLabel =
     folderKey !== null
@@ -201,6 +208,33 @@ export default function ProduktyView({ initialProducts }: Props) {
         </Button>
       </div>
 
+      {/* Tabs */}
+      <div className="flex items-center gap-1 border-b border-border -mb-4">
+        {([
+          ["none", "Wszystkie", tabCounts.none],
+          ["favorites", "Ulubione", tabCounts.favorites],
+          ["category", "Kategorie", tabCounts.category],
+          ["manufacturer", "Producenci", tabCounts.manufacturer],
+        ] as [GroupBy, string, number][]).map(([val, label, count]) => (
+          <button
+            key={val}
+            onClick={() => handleGroupChange(val)}
+            className={`flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+              groupBy === val
+                ? "border-foreground text-foreground"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {label}
+            <span className={`text-[11px] font-semibold px-1.5 py-0.5 rounded-full min-w-[20px] text-center ${
+              groupBy === val ? "bg-foreground text-background" : "bg-muted text-muted-foreground"
+            }`}>
+              {count}
+            </span>
+          </button>
+        ))}
+      </div>
+
       {/* Toolbar */}
       <div className="flex items-center gap-2">
         <div className="relative flex-1">
@@ -220,21 +254,6 @@ export default function ProduktyView({ initialProducts }: Props) {
             <SlidersHorizontal size={15} />
           </button>
         </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger render={
-            <button className={`w-9 h-9 flex-shrink-0 flex items-center justify-center rounded-md border transition-colors ${groupBy !== "none" ? "border-primary bg-primary text-white" : "border-input bg-background text-muted-foreground hover:text-foreground"}`}>
-              <Layers size={14} />
-            </button>
-          } />
-          <DropdownMenuContent align="end">
-            {([["none", "Wszystkie"], ["favorites", "Ulubione"], ["category", "Kategoria"], ["manufacturer", "Producent"]] as [GroupBy, string][]).map(([val, label]) => (
-              <DropdownMenuItem key={val} onClick={() => handleGroupChange(val)} className="justify-between">
-                {label}
-                {groupBy === val && <Check size={14} className="text-primary" />}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
         <DropdownMenu>
           <DropdownMenuTrigger render={
             <button className={`w-9 h-9 flex-shrink-0 flex items-center justify-center rounded-md border transition-colors ${sortOption !== "default" ? "border-primary bg-primary text-white" : "border-input bg-background text-muted-foreground hover:text-foreground"}`}>
