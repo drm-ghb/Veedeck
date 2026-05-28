@@ -35,7 +35,7 @@ export default function MobileMenu({ userName, logoUrl, hiddenModules = [], isTr
     { label: t.nav.notes, href: "/notatnik", icon: <NotebookText size={18} />, slug: null },
     { label: t.nav.discussions, href: "/dyskusje", icon: <ChatBubble size={18} />, slug: null },
     { label: t.nav.surveys, href: "/ankiety", icon: <ClipboardList size={18} />, slug: null },
-    { label: t.nav.veezard, href: "/veezard", icon: <WandStars size={18} />, slug: null },
+    { label: t.nav.veezard, href: "/veezard", icon: <WandStars size={18} />, slug: null, soon: true },
   ];
 
   // Close on route change
@@ -118,7 +118,14 @@ export default function MobileMenu({ userName, logoUrl, hiddenModules = [], isTr
                 <span className="w-5 flex items-center justify-center flex-shrink-0">
                   {item.icon ?? <PushPin size={18} />}
                 </span>
-                {item.label}
+                <span className="flex-1 relative">
+                  {item.label}
+                  {"soon" in item && item.soon && (
+                    <span className="absolute -top-2.5 -right-1 text-[8px] font-bold uppercase tracking-wide px-1 py-px rounded-full bg-primary/15 text-primary leading-none whitespace-nowrap">
+                      Wkrótce
+                    </span>
+                  )}
+                </span>
               </Link>
             );
           })}

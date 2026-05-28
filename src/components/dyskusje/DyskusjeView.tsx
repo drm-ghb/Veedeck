@@ -10,6 +10,16 @@ import { convertHeicFiles } from "@/lib/convert-heic";
 import ImageAnnotationModal from "./ImageAnnotationModal";
 import { SwipeableMessage } from "@/components/ui/swipeable-message";
 import { playMessageSound } from "@/lib/notification-sound";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from "@/components/ui/alert-dialog";
 
 interface ReadReceipt {
   readerId: string;
@@ -138,6 +148,7 @@ export default function DyskusjeView({ currentUserId, currentUserAvatarUrl, init
   const [chatSearchOpen, setChatSearchOpen] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
   const [annotatingImage, setAnnotatingImage] = useState<string | null>(null);
+  const [showArchiveConfirm, setShowArchiveConfirm] = useState(false);
   const [sendingAnnotation, setSendingAnnotation] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const inputTextareaRef = useRef<HTMLTextAreaElement>(null);
@@ -637,6 +648,27 @@ export default function DyskusjeView({ currentUserId, currentUserAvatarUrl, init
           sending={sendingAnnotation}
         />
       )}
+      <AlertDialog open={showArchiveConfirm} onOpenChange={setShowArchiveConfirm}>
+        <AlertDialogContent size="sm">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Zarchiwizować dyskusję?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Dyskusja zostanie przeniesiona do archiwum. Możesz ją przywrócić w dowolnym momencie.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Anuluj</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (selected) toggleArchive(selected.id, false);
+                setShowArchiveConfirm(false);
+              }}
+            >
+              Zarchiwizuj
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <div className="flex flex-1 min-h-0 -mx-3 sm:-mx-6 -my-4 sm:-my-6 overflow-hidden bg-muted/30">
         {/* Sidebar */}
         <div className={`md:flex-shrink-0 flex flex-col md:border-r border-border w-full md:w-72 ${selectedId ? "hidden md:flex" : "flex"}`}>
@@ -758,24 +790,10 @@ export default function DyskusjeView({ currentUserId, currentUserAvatarUrl, init
                         </span>
                         <span
                           onClick={(e) => { e.stopPropagation(); setEditingId(d.id); setEditTitle(d.title); }}
-                          className="p-0.5 rounded text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100"
+                          className="p-0.5 rounded text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto"
                           title="Zmień nazwę"
                         >
                           <Edit2 size={11} />
-                        </span>
-                        <span
-                          onClick={(e) => { e.stopPropagation(); toggleArchive(d.id, d.archived); }}
-                          className="p-0.5 rounded text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100"
-                          title={d.archived ? "Przywróć" : "Zarchiwizuj"}
-                        >
-                          {d.archived ? <ArchiveRestore size={11} /> : <Archive size={11} />}
-                        </span>
-                        <span
-                          onClick={(e) => { e.stopPropagation(); deleteDiscussion(d.id); }}
-                          className="p-0.5 rounded text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100"
-                          title="Usuń"
-                        >
-                          <Trash2 size={11} />
                         </span>
                       </div>
                     </div>
@@ -924,6 +942,13 @@ export default function DyskusjeView({ currentUserId, currentUserAvatarUrl, init
                       title="Edytuj"
                     >
                       <Edit2 size={14} />
+                    </button>
+                    <button
+                      onClick={() => selected.archived ? toggleArchive(selected.id, true) : setShowArchiveConfirm(true)}
+                      className="p-1.5 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                      title={selected.archived ? "Przywróć dyskusję" : "Zarchiwizuj dyskusję"}
+                    >
+                      {selected.archived ? <ArchiveRestore size={14} /> : <Archive size={14} />}
                     </button>
                     <button
                       onClick={() => deleteDiscussion(selected.id)}
