@@ -4,7 +4,7 @@ import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
-  Search, Plus, LayoutGrid, List, MoreVertical, Archive, ArchiveRestore, Trash2, Edit2, Copy, Pin, PinOff, BarChart2,
+  Search, Plus, LayoutGrid, List, MoreVertical, Archive, ArchiveRestore, Trash2, Edit2, Copy, Pin, PinOff, BarChart2, Eye,
 } from "@/components/ui/icons";
 import NewSurveyDialog from "./NewSurveyDialog";
 import TemplatesTab from "./TemplatesTab";
@@ -25,6 +25,7 @@ type Survey = {
   project: { id: string; title: string } | null;
   client: { id: string; name: string } | null;
   _count: { responses: number };
+  viewCount: number;
 };
 
 interface CustomTemplate {
@@ -375,7 +376,15 @@ function SurveyCard({ survey, openMenuId, setOpenMenuId, onArchive, onPin, onDel
       <div className="mt-3 space-y-1 text-xs text-muted-foreground">
         {survey.project && <p>Klient: {survey.project.title}</p>}
         {survey.client && <p>Klient: {survey.client.name}</p>}
-        <p className="pt-1">{formatDate(survey.createdAt)} · {survey._count?.responses ?? 0} odpowiedzi</p>
+        <div className="flex items-center justify-between pt-1">
+          <p>{formatDate(survey.createdAt)} · {survey._count?.responses ?? 0} odpowiedzi</p>
+          {survey.status === "ACTIVE" && (survey.viewCount ?? 0) > 0 && (
+            <span className="flex items-center gap-1 text-muted-foreground" title="Liczba wyświetleń ankiety przez klienta">
+              <Eye size={12} />
+              {survey.viewCount}
+            </span>
+          )}
+        </div>
       </div>
     </a>
   );
@@ -410,7 +419,17 @@ function SurveyTable({ surveys, openMenuId, setOpenMenuId, onArchive, onPin, onD
                 <td className="px-4 py-3"><StatusBadge status={survey.status} /></td>
                 <td className="px-4 py-3 hidden md:table-cell text-muted-foreground">{survey.project?.title ?? "—"}</td>
                 <td className="px-4 py-3 hidden md:table-cell text-muted-foreground">{formatDate(survey.createdAt)}</td>
-                <td className="px-4 py-3 text-muted-foreground">{survey._count?.responses ?? 0}</td>
+                <td className="px-4 py-3 text-muted-foreground">
+                  <div className="flex items-center gap-3">
+                    <span>{survey._count?.responses ?? 0}</span>
+                    {survey.status === "ACTIVE" && (survey.viewCount ?? 0) > 0 && (
+                      <span className="flex items-center gap-1" title="Liczba wyświetleń ankiety przez klienta">
+                        <Eye size={12} />
+                        {survey.viewCount}
+                      </span>
+                    )}
+                  </div>
+                </td>
                 <td className="px-4 py-3">
                   <div className="relative flex justify-end">
                     <button

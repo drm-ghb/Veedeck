@@ -35,6 +35,10 @@ export async function POST(
   });
 
   if (existing) {
+    await prisma.surveyResponse.update({
+      where: { id: existing.id },
+      data: { viewCount: { increment: 1 } },
+    });
     if (existing.completedAt) {
       return NextResponse.json({
         responseId: existing.id,
@@ -56,6 +60,7 @@ export async function POST(
       surveyId: survey.id,
       respondentEmail: email.trim().toLowerCase(),
       respondentName: name?.trim() ?? null,
+      viewCount: 1,
     },
   });
 

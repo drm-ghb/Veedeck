@@ -19,6 +19,7 @@ export default async function AnkietyPage() {
         project: { select: { id: true, title: true } },
         client: { select: { id: true, name: true } },
         _count: { select: { responses: true } },
+        responses: { select: { viewCount: true } },
       },
       orderBy: { order: "asc" },
     }),
@@ -36,5 +37,10 @@ export default async function AnkietyPage() {
     }),
   ]);
 
-  return <SurveysClient surveys={surveys as any} projects={projects} customTemplates={customTemplates as any} />;
+  const surveysWithViewCount = surveys.map((s) => ({
+    ...s,
+    viewCount: s.responses.reduce((sum, r) => sum + r.viewCount, 0),
+  }));
+
+  return <SurveysClient surveys={surveysWithViewCount as any} projects={projects} customTemplates={customTemplates as any} />;
 }

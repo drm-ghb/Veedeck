@@ -783,6 +783,7 @@ model SurveyResponse {
   respondentEmail String
   respondentName  String?
   completedAt     DateTime?
+  viewCount       Int           @default(0)
   surveyId        String
   survey          Survey        @relation(fields: [surveyId], references: [id], onDelete: Cascade)
   answers         SurveyAnswer[]
