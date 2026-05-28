@@ -19,7 +19,7 @@ export async function PATCH(
   if (!product) return NextResponse.json({ error: "Nie znaleziono" }, { status: 404 });
 
   const body = await req.json();
-  const { name, url, imageUrl, price, manufacturer, color, dimensions, description, deliveryTime, quantity, category } = body;
+  const { name, url, imageUrl, price, manufacturer, color, dimensions, description, deliveryTime, quantity, category, favorite } = body;
 
   if (name !== undefined && !name?.trim()) return NextResponse.json({ error: "Nazwa jest wymagana" }, { status: 400 });
 
@@ -35,6 +35,7 @@ export async function PATCH(
     ...(deliveryTime !== undefined ? { deliveryTime: deliveryTime || null } : {}),
     ...(quantity !== undefined ? { quantity: typeof quantity === "number" && quantity >= 1 ? quantity : 1 } : {}),
     ...(category !== undefined ? { category: category || null } : {}),
+    ...(favorite !== undefined ? { favorite: Boolean(favorite) } : {}),
   };
 
   try {
@@ -42,7 +43,7 @@ export async function PATCH(
 
     // Sync fields (except quantity) to all linked ListProducts
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { quantity: _qty, ...listProductData } = productData;
+    const { quantity: _qty, favorite: _fav, ...listProductData } = productData;
     if (Object.keys(listProductData).length > 0) {
       await prisma.listProduct.updateMany({
         where: { productId: id },

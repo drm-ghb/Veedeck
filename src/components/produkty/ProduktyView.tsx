@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { Search, Package, ChevronLeft, ArrowUpDown, Pencil, Trash2, ExternalLink, Plus, Check, X, SlidersHorizontal, Layers } from "@/components/ui/icons";
+import { Search, Package, ChevronLeft, ArrowUpDown, Pencil, Trash2, ExternalLink, Plus, Check, X, SlidersHorizontal, Layers, Star } from "@/components/ui/icons";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -37,6 +37,7 @@ interface Product {
   description: string | null;
   deliveryTime: string | null;
   category: string | null;
+  favorite: boolean;
   createdAt: string;
 }
 
@@ -44,7 +45,7 @@ interface Props {
   initialProducts: Product[];
 }
 
-type GroupBy = "none" | "category" | "manufacturer";
+type GroupBy = "none" | "category" | "manufacturer" | "favorites";
 type SortOption = "default" | "price-asc" | "price-desc" | "name-asc" | "name-desc";
 
 const SORT_LABELS: Record<SortOption, string> = {
@@ -83,7 +84,9 @@ export default function ProduktyView({ initialProducts }: Props) {
           (p.manufacturer?.toLowerCase().includes(q) ?? false)
       );
     }
-    if (folderKey !== null) {
+    if (groupBy === "favorites") {
+      list = list.filter((p) => p.favorite);
+    } else if (folderKey !== null) {
       if (groupBy === "category") {
         list = list.filter((p) => (p.category ?? "") === folderKey);
       } else if (groupBy === "manufacturer") {
@@ -163,7 +166,20 @@ export default function ProduktyView({ initialProducts }: Props) {
     setProducts((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
   }
 
-  const showFolders = groupBy !== "none" && folderKey === null;
+  async function handleFavorite(id: string, current: boolean) {
+    setProducts((prev) => prev.map((p) => p.id === id ? { ...p, favorite: !current } : p));
+    const res = await fetch(`/api/products/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ favorite: !current }),
+    });
+    if (!res.ok) {
+      setProducts((prev) => prev.map((p) => p.id === id ? { ...p, favorite: current } : p));
+      toast.error("Błąd zmiany ulubionego");
+    }
+  }
+
+  const showFolders = groupBy !== "none" && groupBy !== "favorites" && folderKey === null;
   const folderLabel =
     folderKey !== null
       ? groupBy === "category"
@@ -211,7 +227,7 @@ export default function ProduktyView({ initialProducts }: Props) {
             </button>
           } />
           <DropdownMenuContent align="end">
-            {([["none", "Wszystkie"], ["category", "Kategoria"], ["manufacturer", "Producent"]] as [GroupBy, string][]).map(([val, label]) => (
+            {([["none", "Wszystkie"], ["favorites", "Ulubione"], ["category", "Kategoria"], ["manufacturer", "Producent"]] as [GroupBy, string][]).map(([val, label]) => (
               <DropdownMenuItem key={val} onClick={() => handleGroupChange(val)} className="justify-between">
                 {label}
                 {groupBy === val && <Check size={14} className="text-primary" />}
@@ -298,6 +314,7 @@ export default function ProduktyView({ initialProducts }: Props) {
                 product={product}
                 onEdit={() => { setEditProduct(product); setAddOpen(true); }}
                 onDelete={() => handleDelete(product.id)}
+                onFavorite={() => handleFavorite(product.id, product.favorite)}
                 deleting={deletingId === product.id}
               />
             ))
@@ -344,11 +361,13 @@ function ProductCard({
   product,
   onEdit,
   onDelete,
+  onFavorite,
   deleting,
 }: {
   product: Product;
   onEdit: () => void;
   onDelete: () => void;
+  onFavorite: () => void;
   deleting: boolean;
 }) {
   const [lightbox, setLightbox] = useState(false);
@@ -425,6 +444,13 @@ function ProductCard({
 
       {/* Actions */}
       <div className="flex items-center gap-1 shrink-0">
+        <button
+          onClick={onFavorite}
+          title={product.favorite ? "Usuń z ulubionych" : "Dodaj do ulubionych"}
+          className={`p-1.5 rounded-md transition-colors ${product.favorite ? "text-yellow-400 hover:text-yellow-500" : "text-muted-foreground hover:text-yellow-400 hover:bg-muted"}`}
+        >
+          <Star size={14} fill={product.favorite ? "currentColor" : "none"} />
+        </button>
         {product.url && (
           <a
             href={product.url}

@@ -29,6 +29,7 @@ export default async function ProduktyPage() {
         description: p.description,
         deliveryTime: p.deliveryTime,
         category: p.category,
+        favorite: p.favorite,
         createdAt: p.createdAt.toISOString(),
       }))}
     />

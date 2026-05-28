@@ -568,6 +568,7 @@ model Product {
   category      String?
   supplier      String?
   catalogNumber String?
+  favorite      Boolean              @default(false)
   createdAt     DateTime             @default(now())
   userId        String
   user         User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
