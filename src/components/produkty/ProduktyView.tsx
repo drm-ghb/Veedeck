@@ -209,7 +209,7 @@ export default function ProduktyView({ initialProducts }: Props) {
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center gap-1 border-b border-border -mb-4">
+      <div className="flex items-center gap-1 mb-5 border-b border-border">
         {([
           ["none", "Wszystkie", tabCounts.none],
           ["favorites", "Ulubione", tabCounts.favorites],
@@ -219,18 +219,20 @@ export default function ProduktyView({ initialProducts }: Props) {
           <button
             key={val}
             onClick={() => handleGroupChange(val)}
-            className={`flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+            className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
               groupBy === val
                 ? "border-foreground text-foreground"
                 : "border-transparent text-muted-foreground hover:text-foreground"
             }`}
           >
             {label}
-            <span className={`text-[11px] font-semibold px-1.5 py-0.5 rounded-full min-w-[20px] text-center ${
-              groupBy === val ? "bg-foreground text-background" : "bg-muted text-muted-foreground"
-            }`}>
-              {count}
-            </span>
+            {count > 0 && (
+              <span className={`ml-1.5 text-xs px-1.5 py-0.5 rounded-full ${
+                groupBy === val ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+              }`}>
+                {count}
+              </span>
+            )}
           </button>
         ))}
       </div>
