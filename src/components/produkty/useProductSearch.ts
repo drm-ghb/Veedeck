@@ -19,6 +19,7 @@ interface SearchFilters {
   categories: string[];
   manufacturers: string[];
   colors: string[];
+  onlyFavorites: boolean;
 }
 
 interface AvailableFilters {
@@ -38,7 +39,8 @@ interface UseProductSearchReturn {
   error: string | null;
   availableFilters: AvailableFilters | null;
   handleQueryChange: (query: string) => void;
-  handleFilterChange: (filterType: keyof SearchFilters, value: string) => void;
+  handleFilterChange: (filterType: keyof Omit<SearchFilters, "onlyFavorites">, value: string) => void;
+  toggleFavorites: () => void;
   resetFilters: () => void;
   refetchFilters: () => void;
 }
@@ -49,6 +51,7 @@ export function useProductSearch(): UseProductSearchReturn {
     categories: [],
     manufacturers: [],
     colors: [],
+    onlyFavorites: false,
   });
   const [products, setProducts] = useState<Product[]>([]);
   const [total, setTotal] = useState(0);
@@ -85,6 +88,7 @@ export function useProductSearch(): UseProductSearchReturn {
       f.categories.forEach((c) => params.append("categories[]", c));
       f.manufacturers.forEach((m) => params.append("manufacturers[]", m));
       f.colors.forEach((c) => params.append("colors[]", c));
+      if (f.onlyFavorites) params.append("onlyFavorites", "true");
       params.append("limit", "20");
 
       const response = await fetch(`/api/products?${params.toString()}`);
@@ -119,7 +123,7 @@ export function useProductSearch(): UseProductSearchReturn {
     setQuery(newQuery);
   };
 
-  const handleFilterChange = (filterType: keyof SearchFilters, value: string) => {
+  const handleFilterChange = (filterType: keyof Omit<SearchFilters, "onlyFavorites">, value: string) => {
     setFilters((prev) => {
       const current = prev[filterType];
       const updated = current.includes(value)
@@ -130,9 +134,13 @@ export function useProductSearch(): UseProductSearchReturn {
     });
   };
 
+  const toggleFavorites = () => {
+    setFilters((prev) => ({ ...prev, onlyFavorites: !prev.onlyFavorites }));
+  };
+
   const resetFilters = () => {
     setQuery("");
-    setFilters({ categories: [], manufacturers: [], colors: [] });
+    setFilters({ categories: [], manufacturers: [], colors: [], onlyFavorites: false });
     setProducts([]);
     setError(null);
   };
@@ -148,6 +156,7 @@ export function useProductSearch(): UseProductSearchReturn {
     availableFilters,
     handleQueryChange,
     handleFilterChange,
+    toggleFavorites,
     resetFilters,
     refetchFilters: fetchFilters,
   };

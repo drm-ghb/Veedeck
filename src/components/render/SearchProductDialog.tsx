@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useLayoutEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import { Search, X, Package, SlidersHorizontal, ChevronDown, ChevronRight, ChevronLeft, Loader2, LocalMall } from "@/components/ui/icons";
+import { Search, X, Package, SlidersHorizontal, ChevronDown, ChevronRight, ChevronLeft, Loader2, LocalMall, StarFilled, StarOutline } from "@/components/ui/icons";
 import { useProductSearch } from "@/components/produkty/useProductSearch";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -252,7 +252,7 @@ export default function SearchProductDialog({ open, onClose, onSelect, projectId
     search.filters[key].length;
 
   const totalActiveFilters =
-    getActiveCount("categories") + getActiveCount("manufacturers") + getActiveCount("colors");
+    getActiveCount("categories") + getActiveCount("manufacturers") + getActiveCount("colors") + (search.filters.onlyFavorites ? 1 : 0);
 
   function handleClose() {
     if (renderId != null && renderId === activeRenderIdRef.current) {
@@ -594,6 +594,19 @@ export default function SearchProductDialog({ open, onClose, onSelect, projectId
                 {showFilters && search.availableFilters && (
                   <div className="w-56 border-r border-border overflow-y-auto flex-shrink-0">
                     <div className="p-4 space-y-4">
+                      {/* Favorites toggle */}
+                      <button
+                        onClick={search.toggleFavorites}
+                        className={`flex items-center gap-2 w-full px-3 py-2 rounded-lg border transition-colors text-sm font-medium ${
+                          search.filters.onlyFavorites
+                            ? "border-yellow-400 bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-300"
+                            : "border-border text-muted-foreground hover:text-foreground hover:bg-muted"
+                        }`}
+                      >
+                        {search.filters.onlyFavorites ? <StarFilled size={14} /> : <StarOutline size={14} />}
+                        Tylko ulubione
+                      </button>
+
                       {/* Kategorie */}
                       {search.availableFilters.categories.length > 0 && (
                         <div>
@@ -775,7 +788,7 @@ export default function SearchProductDialog({ open, onClose, onSelect, projectId
                         </div>
                       )}
 
-                      {totalActiveFilters > 0 && (
+                      {(totalActiveFilters > 0 || search.filters.onlyFavorites) && (
                         <Button
                           variant="outline"
                           size="sm"

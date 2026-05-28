@@ -22,7 +22,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Search, Loader2, ChevronDown, ChevronRight, SlidersHorizontal } from "@/components/ui/icons";
+import { Search, Loader2, ChevronDown, ChevronRight, SlidersHorizontal, StarFilled, StarOutline } from "@/components/ui/icons";
 import { cn } from "@/lib/utils";
 
 interface Product {
@@ -90,7 +90,8 @@ export function SearchProductDialog({ open, onOpenChange, onSelectProduct }: Pro
   const totalActiveFilters =
     search.filters.categories.length +
     search.filters.manufacturers.length +
-    search.filters.colors.length;
+    search.filters.colors.length +
+    (search.filters.onlyFavorites ? 1 : 0);
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -103,6 +104,19 @@ export function SearchProductDialog({ open, onOpenChange, onSelectProduct }: Pro
           {/* Left panel: Filters — always visible on md+, toggle on mobile */}
           <div className={`${mobileFiltersOpen ? "block w-full" : "hidden"} md:block md:w-64 shrink-0 border-r overflow-y-auto`}>
             <div className="p-4 space-y-4">
+              {/* Favorites toggle */}
+              <button
+                onClick={search.toggleFavorites}
+                className={`flex items-center gap-2 w-full px-3 py-2 rounded-lg border transition-colors text-sm font-medium ${
+                  search.filters.onlyFavorites
+                    ? "border-yellow-400 bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-300"
+                    : "border-border text-muted-foreground hover:text-foreground hover:bg-muted"
+                }`}
+              >
+                {search.filters.onlyFavorites ? <StarFilled size={14} /> : <StarOutline size={14} />}
+                Tylko ulubione
+              </button>
+
               {/* Categories */}
               <div>
                 <button
@@ -275,6 +289,7 @@ export function SearchProductDialog({ open, onOpenChange, onSelectProduct }: Pro
               {(search.filters.categories.length > 0 ||
                 search.filters.manufacturers.length > 0 ||
                 search.filters.colors.length > 0 ||
+                search.filters.onlyFavorites ||
                 search.query) && (
                 <Button
                   variant="outline"

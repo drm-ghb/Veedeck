@@ -15,6 +15,7 @@ export async function GET(req: NextRequest) {
     const categoriesParam = req.nextUrl.searchParams.getAll("categories[]");
     const manufacturersParam = req.nextUrl.searchParams.getAll("manufacturers[]");
     const colorsParam = req.nextUrl.searchParams.getAll("colors[]");
+    const onlyFavorites = req.nextUrl.searchParams.get("onlyFavorites") === "true";
     const limit = Math.min(parseInt(req.nextUrl.searchParams.get("limit") || "20"), 100);
     const skip = Math.max(parseInt(req.nextUrl.searchParams.get("skip") || "0"), 0);
 
@@ -43,6 +44,10 @@ export async function GET(req: NextRequest) {
 
       if (colorsParam.length > 0) {
         whereConditions.color = { in: colorsParam };
+      }
+
+      if (onlyFavorites) {
+        whereConditions.favorite = true;
       }
 
       const [products, total] = await Promise.all([
