@@ -1,4 +1,5 @@
 import { auth } from "@/lib/auth";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import GlobalSearch from "@/components/dashboard/GlobalSearch";
 import { LogoBrand } from "@/components/dashboard/LogoBrand";
@@ -17,6 +18,8 @@ export default async function ListyLayout({
 }) {
   const session = await auth();
   if (!session?.user) redirect("/login");
+  const cookieStore = await cookies();
+  const sidebarCollapsed = cookieStore.get("nav-sidebar-collapsed")?.value === "true";
 
   const dbUser = await prisma.user.findUnique({
     where: { id: session.user.id! },
@@ -44,7 +47,7 @@ export default async function ListyLayout({
         <div className="px-4 flex items-center gap-2 py-3">
           {/* Left: logo */}
           <div className="shrink-0 sm:flex-1 flex items-center gap-2">
-            <LogoBrand />
+            <LogoBrand initialCollapsed={sidebarCollapsed} />
           </div>
 
           {/* Search - centered on full screen width (sm+) */}
@@ -78,7 +81,7 @@ export default async function ListyLayout({
         </div>
       </nav>
       <div className="flex flex-1 min-h-0">
-        <NavSidebar hiddenModules={hiddenModules} sidebarOrder={sidebarOrder} userId={session.user.id!} />
+        <NavSidebar hiddenModules={hiddenModules} sidebarOrder={sidebarOrder} userId={session.user.id!} initialCollapsed={sidebarCollapsed} />
         <main className="flex-1 px-6 py-6 overflow-y-auto overflow-x-hidden bg-background rounded-tl-2xl">
           {children}
         </main>

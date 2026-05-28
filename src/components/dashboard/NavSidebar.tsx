@@ -16,6 +16,7 @@ interface NavSidebarProps {
   sidebarOrder?: string[];
   userId?: string;
   isTrial?: boolean;
+  initialCollapsed?: boolean;
 }
 
 function getSettingsHref(pathname: string): string {
@@ -30,15 +31,11 @@ const HIDDEN_ON: RegExp[] = [
   /^\/listy\/.+/,
 ];
 
-export default function NavSidebar({ hiddenModules, isAdmin, sidebarOrder, userId, isTrial }: NavSidebarProps) {
+export default function NavSidebar({ hiddenModules, isAdmin, sidebarOrder, userId, isTrial, initialCollapsed = false }: NavSidebarProps) {
   const pathname = usePathname();
   const { theme, setTheme } = useTheme();
   const t = useT();
-  const [collapsed, setCollapsed] = useState(false);
-
-  useEffect(() => {
-    setCollapsed(localStorage.getItem("nav-sidebar-collapsed") === "true");
-  }, []);
+  const [collapsed, setCollapsed] = useState(initialCollapsed);
   const [helpOpen, setHelpOpen] = useState(false);
   const [helpSubject, setHelpSubject] = useState("");
   const [helpDesc, setHelpDesc] = useState("");
@@ -136,6 +133,7 @@ export default function NavSidebar({ hiddenModules, isAdmin, sidebarOrder, userI
     const next = !collapsed;
     setCollapsed(next);
     localStorage.setItem("nav-sidebar-collapsed", String(next));
+    document.cookie = `nav-sidebar-collapsed=${next}; path=/; max-age=31536000; SameSite=Lax`;
     window.dispatchEvent(new CustomEvent("sidebar-state-change", { detail: { collapsed: next } }));
   }
 

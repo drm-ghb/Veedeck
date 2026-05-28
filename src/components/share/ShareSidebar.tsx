@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useLayoutEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { LayoutDashboard, LocalMall, PanelLeftClose, PanelLeftOpen, PushPin, Sun, Moon, HelpCircle, Settings, UserRound, X, CheckCircle, ChatBubble, LogOut, Payments } from "@/components/ui/icons";
+import { LayoutDashboard, LocalMall, PanelLeftClose, PanelLeftOpen, PushPin, Sun, Moon, HelpCircle, Settings, UserRound, X, CheckCircle, ChatBubble, LogOut, Payments, CalendarNote } from "@/components/ui/icons";
 import { signOut } from "next-auth/react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -37,6 +37,10 @@ interface ShareSidebarProps {
   showPayments?: boolean;
   /** When provided, clicking Płatności calls this */
   onPaymentsClick?: () => void;
+  /** When true, show Harmonogram item in sidebar */
+  showHarmonogram?: boolean;
+  /** When provided, clicking Harmonogram calls this */
+  onHarmonogramClick?: () => void;
   /** When provided, clicking Ustawienia calls this instead of navigating (client mode) */
   onSettingsClick?: () => void;
   /** When provided, use /client/[projectId] links instead of /share/[token] links */
@@ -60,12 +64,14 @@ export default function ShareSidebar({
   showListy = true,
   showDyskusje = false,
   showPayments = false,
+  showHarmonogram = false,
   shoppingLists = [],
   onHomeClick,
   onProjectFlowClick,
   onDiscussionClick,
   onListClick,
   onPaymentsClick,
+  onHarmonogramClick,
   onSettingsClick,
   clientProjectId,
   activeView,
@@ -115,7 +121,7 @@ export default function ShareSidebar({
     setSettingsOpen(false);
   }
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const saved = localStorage.getItem("nav-sidebar-collapsed");
     if (saved === "true") setCollapsed(true);
   }, []);
@@ -392,6 +398,20 @@ export default function ShareSidebar({
               <Payments size={18} />
             </span>
             {showLabels && "Płatności"}
+          </button>
+        )}
+
+        {/* Harmonogram */}
+        {showHarmonogram && onHarmonogramClick && (
+          <button
+            onClick={() => { onHarmonogramClick(); setMobileSidebarOpen(false); }}
+            title={isCollapsed ? "Harmonogram" : undefined}
+            className={`w-full ${linkCls(clientProjectId ? activeView === "schedule" : false)}`}
+          >
+            <span className="flex-shrink-0 w-5 flex items-center justify-center">
+              <CalendarNote size={18} />
+            </span>
+            {showLabels && "Harmonogram"}
           </button>
         )}
 

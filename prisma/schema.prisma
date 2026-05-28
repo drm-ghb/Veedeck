@@ -227,6 +227,7 @@ model Project {
   startDate                    DateTime?
   endDate                      DateTime?
   paymentsSharedWithClient     Boolean         @default(false)
+  scheduleSharedWithClient     Boolean         @default(false)
   user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   clients        ProjectClient[]
   renders        Render[]
@@ -235,8 +236,9 @@ model Project {
   discussion     Discussion?
   tasks          Task[]
   surveys        Survey[]
-  paymentGroupsAsRfProject PaymentGroup[] @relation("PaymentGroupRfProject")
-  paymentsAsRfProject      Payment[]      @relation("PaymentRfProject")
+  paymentGroupsAsRfProject PaymentGroup[]  @relation("PaymentGroupRfProject")
+  paymentsAsRfProject      Payment[]       @relation("PaymentRfProject")
+  schedulePhases           SchedulePhase[] @relation("SchedulePhaseRfProject")
 }
 
 model ProjectClient {
@@ -256,9 +258,10 @@ model ProjectClient {
   user          User?          @relation("ProjectClientUser", fields: [userId], references: [id], onDelete: SetNull)
   paymentGroups PaymentGroup[]
   payments      Payment[]
-  docFolders    ClientDocFolder[]
-  docs          ClientDoc[]
-  surveys       Survey[]
+  docFolders      ClientDocFolder[]
+  docs            ClientDoc[]
+  surveys         Survey[]
+  schedulePhases  SchedulePhase[]
 }
 
 model PaymentGroup {
@@ -814,4 +817,35 @@ model Model3D {
   urlStl       String?
   urlFbx       String?
   createdAt    DateTime @default(now())
+}
+
+model SchedulePhase {
+  id          String        @id @default(cuid())
+  clientId    String
+  rfProjectId String?
+  name        String
+  startDate   DateTime?
+  endDate     DateTime?
+  done        Boolean       @default(false)
+  hidden      Boolean       @default(false)
+  order       Int           @default(0)
+  createdAt   DateTime      @default(now())
+  client      ProjectClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  rfProject   Project?      @relation("SchedulePhaseRfProject", fields: [rfProjectId], references: [id], onDelete: SetNull)
+  items       ScheduleItem[]
+}
+
+model ScheduleItem {
+  id          String        @id @default(cuid())
+  phaseId     String
+  name        String
+  description String?
+  startDate   DateTime?
+  endDate     DateTime?
+  done        Boolean       @default(false)
+  hidden      Boolean       @default(false)
+  isSection   Boolean       @default(false)
+  order       Int           @default(0)
+  createdAt   DateTime      @default(now())
+  phase       SchedulePhase @relation(fields: [phaseId], references: [id], onDelete: Cascade)
 }

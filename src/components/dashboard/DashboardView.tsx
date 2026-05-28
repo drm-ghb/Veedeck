@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/icons";
 import NewProjectDialog from "./NewProjectDialog";
 import NewListDialog from "@/components/listy/NewListDialog";
+import PdfThumbnail from "@/components/render/PdfThumbnail";
 import { useT } from "@/lib/i18n";
 
 interface Stats {
@@ -42,6 +43,7 @@ interface RecentProject {
   pinned: boolean;
   renderCount: number;
   lastRenderUrl: string | null;
+  lastRenderFileType: string | null;
   updatedAt: string;
   unreadPins: number;
   unreadChat: number;
@@ -476,8 +478,12 @@ export default function DashboardView({
                   >
                     <div className="w-full aspect-[4/3] bg-muted flex items-center justify-center overflow-hidden">
                       {project.lastRenderUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={project.lastRenderUrl} alt={project.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                        project.lastRenderFileType === "pdf" ? (
+                          <PdfThumbnail fileUrl={project.lastRenderUrl} className="w-full h-full group-hover:scale-105 transition-transform duration-300" />
+                        ) : (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={project.lastRenderUrl} alt={project.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                        )
                       ) : (
                         <PushPin size={28} className="text-muted-foreground/30" />
                       )}

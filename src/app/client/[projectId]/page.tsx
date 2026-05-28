@@ -9,6 +9,7 @@ import ShareNavbar from "@/components/share/ShareNavbar";
 import ShareSidebar from "@/components/share/ShareSidebar";
 import ClientDiscussionView from "@/components/dyskusje/ClientDiscussionView";
 import ClientPaymentsView from "@/components/share/ClientPaymentsView";
+import ClientScheduleView from "@/components/share/ClientScheduleView";
 import ShareListClient from "@/components/listy/ShareListClient";
 import ModuleGuideSlider from "@/components/share/ModuleGuideSlider";
 import { getRoomIcon } from "@/lib/roomIcons";
@@ -53,6 +54,7 @@ interface Project {
   shoppingLists: { id: string; name: string; shareToken: string }[];
   hasDiscussion: boolean; discussionId: string | null; colorTheme: string;
   paymentsSharedWithClient: boolean;
+  scheduleSharedWithClient: boolean;
 }
 
 export default function ClientProjectPage() {
@@ -91,6 +93,8 @@ export default function ClientProjectPage() {
       }
     } else if (v === "payments") {
       setView("payments"); setSelectedRoom(null); setSelectedFolder(null);
+    } else if (v === "schedule") {
+      setView("schedule"); setSelectedRoom(null); setSelectedFolder(null);
     } else if (v === "discussion") {
       setView("discussion"); setSelectedRoom(null); setSelectedFolder(null);
     } else if (v === "settings") {
@@ -105,7 +109,7 @@ export default function ClientProjectPage() {
   }
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState<"home" | "rooms" | "room" | "render" | "discussion" | "settings" | "lists" | "list" | "payments">("home");
+  const [view, setView] = useState<"home" | "rooms" | "room" | "render" | "discussion" | "settings" | "lists" | "list" | "payments" | "schedule">("home");
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
   const [selectedFolder, setSelectedFolder] = useState<{ id: string; name: string } | null>(null);
   const [selectedRender, setSelectedRender] = useState<Render | null>(null);
@@ -384,6 +388,7 @@ export default function ClientProjectPage() {
     showListy: !project.hiddenModules.includes("listy"),
     showDyskusje: !project.hiddenModules.includes("dyskusje"),
     showPayments: project.paymentsSharedWithClient,
+    showHarmonogram: project.scheduleSharedWithClient,
     shoppingLists: project.shoppingLists,
     onHomeClick: () => { setView("home"); setSelectedRoom(null); setSelectedFolder(null); navigate({}); },
     onProjectFlowClick: () => { if (project.rooms.length === 1) { setSelectedRoom(project.rooms[0]); setSelectedFolder(null); setView("room"); navigate({ view: "room", roomId: project.rooms[0].id }); } else { setView("rooms"); navigate({ view: "rooms" }); } },
@@ -391,6 +396,7 @@ export default function ClientProjectPage() {
     onSettingsClick: () => { setView("settings"); navigate({ view: "settings" }); },
     onListClick: () => { if (project.shoppingLists.length === 1) { openList(project.shoppingLists[0].id); } else { setView("lists"); navigate({ view: "lists" }); } },
     onPaymentsClick: () => { setView("payments"); navigate({ view: "payments" }); },
+    onHarmonogramClick: () => { setView("schedule"); navigate({ view: "schedule" }); },
     clientProjectId: projectId,
     activeView: view,
     currentUserId,
@@ -408,6 +414,22 @@ export default function ClientProjectPage() {
           <ShareSidebar {...sidebarProps} />
           <main className="flex-1 overflow-y-auto bg-background rounded-tl-2xl">
             <ClientPaymentsView projectId={projectId} />
+          </main>
+        </div>
+      </div>
+    );
+  }
+
+  // Schedule view
+  if (view === "schedule") {
+    return (
+      <div className="h-dvh flex flex-col bg-muted/60">
+        {themeApplier}
+        <ShareNavbar clientLogoUrl={project.clientLogoUrl} designerName={project.designerName ?? undefined} clientName={authorName} onLogoClick={() => { setView("home"); setSelectedRoom(null); setSelectedFolder(null); navigate({}); }} onMobileMenuOpen={() => setMobileSidebarOpen(true)} currentUserId={currentUserId} />
+        <div className="flex flex-1 min-h-0">
+          <ShareSidebar {...sidebarProps} />
+          <main className="flex-1 overflow-y-auto bg-background rounded-tl-2xl">
+            <ClientScheduleView projectId={projectId} />
           </main>
         </div>
       </div>
@@ -447,6 +469,8 @@ export default function ClientProjectPage() {
             onListClick={() => { if (project.shoppingLists.length === 1) { openList(project.shoppingLists[0].id); } else { setView("lists"); navigate({ view: "lists" }); } }}
             showPayments={project.paymentsSharedWithClient}
             onPaymentsClick={() => { setView("payments"); navigate({ view: "payments" }); }}
+            showHarmonogram={project.scheduleSharedWithClient}
+            onHarmonogramClick={() => { setView("schedule"); navigate({ view: "schedule" }); }}
             clientProjectId={projectId}
             activeView={view}
             currentUserId={currentUserId}
@@ -519,6 +543,8 @@ export default function ClientProjectPage() {
             onListClick={() => { if (project.shoppingLists.length === 1) { openList(project.shoppingLists[0].id); } else { setView("lists"); navigate({ view: "lists" }); } }}
             showPayments={project.paymentsSharedWithClient}
             onPaymentsClick={() => { setView("payments"); navigate({ view: "payments" }); }}
+            showHarmonogram={project.scheduleSharedWithClient}
+            onHarmonogramClick={() => { setView("schedule"); navigate({ view: "schedule" }); }}
             clientProjectId={projectId}
             activeView={view}
             currentUserId={currentUserId}
@@ -998,6 +1024,8 @@ export default function ClientProjectPage() {
           onListClick={() => { if (project.shoppingLists.length === 1) { openList(project.shoppingLists[0].id); } else { setView("lists"); navigate({ view: "lists" }); } }}
           showPayments={project.paymentsSharedWithClient}
           onPaymentsClick={() => { setView("payments"); navigate({ view: "payments" }); }}
+          showHarmonogram={project.scheduleSharedWithClient}
+          onHarmonogramClick={() => { setView("schedule"); navigate({ view: "schedule" }); }}
           clientProjectId={projectId}
           activeView={view}
           currentUserId={currentUserId}

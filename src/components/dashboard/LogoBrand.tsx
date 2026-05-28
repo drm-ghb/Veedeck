@@ -4,13 +4,11 @@ import Link from "next/link";
 import { useState, useEffect } from "react";
 import { useTheme } from "@/lib/theme";
 
-export function LogoBrand() {
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+export function LogoBrand({ initialCollapsed = false }: { initialCollapsed?: boolean }) {
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(initialCollapsed);
   const { colorTheme } = useTheme();
 
   useEffect(() => {
-    setSidebarCollapsed(localStorage.getItem("nav-sidebar-collapsed") === "true");
-
     function handler(e: Event) {
       setSidebarCollapsed((e as CustomEvent<{ collapsed: boolean }>).detail.collapsed);
     }

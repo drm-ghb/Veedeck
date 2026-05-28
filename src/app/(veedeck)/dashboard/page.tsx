@@ -29,7 +29,7 @@ export default async function DashboardPage() {
       updatedAt: true,
       renders: {
         where: { archived: false },
-        select: { fileUrl: true },
+        select: { fileUrl: true, fileType: true },
         orderBy: { createdAt: "desc" },
         take: 1,
       },
@@ -53,7 +53,7 @@ export default async function DashboardPage() {
       updatedAt: true,
       renders: {
         where: { archived: false },
-        select: { fileUrl: true },
+        select: { fileUrl: true, fileType: true },
         orderBy: { createdAt: "desc" },
         take: 1,
       },
@@ -343,6 +343,7 @@ export default async function DashboardPage() {
         pinned: p.pinned,
         renderCount: p._count.renders,
         lastRenderUrl: p.renders[0]?.fileUrl ?? null,
+        lastRenderFileType: p.renders[0]?.fileType ?? null,
         updatedAt: p.updatedAt.toISOString(),
         unreadPins: projectUnreadPins.get(p.id) ?? 0,
         unreadChat: projectUnreadChat.get(p.id) ?? 0,

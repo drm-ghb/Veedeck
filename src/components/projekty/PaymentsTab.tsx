@@ -112,6 +112,51 @@ function isDescendant(ancestorId: string, targetId: string, groups: PaymentGroup
   return children.some((g) => g.id === targetId || isDescendant(g.id, targetId, groups));
 }
 
+// ── Dialog: Eksport CSV ──────────────────────────────────────────────────────
+
+function ExportPaymentsDialog({
+  sections,
+  onConfirm,
+  onClose,
+}: {
+  sections: { key: string; label: string; rfProjectId: string | null }[];
+  onConfirm: (key: string) => void;
+  onClose: () => void;
+}) {
+  const [key, setKey] = useState(sections[0]?.key ?? "");
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
+      <div className="bg-card border border-border rounded-2xl shadow-xl w-full max-w-sm mx-4 p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
+        <h2 className="font-semibold text-base">Eksport płatności</h2>
+        {sections.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Brak danych do eksportu.</p>
+        ) : (
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Projekt</label>
+            <select
+              value={key}
+              onChange={(e) => setKey(e.target.value)}
+              className="w-full text-sm px-3 py-2 border border-border rounded-lg bg-background focus:outline-none focus:ring-1 focus:ring-primary/30"
+            >
+              {sections.map((s) => (
+                <option key={s.key} value={s.key}>{s.label}</option>
+              ))}
+            </select>
+          </div>
+        )}
+        <div className="flex justify-end gap-2 pt-1">
+          <Button variant="outline" size="sm" onClick={onClose}>Anuluj</Button>
+          <Button size="sm" disabled={!key} onClick={() => onConfirm(key)}>
+            <Download size={13} className="mr-1.5" />
+            Pobierz CSV
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Dialog: Nowa płatność (projekt) ─────────────────────────────────────────
 
 function NewPaymentProjectDialog({
@@ -485,6 +530,7 @@ export function PaymentsTab({ clientId, projectId, paymentsSharedWithClient: ini
   const [sectionCollapsed, setSectionCollapsed] = useState<Record<string, boolean>>({});
   const [shared, setShared] = useState(initialShared);
   const [sharingLoading, setSharingLoading] = useState(false);
+  const [showExportDialog, setShowExportDialog] = useState(false);
 
 
   const [showNewPaymentDialog, setShowNewPaymentDialog] = useState(false);
@@ -719,9 +765,13 @@ export function PaymentsTab({ clientId, projectId, paymentsSharedWithClient: ini
     toast.success(shared ? "Płatności ukryte dla klienta" : "Płatności udostępnione klientowi");
   }
 
-  function handleExportCSV() {
-    const rows = [["Nazwa", "Kwota", "Status", "Grupa"]];
-    for (const p of payments) {
+  function handleExportCSV(sectionKey: string, sectionLabel: string, sectionRfProjectId: string | null) {
+    setShowExportDialog(false);
+    const sectionPayments = sectionRfProjectId === null
+      ? payments.filter((p) => !p.rfProjectId)
+      : payments.filter((p) => p.rfProjectId === sectionRfProjectId);
+    const rows = [["Nazwa", "Kwota (PLN)", "Status", "Grupa"]];
+    for (const p of sectionPayments) {
       const group = groups.find((g) => g.id === p.groupId);
       rows.push([p.name, p.amount.toString(), p.status === "paid" ? "Opłacone" : "Do opłacenia", group?.name ?? ""]);
     }
@@ -729,7 +779,9 @@ export function PaymentsTab({ clientId, projectId, paymentsSharedWithClient: ini
     const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = url; a.download = "platnosci.csv"; a.click();
+    a.href = url;
+    a.download = `platnosci-${sectionLabel.toLowerCase().replace(/\s+/g, "-")}.csv`;
+    a.click();
     URL.revokeObjectURL(url);
   }
 
@@ -968,12 +1020,29 @@ export function PaymentsTab({ clientId, projectId, paymentsSharedWithClient: ini
                 : "Po kliknięciu klient zobaczy zakładkę \"Płatności\" w swoim panelu z listą wszystkich płatności i ich statusów."}
             </div>
           </div>
-          <Button variant="outline" size="sm" onClick={handleExportCSV} className="gap-1.5">
+          <Button variant="outline" size="sm" onClick={() => setShowExportDialog(true)} className="gap-1.5">
             <Download size={13} />
             Eksport CSV
           </Button>
         </div>
       </div>
+
+      {showExportDialog && (() => {
+        const exportSections = [
+          ...sections.map((s) => ({ key: s.key, label: s.label, rfProjectId: s.rfProjectId })),
+          ...(hasUnassigned ? [{ key: "unassigned", label: "Nieprzypisane", rfProjectId: null }] : []),
+        ];
+        return (
+          <ExportPaymentsDialog
+            sections={exportSections}
+            onConfirm={(key) => {
+              const s = exportSections.find((x) => x.key === key)!;
+              handleExportCSV(s.key, s.label, s.rfProjectId);
+            }}
+            onClose={() => setShowExportDialog(false)}
+          />
+        );
+      })()}
 
       {/* Sections per project */}
       {hasAnyContent ? (
