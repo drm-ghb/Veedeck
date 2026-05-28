@@ -36,6 +36,7 @@ interface Comment {
   posY: number | null;
   status: CommentStatus;
   isInternal?: boolean;
+  fromDesigner?: boolean;
   isAiSummary?: boolean;
   author: string;
   createdAt: string;
@@ -781,6 +782,7 @@ export default function RenderViewer({
           posY: pending.y,
           author: authorName,
           isInternal: isDesigner ? newPinInternal : false,
+          fromDesigner: isDesigner,
           voiceUrl: pendingVoiceUrl ?? null,
         }),
       });
@@ -1925,7 +1927,7 @@ export default function RenderViewer({
                   onMouseLeave={handleCommentPinMouseLeave}
                 >
                   <button
-                    className={`w-7 h-7 rounded-full border-2 border-white text-white text-xs font-bold flex items-center justify-center shadow-lg ${dragPos?.id === c.id ? "transition-none cursor-grabbing" : `transition-transform hover:scale-110 ${canDrag ? "cursor-grab" : ""}`} ${c.isInternal ? "bg-slate-500" : STATUS_PIN_COLOR[c.status]} ${selectedId === c.id ? "scale-125 ring-2 ring-white ring-offset-1" : ""}`}
+                    className={`w-7 h-7 rounded-full border-2 border-white text-white text-xs font-bold flex items-center justify-center shadow-lg ${dragPos?.id === c.id ? "transition-none cursor-grabbing" : `transition-transform hover:scale-110 ${canDrag ? "cursor-grab" : ""}`} ${c.fromDesigner || c.isInternal ? "bg-slate-400" : STATUS_PIN_COLOR[c.status]} ${selectedId === c.id ? "scale-125 ring-2 ring-white ring-offset-1" : ""}`}
                     onMouseDown={canDrag ? (e) => startPinDrag(e, c.id, "comment", imgRef.current) : undefined}
                     onClick={(e) => {
                       e.stopPropagation();
@@ -2151,7 +2153,7 @@ export default function RenderViewer({
                 {/* Thread header */}
                 <div className="flex items-center gap-2 px-4 py-3 border-b flex-shrink-0">
                   <span
-                    className={`w-5 h-5 rounded-full text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0 ${STATUS_PIN_COLOR[selectedComment.status]}`}
+                    className={`w-5 h-5 rounded-full text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0 ${selectedComment.fromDesigner || selectedComment.isInternal ? "bg-slate-400" : STATUS_PIN_COLOR[selectedComment.status]}`}
                   >
                     {selectedIndex + 1}
                   </span>
@@ -2365,7 +2367,7 @@ export default function RenderViewer({
                 </div>
 
                 {/* Status dropdown */}
-                {isDesigner && (
+                {isDesigner && !selectedComment.fromDesigner && (
                   <div className="px-4 py-2 border-t flex items-center gap-2 flex-shrink-0">
                     <DropdownMenu>
                       <DropdownMenuTrigger className={`flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-lg border transition-colors ${STATUS_BADGE[selectedComment.status]}`}>
@@ -2579,7 +2581,7 @@ export default function RenderViewer({
                           }}
                         >
                           <div className="flex items-start gap-2">
-                            <span className={`w-5 h-5 rounded-full text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5 ${c.isInternal ? "bg-slate-500" : STATUS_PIN_COLOR[c.status]}`}>
+                            <span className={`w-5 h-5 rounded-full text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5 ${c.fromDesigner || c.isInternal ? "bg-slate-400" : STATUS_PIN_COLOR[c.status]}`}>
                               {i + 1}
                             </span>
                             <div className="flex-1 min-w-0">
@@ -2708,7 +2710,7 @@ export default function RenderViewer({
                                   setReplyContent("");
                                 }}
                               >
-                                <span className={`w-5 h-5 rounded-full text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5 ${item.isInternal ? "bg-slate-500" : STATUS_PIN_COLOR[item.status]}`}>
+                                <span className={`w-5 h-5 rounded-full text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5 ${item.fromDesigner || item.isInternal ? "bg-slate-400" : STATUS_PIN_COLOR[item.status]}`}>
                                   {pinIdx + 1}
                                 </span>
                                 <div className="flex-1 min-w-0">
@@ -3220,7 +3222,7 @@ export default function RenderViewer({
                     onMouseLeave={handleCommentPinMouseLeave}
                   >
                     <button
-                      className={`w-7 h-7 rounded-full border-2 border-white text-white text-xs font-bold flex items-center justify-center shadow-lg ${dragPos?.id === c.id ? "transition-none cursor-grabbing" : `transition-transform hover:scale-110 ${canDrag ? "cursor-grab" : ""}`} ${STATUS_PIN_COLOR[c.status]} ${selectedId === c.id ? "scale-125 ring-2 ring-white ring-offset-1" : ""}`}
+                      className={`w-7 h-7 rounded-full border-2 border-white text-white text-xs font-bold flex items-center justify-center shadow-lg ${dragPos?.id === c.id ? "transition-none cursor-grabbing" : `transition-transform hover:scale-110 ${canDrag ? "cursor-grab" : ""}`} ${c.fromDesigner || c.isInternal ? "bg-slate-400" : STATUS_PIN_COLOR[c.status]} ${selectedId === c.id ? "scale-125 ring-2 ring-white ring-offset-1" : ""}`}
                       onMouseDown={canDrag ? (e) => startPinDrag(e, c.id, "comment", lightboxImgRef.current) : undefined}
                       onClick={(e) => {
                         e.stopPropagation();
@@ -3367,7 +3369,7 @@ export default function RenderViewer({
                   onClick={(e) => e.stopPropagation()}
                 >
                   <div className="flex items-center gap-2 px-4 py-3 border-b flex-shrink-0">
-                    <span className={`w-5 h-5 rounded-full text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0 ${STATUS_PIN_COLOR[selectedComment.status]}`}>
+                    <span className={`w-5 h-5 rounded-full text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0 ${selectedComment.fromDesigner || selectedComment.isInternal ? "bg-slate-400" : STATUS_PIN_COLOR[selectedComment.status]}`}>
                       {selectedIndex + 1}
                     </span>
                     {editingTitleMode ? (
@@ -3556,7 +3558,7 @@ export default function RenderViewer({
                     ))}
                   </div>
 
-                  {isDesigner && (
+                  {isDesigner && !selectedComment.fromDesigner && (
                     <div className="px-4 py-2 border-t flex items-center gap-2 flex-shrink-0">
                       <DropdownMenu>
                         <DropdownMenuTrigger className={`flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-lg border transition-colors ${STATUS_BADGE[selectedComment.status]}`}>
