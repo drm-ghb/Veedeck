@@ -117,8 +117,6 @@ export default function DyskusjeView({ currentUserId, currentUserAvatarUrl, init
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [replyingToMsg, setReplyingToMsg] = useState<{ id: string; content: string; author: string } | null>(null);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editTitle, setEditTitle] = useState("");
   const [showNewForm, setShowNewForm] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [headerEditing, setHeaderEditing] = useState(false);
@@ -554,22 +552,6 @@ export default function DyskusjeView({ currentUserId, currentUserAvatarUrl, init
     }
   }
 
-  async function renameDiscussion(id: string) {
-    if (!editTitle.trim()) return;
-    try {
-      const res = await fetch(`/api/discussions/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: editTitle.trim() }),
-      });
-      if (!res.ok) throw new Error();
-      setDiscussions((prev) => prev.map((d) => (d.id === id ? { ...d, title: editTitle.trim() } : d)));
-      setEditingId(null);
-    } catch {
-      toast.error("Nie udało się zmienić nazwy");
-    }
-  }
-
   async function toggleArchive(id: string, currentArchived: boolean) {
     try {
       const res = await fetch(`/api/discussions/${id}`, {
@@ -748,30 +730,11 @@ export default function DyskusjeView({ currentUserId, currentUserAvatarUrl, init
               <div className="px-4 py-8 text-center text-sm text-muted-foreground">Brak wyników</div>
             ) : (
               filteredDiscussions.map((d) => (
-                editingId === d.id ? (
-                  <div
-                    key={d.id}
-                    className={`w-full text-left px-4 py-3 border-b border-border/50 ${selectedId === d.id ? "bg-primary/10" : ""}`}
-                  >
-                    <div className="flex gap-1">
-                      <input
-                        autoFocus
-                        value={editTitle}
-                        onChange={(e) => setEditTitle(e.target.value)}
-                        onKeyDown={(e) => { if (e.key === "Enter") renameDiscussion(d.id); if (e.key === "Escape") setEditingId(null); }}
-                        className="flex-1 min-w-0 text-sm px-2 py-0.5 rounded border border-border bg-background focus:outline-none"
-                      />
-                      <button onClick={() => renameDiscussion(d.id)} className="text-primary"><Check size={13} /></button>
-                      <button onClick={() => setEditingId(null)} className="text-muted-foreground"><X size={13} /></button>
-                    </div>
-                  </div>
-                ) : (
                   <button
                     key={d.id}
                     onClick={() => {
                       setSelectedId(d.id);
                       markAsRead(d.id);
-                      setEditingId(null);
                       setHeaderEditing(false);
                       setShowResources(false);
                     }}
@@ -788,13 +751,6 @@ export default function DyskusjeView({ currentUserId, currentUserAvatarUrl, init
                         <span className="text-xs text-muted-foreground mt-0.5">
                           {formatTime(d.lastMessage?.createdAt ?? d.updatedAt)}
                         </span>
-                        <span
-                          onClick={(e) => { e.stopPropagation(); setEditingId(d.id); setEditTitle(d.title); }}
-                          className="p-0.5 rounded text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto"
-                          title="Zmień nazwę"
-                        >
-                          <Edit2 size={11} />
-                        </span>
                       </div>
                     </div>
                     {d.lastMessage ? (
@@ -805,7 +761,6 @@ export default function DyskusjeView({ currentUserId, currentUserAvatarUrl, init
                       <p className="text-xs text-muted-foreground truncate pl-3.5">{d.project.title}</p>
                     ) : null}
                   </button>
-                )
               ))
             )}
           </div>
