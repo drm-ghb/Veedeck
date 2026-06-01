@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const session = await auth();
-  const { renderId, title, content, posX, posY, author, isInternal, fromDesigner, voiceUrl, imageUrl, replyToId, replyToContent, replyToAuthor } = await req.json();
+  const { renderId, title, content, posX, posY, posPage, author, isInternal, fromDesigner, voiceUrl, imageUrl, replyToId, replyToContent, replyToAuthor } = await req.json();
 
   const isPin = posX !== null && posX !== undefined && posY !== null && posY !== undefined;
 
@@ -55,22 +55,28 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const comment = await prisma.comment.create({
-    data: {
-      render: { connect: { id: renderId } },
-      title: title || null,
-      content: finalContent,
-      ...(isPin ? { posX, posY } : {}),
-      author,
-      isInternal: isInternal ?? false,
-      fromDesigner: fromDesigner ?? false,
-      voiceUrl: voiceUrl ?? null,
-      imageUrl: imageUrl ?? null,
-      replyToId: replyToId ?? null,
-      replyToContent: replyToContent ?? null,
-      replyToAuthor: replyToAuthor ?? null,
-    },
-  });
+  let comment;
+  try {
+    comment = await prisma.comment.create({
+      data: {
+        render: { connect: { id: renderId } },
+        title: title || null,
+        content: finalContent,
+        ...(isPin ? { posX, posY, posPage: posPage ?? null } : {}),
+        author,
+        isInternal: isInternal ?? false,
+        fromDesigner: fromDesigner ?? false,
+        voiceUrl: voiceUrl ?? null,
+        imageUrl: imageUrl ?? null,
+        replyToId: replyToId ?? null,
+        replyToContent: replyToContent ?? null,
+        replyToAuthor: replyToAuthor ?? null,
+      },
+    });
+  } catch (err) {
+    console.error("[comments POST]", err);
+    return NextResponse.json({ error: String(err) }, { status: 500 });
+  }
 
   await pusherServer.trigger(`render-${renderId}`, "new-comment", comment);
 

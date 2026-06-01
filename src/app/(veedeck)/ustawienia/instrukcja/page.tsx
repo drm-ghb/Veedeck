@@ -5,7 +5,7 @@ import {
   PushPin, LocalMall, Comment, ChatBubble,
   Pin, Check, ExternalLink, History,
   Paperclip, Mic, CornerDownLeft, X, Users,
-  Package, CalendarDays, NotebookText, WandStars, CheckSquare,
+  Package, CalendarDays, NotebookText, VeezardIcon, CheckSquare,
 } from "@/components/ui/icons";
 
 /* ─── DESIGNER PANEL ────────────────────────────────────────────────────── */
@@ -249,7 +249,7 @@ export default function InstrukcjaPage() {
                   {idx === 5 && <CalendarDays size={22} />}
                   {idx === 6 && <NotebookText size={22} />}
                   {idx === 7 && <CheckSquare size={22} />}
-                  {idx === 8 && <WandStars size={22} />}
+                  {idx === 8 && <VeezardIcon size={22} />}
                 </div>
                 <h2 className="font-semibold text-gray-900 dark:text-gray-100">{mod.title}</h2>
               </div>

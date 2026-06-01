@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { Search, Package, ChevronLeft, ArrowUpDown, Pencil, Trash2, ExternalLink, Plus, Check, X, SlidersHorizontal, StarOutline, StarFilled } from "@/components/ui/icons";
+import { Search, Package, ChevronLeft, ArrowUpDown, Pencil, Trash2, ExternalLink, Plus, Check, X, SlidersHorizontal, StarOutline, StarFilled, MoreHorizontal } from "@/components/ui/icons";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -209,7 +209,7 @@ export default function ProduktyView({ initialProducts }: Props) {
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center gap-1 mb-5 border-b border-border">
+      <div className="flex items-center gap-1 mb-5 border-b border-border overflow-x-auto scrollbar-none">
         {([
           ["none", "Wszystkie", tabCounts.none],
           ["favorites", "Ulubione", tabCounts.favorites],
@@ -463,8 +463,8 @@ function ProductCard({
         </span>
       )}
 
-      {/* Actions */}
-      <div className="flex items-center gap-1 shrink-0">
+      {/* Actions — desktop */}
+      <div className="hidden md:flex items-center gap-1 shrink-0">
         <button
           onClick={onFavorite}
           title={product.favorite ? "Usuń z ulubionych" : "Dodaj do ulubionych"}
@@ -495,6 +495,37 @@ function ProductCard({
         >
           <Trash2 size={14} />
         </button>
+      </div>
+
+      {/* Actions — mobile (3 dots) */}
+      <div className="flex md:hidden items-center shrink-0">
+        <DropdownMenu>
+          <DropdownMenuTrigger render={
+            <button className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+              <MoreHorizontal size={16} />
+            </button>
+          } />
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={onFavorite}>
+              {product.favorite ? <StarFilled size={14} className="text-yellow-400" /> : <StarOutline size={14} />}
+              {product.favorite ? "Usuń z ulubionych" : "Dodaj do ulubionych"}
+            </DropdownMenuItem>
+            {product.url && (
+              <DropdownMenuItem onClick={() => window.open(product.url!, "_blank", "noopener,noreferrer")}>
+                <ExternalLink size={14} />
+                Otwórz link
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuItem onClick={onEdit}>
+              <Pencil size={14} />
+              Edytuj
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={onDelete} disabled={deleting} className="text-red-500 focus:text-red-500">
+              <Trash2 size={14} />
+              Usuń
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </div>
   );

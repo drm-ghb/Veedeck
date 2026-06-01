@@ -18,6 +18,11 @@ export default async function DyskusjePage() {
         project: { select: { id: true, title: true } },
         _count: { select: { messages: true } },
         messages: { orderBy: { createdAt: "desc" }, take: 1 },
+        readReceipts: {
+          where: { readerId: userId },
+          select: { lastMessageId: true },
+          take: 1,
+        },
       },
       orderBy: { updatedAt: "desc" },
     }),
@@ -41,11 +46,13 @@ export default async function DyskusjePage() {
         messageCount: d._count.messages,
         lastMessage: d.messages[0]
           ? {
+              id: d.messages[0].id,
               content: d.messages[0].content,
               authorName: d.messages[0].authorName,
               createdAt: d.messages[0].createdAt.toISOString(),
             }
           : null,
+        myReadMessageId: d.readReceipts[0]?.lastMessageId ?? null,
         archived: d.archived,
         updatedAt: d.updatedAt.toISOString(),
       }))}

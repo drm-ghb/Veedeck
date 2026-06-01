@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
 import Pusher from "pusher-js";
-import { LayoutDashboard, Users, LocalMall, Package, PanelLeftClose, PanelLeftOpen, Settings, Sun, Moon, HelpCircle, X, CheckCircle, PushPin, ShieldCheck, CalendarDays, NotebookText, ChatBubble, CheckSquare, WandStars, BookOpen, ClipboardList } from "@/components/ui/icons";
+import { LayoutDashboard, Users, LocalMall, Package, PanelLeftClose, PanelLeftOpen, Settings, Sun, Moon, HelpCircle, X, CheckCircle, PushPin, ShieldCheck, CalendarDays, NotebookText, ChatBubble, CheckSquare, VeezardIcon, BookOpen, ClipboardList } from "@/components/ui/icons";
 import { useTheme } from "@/lib/theme";
 import { useT } from "@/lib/i18n";
 
@@ -67,17 +67,19 @@ export default function NavSidebar({ hiddenModules, isAdmin, sidebarOrder, userI
   useEffect(() => {
     fetch("/api/discussions")
       .then((r) => r.json())
-      .then((data: { id: string; messages?: { createdAt: string }[] }[]) => {
+      .then((data: { id: string; messages?: { id?: string; createdAt: string }[]; myReadMessageId?: string | null }[]) => {
         if (!Array.isArray(data)) return;
 
         // Compute initial unread count from API data + localStorage read times.
-        // This ensures the badge is correct on every mount, not just after visiting /dyskusje.
+        // Falls back to DB read receipt (myReadMessageId) when localStorage is empty (e.g. different device).
         const unreadIds = data.filter((d) => {
           const lastMsg = d.messages?.[0];
           if (!lastMsg) return false;
           const readAt = localStorage.getItem(`discussion-read-${d.id}`);
-          if (!readAt) return true;
-          return new Date(lastMsg.createdAt) > new Date(readAt);
+          if (readAt) return new Date(lastMsg.createdAt) > new Date(readAt);
+          // No localStorage entry — use DB receipt as source of truth
+          if (d.myReadMessageId && lastMsg.id && d.myReadMessageId === lastMsg.id) return false;
+          return true;
         }).map((d) => d.id);
         localStorage.setItem("discussions-unread-count", String(unreadIds.length));
         localStorage.setItem("discussions-unread-ids", JSON.stringify(unreadIds));
@@ -126,7 +128,7 @@ export default function NavSidebar({ hiddenModules, isAdmin, sidebarOrder, userI
     { label: t.nav.calendar, href: "/kalendarz", icon: <CalendarDays size={18} />, slug: null, badge: 0, matchPrefixes: [] as string[] },
     { label: t.nav.notes, href: "/notatnik", icon: <NotebookText size={18} />, slug: null, badge: 0, matchPrefixes: [] as string[] },
     { label: t.nav.discussions, href: "/dyskusje", icon: <ChatBubble size={18} />, slug: null, badge: discussionUnread, matchPrefixes: [] as string[] },
-    { label: t.nav.veezard, href: "/veezard", icon: <WandStars size={18} />, slug: null, badge: 0, matchPrefixes: [] as string[], soon: true },
+    { label: t.nav.veezard, href: "/veezard", icon: <VeezardIcon size={18} />, slug: null, badge: 0, matchPrefixes: [] as string[], soon: true },
   ];
 
   function toggle() {

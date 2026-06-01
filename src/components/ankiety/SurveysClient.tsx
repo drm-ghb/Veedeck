@@ -169,10 +169,32 @@ export default function SurveysClient({ surveys: initial, projects, customTempla
         </button>
       </div>
 
+      {/* Tabs */}
+      <div className="flex items-center gap-1 px-4 sm:px-6 pt-3 border-b border-border overflow-x-auto scrollbar-none">
+        <button
+          onClick={() => setTab("active")}
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px whitespace-nowrap ${tab === "active" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+        >
+          Aktywne <span className="ml-1 text-xs text-muted-foreground">({activeCount})</span>
+        </button>
+        <button
+          onClick={() => setTab("archived")}
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px whitespace-nowrap ${tab === "archived" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+        >
+          Zarchiwizowane <span className="ml-1 text-xs text-muted-foreground">({archivedCount})</span>
+        </button>
+        <button
+          onClick={() => setTab("templates")}
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px whitespace-nowrap ${tab === "templates" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+        >
+          Szablony
+        </button>
+      </div>
+
       {/* Toolbar */}
-      <div className="flex flex-wrap items-center gap-3 px-6 py-3 border-b border-border">
-        {/* Search */}
-        <div className="relative flex-1 min-w-48 max-w-72">
+      <div className="px-4 sm:px-6 py-3 border-b border-border space-y-2">
+        {/* Search — full width */}
+        <div className="relative">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <input
             type="text"
@@ -183,64 +205,42 @@ export default function SurveysClient({ surveys: initial, projects, customTempla
           />
         </div>
 
-        {/* Sort */}
-        <select
-          value={sort}
-          onChange={(e) => setSort(e.target.value as SortMode)}
-          className="px-3 py-1.5 text-sm border border-border rounded-lg bg-background focus:outline-none"
-        >
-          <option value="manual">Ręcznie</option>
-          <option value="az">A–Z</option>
-          <option value="date">Najnowsze</option>
-        </select>
-
-        {/* Group */}
-        <select
-          value={group}
-          onChange={(e) => setGroup(e.target.value as GroupMode)}
-          className="px-3 py-1.5 text-sm border border-border rounded-lg bg-background focus:outline-none"
-        >
-          <option value="none">Brak grupowania</option>
-          <option value="status">Grupuj po statusie</option>
-        </select>
-
-        {/* View toggle */}
-        <div className="ml-auto flex items-center gap-1 border border-border rounded-lg p-0.5">
-          <button
-            onClick={() => handleSetView("grid")}
-            className={`p-1.5 rounded-md transition-colors ${view === "grid" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground"}`}
+        {/* Controls row — sort, group, view toggle always together */}
+        <div className="flex items-center gap-2">
+          <select
+            value={sort}
+            onChange={(e) => setSort(e.target.value as SortMode)}
+            className="flex-1 min-w-0 px-2 py-1.5 text-sm border border-border rounded-lg bg-background focus:outline-none"
           >
-            <LayoutGrid size={16} />
-          </button>
-          <button
-            onClick={() => handleSetView("list")}
-            className={`p-1.5 rounded-md transition-colors ${view === "list" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground"}`}
+            <option value="manual">Ręcznie</option>
+            <option value="az">A–Z</option>
+            <option value="date">Najnowsze</option>
+          </select>
+
+          <select
+            value={group}
+            onChange={(e) => setGroup(e.target.value as GroupMode)}
+            className="flex-1 min-w-0 px-2 py-1.5 text-sm border border-border rounded-lg bg-background focus:outline-none"
           >
-            <List size={16} />
-          </button>
+            <option value="none">Bez grupowania</option>
+            <option value="status">Grupuj: status</option>
+          </select>
+
+          <div className="ml-auto flex items-center gap-1 border border-border rounded-lg p-0.5 shrink-0">
+            <button
+              onClick={() => handleSetView("grid")}
+              className={`p-1.5 rounded-md transition-colors ${view === "grid" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground"}`}
+            >
+              <LayoutGrid size={16} />
+            </button>
+            <button
+              onClick={() => handleSetView("list")}
+              className={`p-1.5 rounded-md transition-colors ${view === "list" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground"}`}
+            >
+              <List size={16} />
+            </button>
+          </div>
         </div>
-      </div>
-
-      {/* Tabs */}
-      <div className="flex items-center gap-1 px-6 pt-3 border-b border-border">
-        <button
-          onClick={() => setTab("active")}
-          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px ${tab === "active" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}
-        >
-          Aktywne <span className="ml-1 text-xs text-muted-foreground">({activeCount})</span>
-        </button>
-        <button
-          onClick={() => setTab("archived")}
-          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px ${tab === "archived" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}
-        >
-          Zarchiwizowane <span className="ml-1 text-xs text-muted-foreground">({archivedCount})</span>
-        </button>
-        <button
-          onClick={() => setTab("templates")}
-          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px ${tab === "templates" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}
-        >
-          Szablony
-        </button>
       </div>
 
       {/* Content */}
@@ -248,7 +248,7 @@ export default function SurveysClient({ surveys: initial, projects, customTempla
         {tab === "templates" ? (
           <TemplatesTab customTemplates={customTemplates} projects={projects} />
         ) : (
-          <div className="p-6">
+          <div className="p-3 sm:p-6">
             {filtered.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-20 text-center text-muted-foreground">
                 <p className="text-sm">{tab === "archived" ? "Brak zarchiwizowanych ankiet." : "Brak aktywnych ankiet."}</p>

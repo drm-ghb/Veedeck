@@ -109,6 +109,7 @@ export default function SurveyEditor({ survey: initial }: Props) {
   const [newSectionName, setNewSectionName] = useState("");
   const [editNameOpen, setEditNameOpen] = useState(false);
   const [editNameValue, setEditNameValue] = useState(survey.name);
+  const [fabOpen, setFabOpen] = useState(false);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
   const selectedQuestion = questions.find((q) => q.id === selectedId) ?? null;
@@ -460,35 +461,39 @@ export default function SurveyEditor({ survey: initial }: Props) {
         ) : (
           <button
             onClick={() => { setEditNameValue(survey.name); setEditNameOpen(true); }}
-            className="flex items-center gap-1.5 text-sm font-semibold hover:text-primary transition-colors truncate max-w-xs"
+            className="flex items-center gap-1.5 text-sm font-semibold hover:text-primary transition-colors truncate max-w-[100px] sm:max-w-xs"
           >
             {survey.name}
             <Edit2 size={12} className="text-muted-foreground flex-shrink-0" />
           </button>
         )}
 
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex items-center gap-1 sm:gap-2">
           <StatusDropdown value={survey.status} onChange={handleStatusChange} disabled={statusSaving} open={statusDropdownOpen} onOpenChange={setStatusDropdownOpen} />
           <button
             onClick={openSaveTemplate}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-border rounded-lg hover:bg-muted transition-colors"
+            title="Zapisz jako szablon"
+            className="flex items-center gap-1.5 px-2 sm:px-3 py-1.5 text-xs font-medium border border-border rounded-lg hover:bg-muted transition-colors"
           >
-            Zapisz jako szablon
+            <Copy size={14} />
+            <span className="hidden sm:inline">Zapisz jako szablon</span>
           </button>
           <button
             onClick={() => setShareModalOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-border rounded-lg hover:bg-muted transition-colors"
+            title="Udostępnij"
+            className="flex items-center gap-1.5 px-2 sm:px-3 py-1.5 text-xs font-medium border border-border rounded-lg hover:bg-muted transition-colors"
           >
             <Share2 size={14} />
-            Udostępnij
+            <span className="hidden sm:inline">Udostępnij</span>
           </button>
           <a
             href={`/ankiety/${survey.id}/podglad`}
             target="_blank" rel="noopener noreferrer"
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-border rounded-lg hover:bg-muted transition-colors"
+            title="Podgląd"
+            className="flex items-center gap-1.5 px-2 sm:px-3 py-1.5 text-xs font-medium border border-border rounded-lg hover:bg-muted transition-colors"
           >
             <Eye size={14} />
-            Podgląd
+            <span className="hidden sm:inline">Podgląd</span>
           </a>
         </div>
       </div>
@@ -499,8 +504,8 @@ export default function SurveyEditor({ survey: initial }: Props) {
         {/* Preview — full width */}
         <div className="h-full overflow-y-auto bg-muted/30 flex flex-col">
 
-          {/* ── Sticky toolbar ── */}
-          <div className="sticky top-0 z-20 pt-3 pb-1 bg-muted/30 flex-shrink-0 flex justify-center px-6">
+          {/* ── Sticky toolbar — desktop only ── */}
+          <div className="hidden md:flex sticky top-0 z-20 pt-3 pb-1 bg-muted/30 flex-shrink-0 justify-center px-6">
             <div className="bg-muted/40 border border-border rounded-xl shadow-sm p-2 w-fit">
               <div className="flex items-center gap-1.5 flex-wrap">
                 <button
@@ -666,6 +671,17 @@ export default function SurveyEditor({ survey: initial }: Props) {
               />
             )}
           </div>
+          {selectedQuestion && (
+            <div className="p-3 border-t border-border flex-shrink-0">
+              <button
+                onClick={() => handleDeleteQuestion(selectedQuestion.id)}
+                className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-lg transition-colors"
+              >
+                <Trash2 size={14} />
+                Usuń pytanie
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -714,6 +730,63 @@ export default function SurveyEditor({ survey: initial }: Props) {
           </div>
         </div>
       )}
+
+      {/* FAB — mobile only */}
+      <div className="md:hidden fixed bottom-6 right-5 z-40">
+        {fabOpen && !addSectionOpen && (
+          <>
+            <div className="fixed inset-0" onClick={() => setFabOpen(false)} />
+            <div className="absolute bottom-16 right-0 bg-popover border border-border rounded-2xl shadow-xl overflow-hidden min-w-[200px]">
+              <p className="text-[11px] font-medium text-muted-foreground px-4 pt-3 pb-1.5 uppercase tracking-wide">Dodaj element</p>
+              <button
+                onClick={() => { setFabOpen(false); setAddSectionOpen(true); }}
+                className="w-full text-left px-4 py-2.5 text-sm font-medium text-primary hover:bg-muted transition-colors flex items-center gap-2"
+              >
+                <Plus size={14} />
+                Sekcja
+              </button>
+              <div className="border-t border-border mx-3 my-1" />
+              {QUESTION_TYPES.map((qt) => (
+                <button
+                  key={qt.value}
+                  onClick={() => { setFabOpen(false); handleAddQuestion(qt.value); }}
+                  className="w-full text-left px-4 py-2.5 text-sm hover:bg-muted transition-colors flex items-center gap-2"
+                >
+                  <Plus size={14} className="text-muted-foreground" />
+                  {qt.label}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+        {addSectionOpen && (
+          <>
+            <div className="fixed inset-0" onClick={() => setAddSectionOpen(false)} />
+            <div className="absolute bottom-16 right-0 bg-popover border border-border rounded-2xl shadow-xl p-3 min-w-[240px] space-y-2">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide px-1">Nowa sekcja</p>
+              <input
+                type="text"
+                value={newSectionName}
+                onChange={(e) => setNewSectionName(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") handleAddSection(); if (e.key === "Escape") setAddSectionOpen(false); }}
+                placeholder="Nazwa sekcji..."
+                className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary/20"
+                autoFocus
+              />
+              <div className="flex gap-2">
+                <button onClick={() => setAddSectionOpen(false)} className="flex-1 py-1.5 text-xs border border-border rounded-lg hover:bg-muted transition-colors">Anuluj</button>
+                <button onClick={handleAddSection} className="flex-1 py-1.5 text-xs font-medium bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-opacity">Utwórz</button>
+              </div>
+            </div>
+          </>
+        )}
+        <button
+          onClick={() => { setAddSectionOpen(false); setFabOpen((v) => !v); }}
+          className="w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center hover:opacity-90 active:scale-95 transition-all"
+        >
+          <Plus size={24} />
+        </button>
+      </div>
 
       {shareModalOpen && (
         <div
@@ -938,11 +1011,19 @@ function PreviewCard({
 
   return (
     <div
-      className={`bg-card border rounded-xl overflow-hidden transition-all group ${
+      className={`bg-card border rounded-xl overflow-hidden transition-all group relative ${
         selected ? "border-primary border-l-4 shadow-sm" : "border-border hover:shadow-sm"
       }`}
     >
-      {/* Top row: drag handle + actions */}
+      {/* Gear icon — mobile: absolute top-right corner */}
+      <button
+        onClick={(e) => { e.stopPropagation(); onGearClick(); }}
+        className={`md:hidden absolute top-2 right-2 p-1.5 rounded-lg transition-all ${selected ? "text-primary" : "text-muted-foreground hover:text-foreground"}`}
+      >
+        <Settings size={14} />
+      </button>
+
+      {/* Top row: drag handle + actions — desktop */}
       <div className="flex items-center justify-between px-4 pt-3 pb-0">
         <span
           {...(dragHandleProps ?? {})}
@@ -951,7 +1032,7 @@ function PreviewCard({
         >
           <GripVertical size={16} />
         </span>
-        <div className="flex items-center gap-0.5">
+        <div className="hidden md:flex items-center gap-0.5">
           <button
             onClick={(e) => { e.stopPropagation(); onGearClick(); }}
             className={`p-1 rounded transition-all ${selected ? "text-primary opacity-100" : "opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-foreground"}`}

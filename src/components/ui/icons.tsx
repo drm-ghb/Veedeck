@@ -256,6 +256,9 @@ export const BookOpen         = icon("menu_book");
 export const Tv               = icon("tv");
 export const ShowerHead       = icon("shower");
 
+// ── Custom brand icons ─────────────────────────────────────────────────────
+export const VeezardIcon = icon("wand_stars");
+
 // ── Aliases with *Icon suffix (UI primitives) ──────────────────────────────
 export const XIcon            = X;
 export const ChevronRightIcon = ChevronRight;

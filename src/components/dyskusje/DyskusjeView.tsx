@@ -35,7 +35,8 @@ interface DiscussionSummary {
   projectId: string | null;
   project: { id: string; title: string } | null;
   messageCount: number;
-  lastMessage: { content: string; authorName: string; createdAt: string } | null;
+  lastMessage: { id?: string; content: string; authorName: string; createdAt: string } | null;
+  myReadMessageId?: string | null;
   archived: boolean;
   updatedAt: string;
 }
@@ -135,7 +136,18 @@ export default function DyskusjeView({ currentUserId, currentUserAvatarUrl, init
     const times: Record<string, string> = {};
     initialDiscussions.forEach((d) => {
       const val = localStorage.getItem(`discussion-read-${d.id}`);
-      if (val) times[d.id] = val;
+      if (val) {
+        times[d.id] = val;
+      } else if (
+        d.myReadMessageId &&
+        d.lastMessage?.id &&
+        d.myReadMessageId === d.lastMessage.id
+      ) {
+        // DB says this discussion was last read up to the latest message — treat as read
+        const syntheticTime = new Date().toISOString();
+        localStorage.setItem(`discussion-read-${d.id}`, syntheticTime);
+        times[d.id] = syntheticTime;
+      }
     });
     return times;
   });

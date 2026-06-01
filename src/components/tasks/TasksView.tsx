@@ -869,14 +869,14 @@ export default function TasksView() {
           onDragEnd={handleKanbanDragEnd}
         >
         <div className="overflow-x-auto pb-2">
-          <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(${Math.max(statuses.length, 1)}, minmax(0, 1fr))` }}>
+          <div className="flex gap-4" style={{ minWidth: `${Math.max(statuses.length, 1) * 284}px` }}>
             {statuses.map((statusCfg) => {
               const col = statusCfg.value;
               const colTasks = kanbanFlat
                 .filter((t) => t.status === col)
                 .filter((t) => !kanbanProjectFilter || t.project?.id === kanbanProjectFilter);
               return (
-                <div key={col} className="bg-muted/30 rounded-xl border border-border overflow-hidden min-w-[220px]">
+                <div key={col} className="bg-muted/30 rounded-xl border border-border overflow-hidden flex-1 min-w-[260px]">
                   <div className="px-4 py-3 border-b border-border flex items-center gap-2">
                     <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: statusCfg.color }} />
                     <span className="text-sm font-semibold">{statusCfg.label}</span>

@@ -14,11 +14,21 @@ export async function GET() {
       project: { select: { id: true, title: true } },
       _count: { select: { messages: true } },
       messages: { orderBy: { createdAt: "desc" }, take: 1 },
+      readReceipts: {
+        where: { readerId: userId },
+        select: { lastMessageId: true },
+        take: 1,
+      },
     },
     orderBy: { updatedAt: "desc" },
   });
 
-  return NextResponse.json(discussions);
+  return NextResponse.json(
+    discussions.map((d) => ({
+      ...d,
+      myReadMessageId: d.readReceipts[0]?.lastMessageId ?? null,
+    }))
+  );
 }
 
 export async function POST(req: NextRequest) {

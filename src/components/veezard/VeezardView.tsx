@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { WandStars, ViewInAr, Sparkles, Image as ImageIcon } from "@/components/ui/icons";
+import { VeezardIcon, ViewInAr, Sparkles, Image as ImageIcon } from "@/components/ui/icons";
 import Generator3DView from "./Generator3DView";
 
 interface Model3D {
@@ -32,7 +32,7 @@ export default function VeezardView({ initialModels }: { initialModels: Model3D[
       {/* Header */}
       <div className="flex items-center gap-3 px-6 py-4 border-b border-border flex-shrink-0">
         <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
-          <WandStars size={20} />
+          <VeezardIcon size={20} />
         </div>
         <div className="flex items-center gap-2">
           <h1 className="text-lg font-semibold text-foreground">Veezard</h1>

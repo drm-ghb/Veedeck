@@ -474,6 +474,7 @@ model Comment {
   content    String
   posX       Float?
   posY       Float?
+  posPage    Int?
   status     CommentStatus @default(NEW)
   author     String
   createdAt  DateTime      @default(now())

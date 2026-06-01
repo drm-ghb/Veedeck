@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { User, Mail, Lock, Info, Sun, Moon, Monitor, Palette, Image as ImageIcon, Layers, LocalMall, Package, Globe, PushPin, Pencil, X, Eye, EyeOff, Phone, UserCircle, Trash2, GripVertical, LayoutDashboard, Users, CheckSquare, CalendarDays, NotebookText, ChatBubble, WandStars } from "@/components/ui/icons";
+import { User, Mail, Lock, Info, Sun, Moon, Monitor, Palette, Image as ImageIcon, Layers, LocalMall, Package, Globe, PushPin, Pencil, X, Eye, EyeOff, Phone, UserCircle, Trash2, GripVertical, LayoutDashboard, Users, CheckSquare, CalendarDays, NotebookText, ChatBubble, VeezardIcon } from "@/components/ui/icons";
 import { useTheme, type Theme, type ColorTheme } from "@/lib/theme";
 import { useT, useLang } from "@/lib/i18n";
 import Cropper from "react-easy-crop";
@@ -152,7 +152,7 @@ export function SettingsGeneral({
     kalendarz:   { label: "Kalendarz",     icon: CalendarDays },
     notatnik:    { label: "Notatnik",      icon: NotebookText },
     dyskusje:    { label: "Dyskusje",      icon: ChatBubble },
-    veezard:     { label: "Veezard",       icon: WandStars },
+    veezard:     { label: "Veezard",       icon: VeezardIcon },
   };
   const initialOrder = initialSidebarOrder.length > 0 ? initialSidebarOrder : DEFAULT_SIDEBAR_ORDER;
   const [sidebarOrder, setSidebarOrder] = useState<string[]>(initialOrder);

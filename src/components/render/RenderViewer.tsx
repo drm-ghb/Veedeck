@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { ChevronLeft, ChevronRight, ChevronDown, Pin, X, Send, ZoomIn, ZoomOut, History, Upload, Maximize2, RotateCcw, Lock, LockOpen, SplitSquareHorizontal, ChevronsLeftRight, Sparkles, Package, Trash2, Edit2, ExternalLink, Mic, StopCircle, CheckCircle2, Armchair, Loader2, FileText, MoreVertical, CornerDownLeft, Paperclip, Download } from "@/components/ui/icons";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import RenderUploader from "./RenderUploader";
+import PdfViewer from "./PdfViewer";
 import { SwipeableMessage } from "@/components/ui/swipeable-message";
 import SearchProductDialog from "./SearchProductDialog";
 import { useUploadThing } from "@/lib/uploadthing-client";
@@ -34,6 +35,7 @@ interface Comment {
   content: string;
   posX: number | null;
   posY: number | null;
+  posPage: number | null;
   status: CommentStatus;
   isInternal?: boolean;
   fromDesigner?: boolean;
@@ -260,6 +262,23 @@ export default function RenderViewer({
   const [replyingToMsg, setReplyingToMsg] = useState<{ id: string; content: string; author: string } | null>(null);
   const [renderStatus, setRenderStatus] = useState<RenderStatus>(initialRenderStatus);
   const [mode, setMode] = useState<"view" | "pin">("view");
+  const [pdfPage, setPdfPage] = useState(1);
+  const [pdfTotalPages, setPdfTotalPages] = useState(1);
+  const [pdfZoom, setPdfZoom] = useState(1);
+  const [pdfMaxHeight, setPdfMaxHeight] = useState(600);
+  const [pdfMaxWidth, setPdfMaxWidth] = useState(800);
+  const imageAreaRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = imageAreaRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => {
+      const pad = window.innerWidth >= 640 ? 48 : 16;
+      setPdfMaxHeight(Math.max(200, el.clientHeight - pad * 2));
+      setPdfMaxWidth(Math.max(200, el.clientWidth - pad * 2));
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
   const [showComments, setShowComments] = useState(false);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
@@ -780,6 +799,7 @@ export default function RenderViewer({
           content: newContent.trim(),
           posX: pending.x,
           posY: pending.y,
+          posPage: isPdf ? pdfPage : null,
           author: authorName,
           isInternal: isDesigner ? newPinInternal : false,
           fromDesigner: isDesigner,
@@ -1481,7 +1501,10 @@ export default function RenderViewer({
     return () => window.removeEventListener("keydown", onKey);
   }, [projectId, prevRender, nextRender, router, roomRenders.length, lightboxOpen, lightboxIndex]);
 
-  const pinComments = comments.filter((c) => c.posX !== null && c.posY !== null);
+  const pinComments = comments.filter((c) =>
+    c.posX !== null && c.posY !== null &&
+    (!isPdf || (c.posPage ?? 1) === pdfPage)
+  );
 
   const todoCount = pinComments.filter((c) => c.status === "NEW").length;
   const inProgressCount = pinComments.filter((c) => c.status === "IN_PROGRESS").length;
@@ -1868,7 +1891,7 @@ export default function RenderViewer({
         )}
 
         {/* Image area */}
-        <div className="flex-1 relative bg-muted">
+        <div ref={imageAreaRef} className="flex-1 relative bg-muted">
           {/* Left navigation arrow */}
           {prevRender && (projectId || onRenderSelect) && (
             <button
@@ -1889,18 +1912,44 @@ export default function RenderViewer({
               <ChevronRight size={20} />
             </button>
           )}
-          <div className={`absolute inset-0 flex items-start justify-start sm:justify-center ${isPdf ? "" : "overflow-auto"} p-2 sm:p-6`}>
+          {/* PDF zoom controls */}
+          {isPdf && (
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 bg-black/50 backdrop-blur-sm rounded-full px-3 py-1.5 text-white text-sm select-none">
+              <button
+                onClick={() => setPdfZoom((z) => Math.max(0.5, Math.round((z - 0.25) * 100) / 100))}
+                disabled={pdfZoom <= 0.5}
+                className="p-0.5 rounded hover:bg-white/20 disabled:opacity-40 transition-colors"
+              >
+                <ZoomOut size={14} />
+              </button>
+              <span className="tabular-nums w-10 text-center">{Math.round(pdfZoom * 100)}%</span>
+              <button
+                onClick={() => setPdfZoom((z) => Math.min(3, Math.round((z + 0.25) * 100) / 100))}
+                disabled={pdfZoom >= 3}
+                className="p-0.5 rounded hover:bg-white/20 disabled:opacity-40 transition-colors"
+              >
+                <ZoomIn size={14} />
+              </button>
+            </div>
+          )}
+          <div className={`absolute inset-0 flex items-start ${isPdf ? "justify-center overflow-auto" : "justify-start sm:justify-center overflow-auto"} p-2 sm:p-6`}>
           <div
-            ref={imgRef}
-            className={`relative select-none ${isPdf ? "w-full h-full" : ""} ${(mode === "pin" || productPinMode) && !isPdf ? "cursor-crosshair" : "cursor-default"}`}
+            ref={!isPdf ? imgRef : undefined}
+            className={`relative select-none ${(mode === "pin" || productPinMode) && !isPdf ? "cursor-crosshair" : "cursor-default"}`}
             onClick={!isPdf ? handleImageClick : undefined}
           >
             {isPdf ? (
-              <iframe
-                src={imageUrl}
-                className="block rounded-lg shadow-sm w-full"
-                style={{ height: "calc(100vh - 180px)", border: "none" }}
-                title="PDF"
+              <PdfViewer
+                ref={imgRef}
+                url={imageUrl}
+                page={pdfPage}
+                onTotalPages={setPdfTotalPages}
+                onPageChange={(p) => { setPdfPage(p); setPending(null); }}
+                onClick={mode === "pin" ? handleImageClick : undefined}
+                className={mode === "pin" ? "cursor-crosshair" : "cursor-default"}
+                maxHeight={pdfMaxHeight}
+                maxWidth={pdfMaxWidth}
+                zoom={pdfZoom}
               />
             ) : (
               /* eslint-disable-next-line @next/next/no-img-element */
