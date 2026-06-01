@@ -951,88 +951,19 @@ export default function DyskusjeView({ currentUserId, currentUserAvatarUrl, init
               </div>
             )}
 
-            {/* Messages, Search results or Files */}
-            {chatSearchOpen && chatSearch.trim() ? (
-              <ChatSearchResults
-                messages={messages}
-                query={chatSearch}
-                onImageClick={setAnnotatingImage}
-              />
-            ) : showResources ? (
-              <div className="flex-1 overflow-y-auto flex flex-col">
-                {/* Tabs */}
-                <div className="flex gap-0 border-b border-border px-5 flex-shrink-0">
-                  {([
-                    { key: "all", label: "Wszystkie" },
-                    { key: "images", label: "Zdjęcia" },
-                    { key: "docs", label: "Dokumenty" },
-                    { key: "sheets", label: "Arkusze" },
-                  ] as const).map((tab) => (
-                    <button
-                      key={tab.key}
-                      onClick={() => setResourceTab(tab.key)}
-                      className={`px-3 py-2.5 text-xs font-medium border-b-2 -mb-px transition-colors ${
-                        resourceTab === tab.key
-                          ? "border-primary text-primary"
-                          : "border-transparent text-muted-foreground hover:text-foreground"
-                      }`}
-                    >
-                      {tab.label}
-                    </button>
-                  ))}
-                </div>
-                <div className="flex-1 overflow-y-auto px-5 py-4">
-                  {(() => {
-                    const isSheet = (name: string) => /\.(xlsx?|csv)$/i.test(name);
-                    const filtered = messages.filter((m) => {
-                      if (!m.attachmentUrl) return false;
-                      if (resourceTab === "images") return m.attachmentType === "image";
-                      if (resourceTab === "docs") return m.attachmentType === "pdf" || (m.attachmentType === "document" && !isSheet(m.attachmentName || ""));
-                      if (resourceTab === "sheets") return m.attachmentType === "document" && isSheet(m.attachmentName || "");
-                      return m.attachmentType === "image" || m.attachmentType === "pdf" || m.attachmentType === "document";
-                    });
-                    if (filtered.length === 0) return (
-                      <div className="flex flex-col items-center justify-center h-40 gap-2 text-muted-foreground">
-                        <FolderOpen size={32} className="opacity-30" />
-                        <p className="text-sm">Brak plików</p>
-                      </div>
-                    );
-                    return (
-                      <div className={resourceTab === "images" ? "grid grid-cols-3 gap-2" : "space-y-2"}>
-                        {filtered.map((m) =>
-                          m.attachmentType === "image" ? (
-                            <button
-                              key={m.id}
-                              onClick={() => setAnnotatingImage(m.attachmentUrl!)}
-                              className="relative aspect-square rounded-xl overflow-hidden border border-border hover:opacity-80 transition-opacity focus:outline-none focus:ring-2 focus:ring-primary/40"
-                              title={m.attachmentName || ""}
-                            >
-                              <img src={m.attachmentUrl!} alt={m.attachmentName || ""} className="w-full h-full object-cover" />
-                            </button>
-                          ) : (
-                            <a
-                              key={m.id}
-                              href={m.attachmentUrl!}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-border bg-background hover:bg-muted transition-colors group"
-                            >
-                              <DocumentIcon name={m.attachmentName || ""} />
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium truncate">{m.attachmentName}</p>
-                                <p className="text-xs text-muted-foreground">{m.authorName} · {formatTime(m.createdAt)}</p>
-                              </div>
-                              <ExternalLink size={14} className="text-muted-foreground opacity-0 group-hover:opacity-100 flex-shrink-0" />
-                            </a>
-                          )
-                        )}
-                      </div>
-                    );
-                  })()}
-                </div>
-              </div>
-            ) : (
-              <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4 space-y-3 relative">
+            {/* Content row: messages column + files sidebar */}
+            <div className="flex-1 min-h-0 flex overflow-hidden">
+
+              {/* Messages + input column — hidden on mobile when files open */}
+              <div className={`flex-1 min-h-0 flex flex-col min-w-0 ${showResources ? "hidden md:flex" : "flex"}`}>
+                {chatSearchOpen && chatSearch.trim() ? (
+                  <ChatSearchResults
+                    messages={messages}
+                    query={chatSearch}
+                    onImageClick={setAnnotatingImage}
+                  />
+                ) : (
+                  <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4 space-y-3 relative">
                 {loadingMessages ? (
                   <div className="flex items-center justify-center h-full text-muted-foreground text-sm">Ładowanie...</div>
                 ) : messages.length === 0 ? (
@@ -1168,6 +1099,95 @@ export default function DyskusjeView({ currentUserId, currentUserAvatarUrl, init
                 </button>
               </div>
             </div>
+              </div>{/* end messages column */}
+
+              {/* Files sidebar: full-screen on mobile, w-80 on desktop */}
+              {showResources && (
+                <div className="flex-1 md:flex-none md:w-80 flex flex-col overflow-hidden md:border-l md:border-border">
+                  {/* Sidebar header with close button */}
+                  <div className="flex items-center justify-between px-4 py-2.5 border-b border-border flex-shrink-0">
+                    <span className="text-sm font-semibold">Pliki dyskusji</span>
+                    <button
+                      onClick={() => setShowResources(false)}
+                      className="p-1.5 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                  {/* Tabs */}
+                  <div className="flex gap-0 border-b border-border px-4 flex-shrink-0">
+                    {([
+                      { key: "all", label: "Wszystkie" },
+                      { key: "images", label: "Zdjęcia" },
+                      { key: "docs", label: "Dokumenty" },
+                      { key: "sheets", label: "Arkusze" },
+                    ] as const).map((tab) => (
+                      <button
+                        key={tab.key}
+                        onClick={() => setResourceTab(tab.key)}
+                        className={`px-3 py-2.5 text-xs font-medium border-b-2 -mb-px transition-colors ${
+                          resourceTab === tab.key
+                            ? "border-primary text-primary"
+                            : "border-transparent text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        {tab.label}
+                      </button>
+                    ))}
+                  </div>
+                  {/* Files content */}
+                  <div className="flex-1 overflow-y-auto px-4 py-4">
+                    {(() => {
+                      const isSheet = (name: string) => /\.(xlsx?|csv)$/i.test(name);
+                      const filtered = messages.filter((m) => {
+                        if (!m.attachmentUrl) return false;
+                        if (resourceTab === "images") return m.attachmentType === "image";
+                        if (resourceTab === "docs") return m.attachmentType === "pdf" || (m.attachmentType === "document" && !isSheet(m.attachmentName || ""));
+                        if (resourceTab === "sheets") return m.attachmentType === "document" && isSheet(m.attachmentName || "");
+                        return m.attachmentType === "image" || m.attachmentType === "pdf" || m.attachmentType === "document";
+                      });
+                      if (filtered.length === 0) return (
+                        <div className="flex flex-col items-center justify-center h-40 gap-2 text-muted-foreground">
+                          <FolderOpen size={32} className="opacity-30" />
+                          <p className="text-sm">Brak plików</p>
+                        </div>
+                      );
+                      return (
+                        <div className={resourceTab === "images" ? "grid grid-cols-3 gap-2" : "space-y-2"}>
+                          {filtered.map((m) =>
+                            m.attachmentType === "image" ? (
+                              <button
+                                key={m.id}
+                                onClick={() => setAnnotatingImage(m.attachmentUrl!)}
+                                className="relative aspect-square rounded-xl overflow-hidden border border-border hover:opacity-80 transition-opacity focus:outline-none focus:ring-2 focus:ring-primary/40"
+                                title={m.attachmentName || ""}
+                              >
+                                <img src={m.attachmentUrl!} alt={m.attachmentName || ""} className="w-full h-full object-cover" />
+                              </button>
+                            ) : (
+                              <a
+                                key={m.id}
+                                href={m.attachmentUrl!}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-border bg-background hover:bg-muted transition-colors group"
+                              >
+                                <DocumentIcon name={m.attachmentName || ""} />
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium truncate">{m.attachmentName}</p>
+                                  <p className="text-xs text-muted-foreground">{m.authorName} · {formatTime(m.createdAt)}</p>
+                                </div>
+                                <ExternalLink size={14} className="text-muted-foreground opacity-0 group-hover:opacity-100 flex-shrink-0" />
+                              </a>
+                            )
+                          )}
+                        </div>
+                      );
+                    })()}
+                  </div>
+                </div>
+              )}
+            </div>{/* end content row */}
           </div>
         ) : (
           <div className="flex-1 hidden md:flex flex-col items-center justify-center text-muted-foreground gap-3 bg-background">
