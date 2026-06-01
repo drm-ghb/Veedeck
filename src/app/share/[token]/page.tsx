@@ -35,6 +35,7 @@ interface Comment {
   content: string;
   posX: number;
   posY: number;
+  posPage: number | null;
   status: "NEW" | "IN_PROGRESS" | "DONE";
   author: string;
   createdAt: string;
