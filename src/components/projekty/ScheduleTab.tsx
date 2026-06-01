@@ -214,7 +214,7 @@ function SortableItemRow({
               <button onClick={() => { setNameVal(item.name); setEditingName(false); }} className="text-muted-foreground"><X size={14} /></button>
             </div>
           ) : (
-            <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground cursor-pointer hover:text-foreground" onClick={() => setEditingName(true)}>
+            <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground cursor-pointer hover:text-foreground truncate block" onClick={() => setEditingName(true)}>
               {item.name}
             </span>
           )}
@@ -267,7 +267,7 @@ function SortableItemRow({
           </div>
         ) : (
           <span
-            className={`text-sm cursor-pointer hover:underline ${item.done ? "line-through text-muted-foreground" : ""}`}
+            className={`text-sm cursor-pointer hover:underline truncate block ${item.done ? "line-through text-muted-foreground" : ""}`}
             onClick={() => setEditingName(true)}
           >
             {item.name}
@@ -821,11 +821,7 @@ export function ScheduleTab({ clientId, projectId, scheduleSharedWithClient: ini
   return (
     <div className="space-y-4">
       {/* Top bar */}
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <Button onClick={() => setShowNewScheduleDialog(true)} size="sm" className="gap-1.5">
-          <Plus size={13} />
-          Dodaj harmonogram
-        </Button>
+      <div className="flex flex-col items-end sm:flex-row sm:items-center sm:justify-end gap-2">
         <div className="flex items-center gap-2">
         <div className="relative group/share">
           <button
@@ -851,6 +847,10 @@ export function ScheduleTab({ clientId, projectId, scheduleSharedWithClient: ini
           Eksport CSV
         </Button>
         </div>
+        <Button onClick={() => setShowNewScheduleDialog(true)} size="sm" className="gap-1.5">
+          <Plus size={13} />
+          Dodaj harmonogram
+        </Button>
       </div>
 
       {showExportDialog && (

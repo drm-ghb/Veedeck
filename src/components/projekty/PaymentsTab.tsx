@@ -994,11 +994,7 @@ export function PaymentsTab({ clientId, projectId, paymentsSharedWithClient: ini
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <Button onClick={() => setShowNewPaymentDialog(true)} size="sm" className="gap-1.5">
-          <Plus size={13} />
-          Nowa płatność
-        </Button>
+      <div className="flex flex-col items-end sm:flex-row sm:items-center sm:justify-end gap-2">
         <div className="flex items-center gap-2">
           {/* Share toggle */}
           <div className="relative group/share">
@@ -1025,6 +1021,10 @@ export function PaymentsTab({ clientId, projectId, paymentsSharedWithClient: ini
             Eksport CSV
           </Button>
         </div>
+        <Button onClick={() => setShowNewPaymentDialog(true)} size="sm" className="gap-1.5">
+          <Plus size={13} />
+          Nowa płatność
+        </Button>
       </div>
 
       {showExportDialog && (() => {
