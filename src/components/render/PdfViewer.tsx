@@ -81,7 +81,7 @@ const PdfViewer = forwardRef<HTMLDivElement, PdfViewerProps>(function PdfViewer(
         canvas.style.width = `${scaled.width / dpr}px`;
         canvas.style.height = `${scaled.height / dpr}px`;
 
-        const renderTask = pdfPage.render({ canvasContext: ctx, viewport: scaled });
+        const renderTask = pdfPage.render({ canvasContext: ctx, canvas, viewport: scaled });
         renderTaskRef.current = renderTask;
         await renderTask.promise;
         if (!cancelled) setStatus("done");
