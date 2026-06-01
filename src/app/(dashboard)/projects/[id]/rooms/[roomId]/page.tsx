@@ -57,7 +57,7 @@ export default async function RoomPage({ params }: Props) {
           <h1 className="text-2xl font-bold">{room.name}</h1>
           <p className="text-sm text-gray-400 mt-0.5">{renders.length} {renders.length === 1 ? "plik" : renders.length < 5 ? "pliki" : "plików"}</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 self-end sm:self-auto">
           <AddFolderDialog roomId={roomId} />
           <RenderUploader projectId={id} roomId={roomId} folders={folders} />
         </div>
